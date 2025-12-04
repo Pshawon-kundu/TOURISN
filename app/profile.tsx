@@ -133,7 +133,6 @@ export default function ProfileScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
       <BottomPillNav />
     </ThemedView>
   );

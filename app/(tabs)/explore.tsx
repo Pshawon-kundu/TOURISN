@@ -1,11 +1,10 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { DestinationCard } from "@/components/destination-card";
 import { Header } from "@/components/header";
-import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/design";
 
@@ -92,58 +91,7 @@ export default function ExploreScreen() {
           ))}
         </View>
       </ScrollView>
-
-      <BottomPillNav>
-        <TouchableOpacity
-          style={navStyles.navButton}
-          onPress={() => router.push("/")}
-        >
-          <View style={navStyles.iconContainer}>
-            <Text style={navStyles.icon}>🏠</Text>
-            <ThemedText style={navStyles.label}>Home</ThemedText>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={navStyles.navButton}
-          onPress={() => router.push("/explore")}
-        >
-          <View style={navStyles.iconContainer}>
-            <Text style={navStyles.icon}>📖</Text>
-            <ThemedText style={navStyles.label}>Explore</ThemedText>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={navStyles.navButton}
-          onPress={() => router.push("/guides")}
-        >
-          <View style={navStyles.iconContainer}>
-            <Text style={navStyles.icon}>🗺️</Text>
-            <ThemedText style={navStyles.label}>Guides</ThemedText>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={navStyles.navButton}
-          onPress={() => router.push("/chat")}
-        >
-          <View style={navStyles.iconContainer}>
-            <Text style={navStyles.icon}>❤️</Text>
-            <ThemedText style={navStyles.label}>Saved</ThemedText>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={navStyles.navButton}
-          onPress={() => router.push("/profile")}
-        >
-          <View style={navStyles.iconContainer}>
-            <Text style={navStyles.icon}>👤</Text>
-            <ThemedText style={navStyles.label}>Profile</ThemedText>
-          </View>
-        </TouchableOpacity>
-      </BottomPillNav>
+      <BottomPillNav />
     </ThemedView>
   );
 }
@@ -159,25 +107,5 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: "48%",
-  },
-});
-
-const navStyles = StyleSheet.create({
-  navButton: {
-    flex: 1,
-    alignItems: "center",
-  },
-  iconContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  icon: {
-    fontSize: 24,
-    marginBottom: 2,
-  },
-  label: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "600",
   },
 });

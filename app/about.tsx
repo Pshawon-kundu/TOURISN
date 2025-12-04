@@ -134,7 +134,6 @@ export default function AboutScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
       <BottomPillNav />
     </ThemedView>
   );
