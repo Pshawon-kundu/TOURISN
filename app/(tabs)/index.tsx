@@ -135,6 +135,7 @@ export default function HomeScreen() {
                   title="About us"
                   onPress={() => {
                     setMenuVisible(false);
+                    router.push("/about");
                   }}
                 />
               </View>
