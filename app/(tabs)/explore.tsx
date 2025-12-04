@@ -1,112 +1,183 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from "expo-router";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { BottomPillNav } from "@/components/bottom-pill-nav";
+import { DestinationCard } from "@/components/destination-card";
+import { Header } from "@/components/header";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Spacing } from "@/constants/design";
 
-export default function TabTwoScreen() {
+const DESTINATIONS = [
+  {
+    id: "cox",
+    name: "Cox's Bazar Beach",
+    imageUrl:
+      "https://images.unsplash.com/photo-1589192471364-23e0c3b3f24e?w=800",
+  },
+  {
+    id: "bandarban",
+    name: "Bandarban Hills",
+    imageUrl:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+  },
+  {
+    id: "sylhet",
+    name: "Sylhet Tea Gardens",
+    imageUrl:
+      "https://images.unsplash.com/photo-1563789031959-4c02bcb41319?w=800",
+  },
+  {
+    id: "sajek",
+    name: "Sajek Valley",
+    imageUrl:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+  },
+  {
+    id: "dhaka",
+    name: "Historic Dhaka",
+    imageUrl:
+      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800",
+  },
+  {
+    id: "sundarbans",
+    name: "Sundarbans Mangrove",
+    imageUrl:
+      "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800",
+  },
+];
+
+export default function ExploreScreen() {
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  const toggleFavorite = (id: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <ThemedView style={styles.container}>
+      <Header title="Explore Bangladesh" />
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Hero destination */}
+        <DestinationCard
+          name={DESTINATIONS[0].name}
+          imageUrl={DESTINATIONS[0].imageUrl}
+          onPress={() => router.push("/guides")}
+          onFavorite={() => toggleFavorite(DESTINATIONS[0].id)}
+          isFavorited={favorites.has(DESTINATIONS[0].id)}
+          large
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+
+        {/* Grid of destinations */}
+        <View style={styles.grid}>
+          {DESTINATIONS.slice(1).map((dest) => (
+            <View key={dest.id} style={styles.gridItem}>
+              <DestinationCard
+                name={dest.name}
+                imageUrl={dest.imageUrl}
+                onPress={() => router.push("/guides")}
+                onFavorite={() => toggleFavorite(dest.id)}
+                isFavorited={favorites.has(dest.id)}
+              />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      <BottomPillNav>
+        <TouchableOpacity
+          style={navStyles.navButton}
+          onPress={() => router.push("/")}
+        >
+          <View style={navStyles.iconContainer}>
+            <Text style={navStyles.icon}>🏠</Text>
+            <ThemedText style={navStyles.label}>Home</ThemedText>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={navStyles.navButton}
+          onPress={() => router.push("/explore")}
+        >
+          <View style={navStyles.iconContainer}>
+            <Text style={navStyles.icon}>📖</Text>
+            <ThemedText style={navStyles.label}>Explore</ThemedText>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={navStyles.navButton}
+          onPress={() => router.push("/guides")}
+        >
+          <View style={navStyles.iconContainer}>
+            <Text style={navStyles.icon}>🗺️</Text>
+            <ThemedText style={navStyles.label}>Guides</ThemedText>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={navStyles.navButton}
+          onPress={() => router.push("/chat")}
+        >
+          <View style={navStyles.iconContainer}>
+            <Text style={navStyles.icon}>❤️</Text>
+            <ThemedText style={navStyles.label}>Saved</ThemedText>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={navStyles.navButton}
+          onPress={() => router.push("/profile")}
+        >
+          <View style={navStyles.iconContainer}>
+            <Text style={navStyles.icon}>👤</Text>
+            <ThemedText style={navStyles.label}>Profile</ThemedText>
+          </View>
+        </TouchableOpacity>
+      </BottomPillNav>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: { flex: 1 },
+  content: { padding: Spacing.md, paddingBottom: 100 },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  gridItem: {
+    width: "48%",
+  },
+});
+
+const navStyles = StyleSheet.create({
+  navButton: {
+    flex: 1,
+    alignItems: "center",
+  },
+  iconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: {
+    fontSize: 24,
+    marginBottom: 2,
+  },
+  label: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
   },
 });
