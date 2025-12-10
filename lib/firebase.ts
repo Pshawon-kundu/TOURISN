@@ -1,4 +1,5 @@
-import { getApps, initializeApp } from "firebase/app";
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
 import {
   addDoc,
   collection,
@@ -7,21 +8,36 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  type Firestore,
 } from "firebase/firestore";
 
-let db: ReturnType<typeof getFirestore> | null = null;
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
 export function initFirebase(firebaseConfig: any) {
   if (!firebaseConfig) return null;
   if (!getApps().length) {
     initializeApp(firebaseConfig);
   }
+
+  app = getApps()[0] || null;
   db = getFirestore();
+  auth = getAuth();
+
   return db;
 }
 
 export function getDb() {
   return db;
+}
+
+export function getAuthInstance() {
+  return auth;
+}
+
+export function getAppInstance() {
+  return app;
 }
 
 export async function sendMessage(

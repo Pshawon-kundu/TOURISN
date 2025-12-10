@@ -1,4 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { signUp } from "@/lib/auth";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -18,10 +19,29 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  const handleSignup = () => {
-    // TODO: Implement actual registration
-    router.replace("/");
+  const handleSignup = async () => {
+    setError("");
+    setInfo("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signUp(email.trim(), password);
+      setInfo("Account created! Redirecting...");
+      router.replace("/");
+    } catch (err: any) {
+      setError(err?.message ?? "Signup failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,9 +117,26 @@ export default function SignupScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-            <Text style={styles.signupButtonText}>Sign Up</Text>
+          <TouchableOpacity
+            style={[styles.signupButton, loading ? { opacity: 0.7 } : undefined]}
+            onPress={handleSignup}
+            disabled={loading}
+          >
+            <Text style={styles.signupButtonText}>
+              {loading ? "Working..." : "Sign Up"}
+            </Text>
           </TouchableOpacity>
+
+          {(error || info) && (
+            <Text
+              style={[
+                styles.message,
+                error ? styles.errorText : styles.infoText,
+              ]}
+            >
+              {error || info}
+            </Text>
+          )}
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -212,6 +249,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  message: {
+    textAlign: "center",
+    marginBottom: Spacing.md,
+    fontSize: 14,
+  },
+  errorText: {
+    color: "#D22",
+  },
+  infoText: {
+    color: Colors.primary,
   },
   divider: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { signIn, resetPassword } from "@/lib/auth";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -16,10 +17,41 @@ import {
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  const handleLogin = () => {
-    // TODO: Implement actual authentication
-    router.replace("/");
+  const handleLogin = async () => {
+    setError("");
+    setInfo("");
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+      router.replace("/");
+    } catch (err: any) {
+      setError(err?.message ?? "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!email.trim()) {
+      setError("Enter your email first");
+      return;
+    }
+
+    setError("");
+    setInfo("");
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setInfo("Password reset email sent");
+    } catch (err: any) {
+      setError(err?.message ?? "Reset failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,12 +104,34 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={styles.forgotButton}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
+            <Text style={styles.forgotText} onPress={handleReset}>
+              Forgot Password?
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Log In</Text>
+          <TouchableOpacity
+            style={[
+              styles.loginButton,
+              loading ? { opacity: 0.7 } : undefined,
+            ]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.loginButtonText}>
+              {loading ? "Working..." : "Log In"}
+            </Text>
           </TouchableOpacity>
+
+          {(error || info) && (
+            <Text
+              style={[
+                styles.message,
+                error ? styles.errorText : styles.infoText,
+              ]}
+            >
+              {error || info}
+            </Text>
+          )}
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -199,6 +253,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  message: {
+    textAlign: "center",
+    marginBottom: Spacing.md,
+    fontSize: 14,
+  },
+  errorText: {
+    color: "#D22",
+  },
+  infoText: {
+    color: Colors.primary,
   },
   divider: {
     flexDirection: "row",

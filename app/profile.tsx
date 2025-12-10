@@ -12,8 +12,23 @@ import {
 import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { signOut as signOutUser } from "@/lib/auth";
 
 export default function ProfileScreen() {
+  const { user } = useAuth();
+  const userName = user?.displayName || user?.email || "Ahanaf Rahman";
+  const userEmail = user?.email || "ahanaf_233@gmail.com";
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      router.replace("/welcome");
+    } catch (err) {
+      console.warn("Logout failed", err);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
@@ -41,8 +56,8 @@ export default function ProfileScreen() {
               style={styles.avatar}
             />
           </View>
-          <Text style={styles.userName}>Ahanaf Rahman</Text>
-          <Text style={styles.userEmail}>ahanaf_233@gmail.com</Text>
+          <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.userEmail}>{userEmail}</Text>
         </View>
 
         {/* Stats Section */}
@@ -128,6 +143,19 @@ export default function ProfileScreen() {
               <Text style={styles.menuText}>Version</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { borderBottomWidth: 0 }]}
+            onPress={handleLogout}
+          >
+            <View style={styles.menuLeft}>
+              <View style={styles.iconContainer}>
+                <Text style={[styles.menuIcon, { color: "#D22" }]}>🚪</Text>
+              </View>
+              <Text style={[styles.menuText, { color: "#D22" }]}>Log Out</Text>
+            </View>
+            <Text style={[styles.chevron, { color: "#D22" }]}>›</Text>
           </TouchableOpacity>
         </View>
 

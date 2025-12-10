@@ -14,10 +14,29 @@ import {
 import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { signOut as signOutUser } from "@/lib/auth";
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const { user } = useAuth();
+  const displayName = user?.displayName || user?.email || "Traveler";
+  const userEmail = user?.email || "";
+  const userInitial = displayName.charAt(0).toUpperCase();
+
+  const handleLogout = async () => {
+    setSigningOut(true);
+    try {
+      await signOutUser();
+      router.replace("/welcome");
+    } catch (err) {
+      console.warn("Logout failed", err);
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   const services = [
     { icon: "🚗", title: "Transport", route: "/transport" },
@@ -84,10 +103,10 @@ export default function HomeScreen() {
 
         <View style={styles.profileBadge}>
           <View style={styles.avatarSmall}>
-            <Text style={styles.avatarText}>T</Text>
+            <Text style={styles.avatarText}>{userInitial}</Text>
           </View>
           <View>
-            <Text style={styles.headerGreeting}>Hi, Traveler</Text>
+            <Text style={styles.headerGreeting}>Hi, {displayName}</Text>
           </View>
         </View>
 
@@ -261,11 +280,11 @@ export default function HomeScreen() {
               {/* Profile Section */}
               <View style={styles.drawerProfile}>
                 <View style={styles.drawerAvatar}>
-                  <Text style={styles.drawerAvatarText}>T</Text>
+                  <Text style={styles.drawerAvatarText}>{userInitial}</Text>
                   <View style={styles.onlineIndicator} />
                 </View>
-                <Text style={styles.drawerName}>Hello, Traveler</Text>
-                <Text style={styles.drawerSubtitle}>log In</Text>
+                <Text style={styles.drawerName}>Hello, {displayName}</Text>
+                {!!userEmail && <Text style={styles.drawerSubtitle}>{userEmail}</Text>}
               </View>
 
               {/* Main Menu */}
@@ -371,10 +390,10 @@ export default function HomeScreen() {
                 />
                 <DrawerItem
                   icon="🚪"
-                  title="Log Out"
+                  title={signingOut ? "Signing out..." : "Log Out"}
                   onPress={() => {
                     setMenuVisible(false);
-                    router.push("/welcome");
+                    handleLogout();
                   }}
                 />
               </View>
