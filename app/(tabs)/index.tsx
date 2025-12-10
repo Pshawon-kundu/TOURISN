@@ -1,6 +1,12 @@
-import { router } from "expo-router";
-import React, { useState } from "react";
 import {
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
   Image,
   Modal,
   ScrollView,
@@ -26,6 +32,25 @@ export default function HomeScreen() {
   const userEmail = user?.email || "";
   const userInitial = displayName.charAt(0).toUpperCase();
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 20,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleLogout = async () => {
     setSigningOut(true);
     try {
@@ -39,12 +64,48 @@ export default function HomeScreen() {
   };
 
   const services = [
-    { icon: "🚗", title: "Transport", route: "/transport" },
-    { icon: "🏨", title: "Stays", route: "/booking" },
-    { icon: "🧭", title: "Guides", route: "/guides" },
-    { icon: "🍽️", title: "Food", route: "/food" },
-    { icon: "🗺️", title: "Experiences", route: "/explore" },
-    { icon: "💬", title: "Chat", route: "/chat" },
+    {
+      iconFamily: "Ionicons",
+      icon: "car-sport",
+      title: "Transport",
+      route: "/transport",
+      color: "#3B82F6",
+    },
+    {
+      iconFamily: "Ionicons",
+      icon: "bed",
+      title: "Stays",
+      route: "/booking",
+      color: "#8B5CF6",
+    },
+    {
+      iconFamily: "FontAwesome5",
+      icon: "compass",
+      title: "Guides",
+      route: "/guides",
+      color: "#10B981",
+    },
+    {
+      iconFamily: "Ionicons",
+      icon: "restaurant",
+      title: "Food",
+      route: "/food",
+      color: "#F59E0B",
+    },
+    {
+      iconFamily: "MaterialCommunityIcons",
+      icon: "map-marker-path",
+      title: "Experiences",
+      route: "/explore",
+      color: "#EF4444",
+    },
+    {
+      iconFamily: "Ionicons",
+      icon: "chatbubbles",
+      title: "Chat",
+      route: "/chat",
+      color: "#06B6D4",
+    },
   ] as const;
 
   const featuredTrips = [
@@ -98,7 +159,7 @@ export default function HomeScreen() {
           style={styles.menuButton}
           onPress={() => setMenuVisible(true)}
         >
-          <Text style={styles.menuIconHeader}>☰</Text>
+          <Ionicons name="menu" size={28} color={Colors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.profileBadge}>
@@ -111,13 +172,18 @@ export default function HomeScreen() {
         </View>
 
         <TouchableOpacity style={styles.notificationButtonHeader}>
-          <Text style={styles.notificationIcon}>🔔</Text>
+          <Ionicons name="notifications" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Hero */}
-        <View style={styles.heroCard}>
+        <Animated.View
+          style={[
+            styles.heroCard,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
           <View style={styles.heroTextBlock}>
             <Text style={styles.heroTitle}>Plan your next escape</Text>
             <Text style={styles.heroSubtitle}>
@@ -136,12 +202,17 @@ export default function HomeScreen() {
             }}
             style={styles.heroImage}
           />
-        </View>
+        </Animated.View>
 
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
           <View style={styles.searchContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <Ionicons
+              name="search"
+              size={20}
+              color="#999"
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Search destinations, guides, hotels..."
@@ -160,22 +231,50 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.actionsScroll}
           >
-            <View style={styles.quickAction}>
-              <Text style={styles.quickIcon}>🛫</Text>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/explore")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#EFF6FF" }]}
+              >
+                <Ionicons name="airplane" size={24} color="#3B82F6" />
+              </View>
               <Text style={styles.quickLabel}>Trips</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <Text style={styles.quickIcon}>🧳</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/booking")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#F0FDF4" }]}
+              >
+                <Ionicons name="calendar" size={24} color="#10B981" />
+              </View>
               <Text style={styles.quickLabel}>Bookings</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <Text style={styles.quickIcon}>🎟️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/explore")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#FEF3C7" }]}
+              >
+                <Ionicons name="pricetag" size={24} color="#F59E0B" />
+              </View>
               <Text style={styles.quickLabel}>Deals</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <Text style={styles.quickIcon}>💬</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/chat")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#FCE7F3" }]}
+              >
+                <Ionicons name="chatbubbles" size={24} color="#EC4899" />
+              </View>
               <Text style={styles.quickLabel}>Chat</Text>
-            </View>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -186,10 +285,40 @@ export default function HomeScreen() {
             {services.map((service) => (
               <TouchableOpacity
                 key={service.title}
-                style={serviceCardStyles.card}
+                style={[
+                  serviceCardStyles.card,
+                  { borderLeftWidth: 4, borderLeftColor: service.color },
+                ]}
                 onPress={() => router.push(service.route)}
               >
-                <Text style={serviceCardStyles.icon}>{service.icon}</Text>
+                <View
+                  style={[
+                    serviceCardStyles.iconWrapper,
+                    { backgroundColor: service.color + "15" },
+                  ]}
+                >
+                  {service.iconFamily === "Ionicons" && (
+                    <Ionicons
+                      name={service.icon as any}
+                      size={28}
+                      color={service.color}
+                    />
+                  )}
+                  {service.iconFamily === "MaterialCommunityIcons" && (
+                    <MaterialCommunityIcons
+                      name={service.icon as any}
+                      size={28}
+                      color={service.color}
+                    />
+                  )}
+                  {service.iconFamily === "FontAwesome5" && (
+                    <FontAwesome5
+                      name={service.icon as any}
+                      size={24}
+                      color={service.color}
+                    />
+                  )}
+                </View>
                 <Text style={serviceCardStyles.title}>{service.title}</Text>
               </TouchableOpacity>
             ))}
@@ -229,9 +358,14 @@ export default function HomeScreen() {
               <View style={styles.guideInfo}>
                 <Text style={styles.guideName}>{guide.name}</Text>
                 <Text style={styles.guideMeta}>{guide.city}</Text>
-                <Text style={styles.guideRating}>
-                  ⭐ {guide.rating} ({guide.reviews} reviews)
-                </Text>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
+                  <Ionicons name="star" size={14} color="#F59E0B" />
+                  <Text style={styles.guideRating}>
+                    {guide.rating} ({guide.reviews} reviews)
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
                 style={styles.guideAction}
@@ -284,7 +418,9 @@ export default function HomeScreen() {
                   <View style={styles.onlineIndicator} />
                 </View>
                 <Text style={styles.drawerName}>Hello, {displayName}</Text>
-                {!!userEmail && <Text style={styles.drawerSubtitle}>{userEmail}</Text>}
+                {!!userEmail && (
+                  <Text style={styles.drawerSubtitle}>{userEmail}</Text>
+                )}
               </View>
 
               {/* Main Menu */}
@@ -443,6 +579,14 @@ const serviceCardStyles = StyleSheet.create({
     fontSize: 32,
     marginBottom: 6,
   },
+  iconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
   title: {
     fontSize: 13,
     fontWeight: "600",
@@ -525,16 +669,16 @@ const styles = StyleSheet.create({
   heroCard: {
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderRadius: Radii.lg,
+    backgroundColor: "#007AFF",
+    borderRadius: Radii.xl,
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    padding: Spacing.xl,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   heroTextBlock: {
     flex: 1,
@@ -543,22 +687,22 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: Colors.textPrimary,
+    color: "#FFF",
   },
   heroSubtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: "rgba(255, 255, 255, 0.9)",
   },
   heroCta: {
-    marginTop: 6,
-    backgroundColor: Colors.primary,
+    marginTop: 8,
+    backgroundColor: "#FFF",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
     alignSelf: "flex-start",
   },
   heroCtaText: {
-    color: "#FFF",
+    color: "#007AFF",
     fontWeight: "700",
   },
   heroImage: {
@@ -605,18 +749,21 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     width: 90,
-    height: 90,
-    borderRadius: Radii.lg,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  quickIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   quickIcon: {
     fontSize: 28,
@@ -626,6 +773,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: Colors.textPrimary,
+    textAlign: "center",
   },
   servicesGrid: {
     flexDirection: "row",

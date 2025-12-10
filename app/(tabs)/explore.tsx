@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { DestinationCard } from "@/components/destination-card";
@@ -65,27 +65,120 @@ export default function ExploreScreen() {
   return (
     <ThemedView style={styles.container}>
       <Header title="Explore Bangladesh" />
+      {/* Smart Section intro */}
+      <View style={{ marginBottom: Spacing.lg, marginTop: Spacing.md }}>
+        <View
+          style={{
+            backgroundColor: "#e0f7fa",
+            borderRadius: 18,
+            padding: Spacing.lg,
+            shadowColor: "#007AFF",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            elevation: 6,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "900",
+                marginBottom: 8,
+                color: "#007AFF",
+                letterSpacing: 0.5,
+              }}
+            >
+              Explore Bangladesh
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                color: "#374151",
+                marginBottom: 6,
+                fontWeight: "600",
+              }}
+            >
+              Nature, culture, and adventure await you.
+            </Text>
+            <Text style={{ fontSize: 14, color: "#64748B", marginBottom: 2 }}>
+              🌊 Cox's Bazar • 🏞️ Bandarban • 🍃 Sylhet • 🏔️ Sajek • 🏙️ Dhaka •
+              🐅 Sundarbans
+            </Text>
+            <Text style={{ fontSize: 13, color: "#475569" }}>
+              Tap a card to view details, or add to favorites for your dream
+              trip.
+            </Text>
+          </View>
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              overflow: "hidden",
+              backgroundColor: "#fff",
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 2,
+              borderColor: "#007AFF",
+            }}
+          >
+            <Text style={{ fontSize: 32 }}>🇧🇩</Text>
+          </View>
+        </View>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Hero destination */}
-        <DestinationCard
-          name={DESTINATIONS[0].name}
-          imageUrl={DESTINATIONS[0].imageUrl}
-          onPress={() => router.push("/experience")}
-          onFavorite={() => toggleFavorite(DESTINATIONS[0].id)}
-          isFavorited={favorites.has(DESTINATIONS[0].id)}
-          large
-        />
+        {/* Smart Hero destination */}
+        <View style={{ marginBottom: Spacing.lg }}>
+          <DestinationCard
+            name={DESTINATIONS[0].name}
+            imageUrl={DESTINATIONS[0].imageUrl}
+            onPress={() => router.push("/experience")}
+            onFavorite={() => toggleFavorite(DESTINATIONS[0].id)}
+            isFavorited={favorites.has(DESTINATIONS[0].id)}
+            large
+            style={{
+              borderWidth: 2,
+              borderColor: "#007AFF",
+              shadowColor: "#007AFF",
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+          />
+        </View>
 
-        {/* Grid of destinations */}
+        {/* Smart Grid of destinations */}
         <View style={styles.grid}>
-          {DESTINATIONS.slice(1).map((dest) => (
-            <View key={dest.id} style={styles.gridItem}>
+          {DESTINATIONS.slice(1).map((dest, idx) => (
+            <View
+              key={dest.id}
+              style={[
+                styles.gridItem,
+                {
+                  marginBottom: Spacing.md,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  backgroundColor: idx % 2 === 0 ? "#f0f4ff" : "#e0f7fa",
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  shadowColor: "#007AFF",
+                  shadowOpacity: 0.08,
+                  shadowRadius: 6,
+                  elevation: 2,
+                },
+              ]}
+            >
               <DestinationCard
                 name={dest.name}
                 imageUrl={dest.imageUrl}
                 onPress={() => router.push("/experience")}
                 onFavorite={() => toggleFavorite(dest.id)}
                 isFavorited={favorites.has(dest.id)}
+                style={{ borderRadius: 16 }}
               />
             </View>
           ))}

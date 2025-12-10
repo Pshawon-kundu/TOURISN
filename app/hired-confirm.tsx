@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo } from "react";
 import {
@@ -36,7 +37,7 @@ export default function HiredConfirmScreen() {
     return params.paymentDisplay ?? params.payment;
   }, [params.payment, params.paymentDisplay]);
 
-  const totalDisplay = params.total ?? "$—";
+  const totalDisplay = params.total ?? "TK —";
   const tripTitle = params.tripName ?? "Experience Bangladesh";
   const tripStartDate = params.tripStartDate ?? "Start date TBD";
   const tripDuration = params.tripDuration ?? "";
@@ -61,7 +62,7 @@ export default function HiredConfirmScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Guide</Text>
         <TouchableOpacity onPress={() => router.back()}>
@@ -89,12 +90,49 @@ export default function HiredConfirmScreen() {
 
         {/* Confirmation Message */}
         <View style={styles.messageCard}>
-          <Text style={styles.messageTitle}>
-            Your hiring request has been confirmed.
-          </Text>
+          <Text style={styles.messageTitle}>Thank you for booking!</Text>
           <Text style={styles.messageSubtitle}>
-            The hired person will reach out to you shortly.
+            Your trip is confirmed. Your guide will contact you soon with
+            details and next steps.
           </Text>
+          {/* Demo chat between Bangladeshi traveler and local guide */}
+          <View style={{ width: "100%", marginTop: Spacing.lg }}>
+            <Text
+              style={{
+                fontWeight: "700",
+                marginBottom: 8,
+                color: Colors.textPrimary,
+              }}
+            >
+              Demo chat:
+            </Text>
+            <View style={{ marginBottom: 6 }}>
+              <Text style={{ color: Colors.textPrimary }}>
+                <Text style={{ fontWeight: "700" }}>Traveler:</Text> Assalamu
+                alaikum! Excited for the trip. Will you meet us at the airport?
+              </Text>
+            </View>
+            <View style={{ marginBottom: 6 }}>
+              <Text style={{ color: Colors.textSecondary }}>
+                <Text style={{ fontWeight: "700" }}>Guide:</Text> Wa alaikum
+                assalam! Yes, I will be waiting at Dhaka airport with a sign.
+                Let me know your flight time.
+              </Text>
+            </View>
+            <View style={{ marginBottom: 6 }}>
+              <Text style={{ color: Colors.textPrimary }}>
+                <Text style={{ fontWeight: "700" }}>Traveler:</Text> Our flight
+                lands at 10:30 AM. Looking forward to exploring Old Dhaka!
+              </Text>
+            </View>
+            <View>
+              <Text style={{ color: Colors.textSecondary }}>
+                <Text style={{ fontWeight: "700" }}>Guide:</Text> Wonderful! I
+                have planned a heritage walk and street food tasting for you.
+                See you soon!
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.summaryCard}>

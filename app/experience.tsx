@@ -27,7 +27,7 @@ export default function ExperienceScreen() {
   >("card");
   const [walletProvider, setWalletProvider] = useState("bKash");
   const [walletNumber, setWalletNumber] = useState("01700-000000");
-  const totalAmount = "$1,430";
+  const totalAmount = "TK 1,430";
   const tripName = "Experience Bangladesh";
   const tripStartDate = "12 Jan 2026";
   const tripDuration = "4 days / 3 nights";
@@ -94,7 +94,7 @@ export default function ExperienceScreen() {
           </View>
           <View style={styles.priceBox}>
             <Text style={styles.heroPriceLabel}>From</Text>
-            <Text style={styles.heroPriceValue}>$1,545</Text>
+            <Text style={styles.heroPriceValue}>TK 1,545</Text>
             <Text style={styles.heroPriceMeta}>per traveler</Text>
           </View>
         </View>
@@ -165,11 +165,11 @@ export default function ExperienceScreen() {
         {step === "details" ? (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Price breakdown</Text>
-            <PriceRow label="Accommodation" value="$780" />
-            <PriceRow label="Transport & guide" value="$520" />
-            <PriceRow label="Meals" value="$180" />
-            <PriceRow label="Discount" value="-$50" accent />
-            <PriceRow label="Total" value="$1,430" bold />
+            <PriceRow label="Accommodation" value="TK 780" />
+            <PriceRow label="Transport & guide" value="TK 520" />
+            <PriceRow label="Meals" value="TK 180" />
+            <PriceRow label="Discount" value="-TK 50" accent />
+            <PriceRow label="Total" value="TK 1,430" bold />
           </View>
         ) : null}
 

@@ -49,8 +49,8 @@ export default function BookingScreen() {
         </View>
 
         <TripDetailCard
-          from="Baharein"
-          to="Tokyo"
+          from="Dhaka"
+          to="Cox's Bazar"
           guests="2 Days 4 Night"
           date="20-05, May, 2022"
         />
@@ -91,11 +91,11 @@ export default function BookingScreen() {
         {step === "details" ? (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Price breakdown</Text>
-            <PriceRow label="Base fare" value="$1,450" />
-            <PriceRow label="Taxes & fees" value="$120" />
-            <PriceRow label="Service fee" value="$25" />
-            <PriceRow label="Discount" value="-$50" accent />
-            <PriceRow label="Total" value="$1,545" bold />
+            <PriceRow label="Base fare" value="TK 1,450" />
+            <PriceRow label="Taxes & fees" value="TK 120" />
+            <PriceRow label="Service fee" value="TK 25" />
+            <PriceRow label="Discount" value="-TK 50" accent />
+            <PriceRow label="Total" value="TK 1,545" bold />
           </View>
         ) : null}
 
