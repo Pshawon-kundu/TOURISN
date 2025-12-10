@@ -1,31 +1,34 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import React from "react";
+import React, { type ComponentProps } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Colors as DesignColors, Radii, Spacing } from "@/constants/design";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
+type IconName = ComponentProps<typeof MaterialIcons>["name"];
+
 type NavItem = {
   key: string;
-  icon: string;
+  icon: IconName;
   label: string;
   route: string;
   badge?: string;
 };
 
 const navItems: NavItem[] = [
-  { key: "home", icon: "🏠", label: "Home", route: "/" },
-  { key: "explore", icon: "🧭", label: "Explore", route: "/explore" },
+  { key: "home", icon: "home", label: "Home", route: "/" },
+  { key: "explore", icon: "explore", label: "Explore", route: "/explore" },
   {
     key: "bookings",
-    icon: "🧳",
+    icon: "luggage",
     label: "Bookings",
     route: "/booking",
     badge: "2",
   },
   {
     key: "profile",
-    icon: "👤",
+    icon: "person", // use person-filled for clarity
     label: "Profile",
     route: "/profile",
     badge: "1",
@@ -59,7 +62,11 @@ export function BottomPillNav() {
   const actionBg = DesignColors.primary;
   const actionText = "#FFFFFF";
 
-  const primaryAction = { icon: "✨", label: "Plan Trip", route: "/booking" };
+  const primaryAction = {
+    icon: "event-available" as IconName,
+    label: "Plan Trip",
+    route: "/booking",
+  };
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
@@ -73,9 +80,12 @@ export function BottomPillNav() {
         ]}
         onPress={() => router.push(primaryAction.route)}
       >
-        <Text style={[styles.actionIcon, { color: actionText }]}>
-          {primaryAction.icon}
-        </Text>
+        <MaterialIcons
+          name={primaryAction.icon}
+          size={18}
+          color={actionText}
+          style={styles.actionIcon}
+        />
         <Text style={[styles.actionLabel, { color: actionText }]}>
           {primaryAction.label}
         </Text>
@@ -98,9 +108,11 @@ export function BottomPillNav() {
               onPress={() => router.push(item.route)}
             >
               <View style={styles.iconRow}>
-                <Text style={[styles.icon, { color: palette.icon }]}>
-                  {item.icon}
-                </Text>
+                <MaterialIcons
+                  name={item.icon}
+                  size={22}
+                  color={palette.icon}
+                />
                 {item.badge ? (
                   <View
                     style={[styles.badge, { backgroundColor: palette.badgeBg }]}
@@ -160,10 +172,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  icon: {
-    fontSize: 22,
-    marginBottom: 2,
-  },
   label: {
     fontSize: 11,
     fontWeight: "500",
@@ -196,7 +204,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   actionIcon: {
-    fontSize: 18,
+    marginBottom: 1,
   },
   actionLabel: {
     fontWeight: "700",

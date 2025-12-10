@@ -70,7 +70,7 @@ export default function ExploreScreen() {
         <DestinationCard
           name={DESTINATIONS[0].name}
           imageUrl={DESTINATIONS[0].imageUrl}
-          onPress={() => router.push("/guides")}
+          onPress={() => router.push("/experience")}
           onFavorite={() => toggleFavorite(DESTINATIONS[0].id)}
           isFavorited={favorites.has(DESTINATIONS[0].id)}
           large
@@ -83,7 +83,7 @@ export default function ExploreScreen() {
               <DestinationCard
                 name={dest.name}
                 imageUrl={dest.imageUrl}
-                onPress={() => router.push("/guides")}
+                onPress={() => router.push("/experience")}
                 onFavorite={() => toggleFavorite(dest.id)}
                 isFavorited={favorites.has(dest.id)}
               />
