@@ -10,6 +10,8 @@
     "backend"
   ],
   "scripts": {
+    "start": "npm run frontend",
+    "backend-start": "cd backend && npm start",
     "frontend": "cd frontend && npm start",
     "backend": "cd backend && npm run dev",
     "dev": "concurrently \"npm:frontend\" \"npm:backend\"",

@@ -1,5 +1,6 @@
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
+import { Colors, Radii, Spacing } from "@/constants/design";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
@@ -47,7 +48,8 @@ const foodItems: FoodItem[] = [
       "Aromatic rice cooked with marinated mutton, saffron, and spices",
     price: "৳350-550",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800",
+    image:
+      "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800",
     isVeg: false,
     spiceLevel: 3,
   },
@@ -61,7 +63,8 @@ const foodItems: FoodItem[] = [
       "National fish of Bangladesh cooked in mustard gravy with rice",
     price: "৳450-650",
     rating: 4.8,
-    image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800",
+    image:
+      "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800",
     isVeg: false,
     spiceLevel: 2,
   },
@@ -75,7 +78,8 @@ const foodItems: FoodItem[] = [
       "Crispy puffed shells filled with tamarind water and spicy chickpeas",
     price: "৳30-50",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800",
+    image:
+      "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800",
     isVeg: true,
     spiceLevel: 3,
   },
@@ -89,7 +93,8 @@ const foodItems: FoodItem[] = [
       "Traditional fermented rice with fried hilsha, onion, and chili",
     price: "৳250-400",
     rating: 4.7,
-    image: "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=800",
+    image:
+      "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=800",
     isVeg: false,
     spiceLevel: 3,
   },
@@ -102,7 +107,8 @@ const foodItems: FoodItem[] = [
     description: "Spicy beef rice cooked with aromatic spices and potatoes",
     price: "৳180-280",
     rating: 4.8,
-    image: "https://images.unsplash.com/photo-1574484284002-952d92456975?w=800",
+    image:
+      "https://images.unsplash.com/photo-1574484284002-952d92456975?w=800",
     isVeg: false,
     spiceLevel: 4,
   },
@@ -115,7 +121,8 @@ const foodItems: FoodItem[] = [
     description: "Fish dumplings cooked in rich, creamy gravy",
     price: "৳320-450",
     rating: 4.6,
-    image: "https://images.unsplash.com/photo-1605908502724-9093a79a1b39?w=800",
+    image:
+      "https://images.unsplash.com/photo-1605908502724-9093a79a1b39?w=800",
     isVeg: false,
     spiceLevel: 2,
   },
@@ -128,7 +135,8 @@ const foodItems: FoodItem[] = [
     description: "Beef curry with Sylheti citrus fruit (shatkora)",
     price: "৳380-520",
     rating: 4.8,
-    image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=800",
+    image:
+      "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=800",
     isVeg: false,
     spiceLevel: 3,
   },
@@ -154,7 +162,8 @@ const foodItems: FoodItem[] = [
     description: "Tiger prawns in creamy coconut milk curry",
     price: "৳550-750",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1633964913295-ceb43826923c?w=800",
+    image:
+      "https://images.unsplash.com/photo-1633964913295-ceb43826923c?w=800",
     isVeg: false,
     spiceLevel: 2,
   },
@@ -167,7 +176,8 @@ const foodItems: FoodItem[] = [
     description: "Mashed dried fish with mustard oil and green chilies",
     price: "৳120-200",
     rating: 4.5,
-    image: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800",
+    image:
+      "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800",
     isVeg: false,
     spiceLevel: 4,
   },
@@ -180,7 +190,8 @@ const foodItems: FoodItem[] = [
     description: "Fresh lobster grilled with butter and garlic",
     price: "৳1200-1800",
     rating: 5.0,
-    image: "https://images.unsplash.com/photo-1625944525533-473f1a3d54e7?w=800",
+    image:
+      "https://images.unsplash.com/photo-1625944525533-473f1a3d54e7?w=800",
     isVeg: false,
     spiceLevel: 1,
   },
@@ -193,7 +204,8 @@ const foodItems: FoodItem[] = [
     description: "Spicy beef curry in thick gravy, traditional feast dish",
     price: "৳280-420",
     rating: 4.8,
-    image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=800",
+    image:
+      "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=800",
     isVeg: false,
     spiceLevel: 4,
   },
@@ -206,7 +218,8 @@ const foodItems: FoodItem[] = [
     description: "Chicken cooked inside bamboo with tribal spices",
     price: "৳350-500",
     rating: 4.7,
-    image: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800",
+    image:
+      "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800",
     isVeg: false,
     spiceLevel: 2,
   },
@@ -219,7 +232,8 @@ const foodItems: FoodItem[] = [
     description: "Spiced rice and lentil dish, comfort food during monsoon",
     price: "৳150-250",
     rating: 4.6,
-    image: "https://images.unsplash.com/photo-1589301760014-dd4c7e38d16e?w=800",
+    image:
+      "https://images.unsplash.com/photo-1589301760014-dd4c7e38d16e?w=800",
     isVeg: true,
     spiceLevel: 2,
   },
@@ -232,7 +246,8 @@ const foodItems: FoodItem[] = [
     description: "Sweet yogurt dessert made from caramelized milk",
     price: "৳80-150",
     rating: 4.9,
-    image: "https://images.unsplash.com/photo-1576398289164-c48dc021b4e1?w=800",
+    image:
+      "https://images.unsplash.com/photo-1576398289164-c48dc021b4e1?w=800",
     isVeg: true,
     spiceLevel: 0,
   },
@@ -258,7 +273,8 @@ const foodItems: FoodItem[] = [
     description: "Cylinder-shaped milk sweet with creamy filling",
     price: "৳100-180",
     rating: 4.7,
-    image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=800",
+    image:
+      "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=800",
     isVeg: true,
     spiceLevel: 0,
   },
@@ -268,8 +284,7 @@ const foodItems: FoodItem[] = [
     nameLocal: "পিঠা",
     category: "Sweets",
     region: "Nationwide",
-    description:
-      "Traditional rice cakes in various styles - bhapa, chitoi, puli",
+    description: "Traditional rice cakes in various styles - bhapa, chitoi, puli",
     price: "৳50-150",
     rating: 4.8,
     image: "https://images.unsplash.com/photo-1626200419199-391ae4be7a41?w=800",
@@ -285,7 +300,8 @@ const foodItems: FoodItem[] = [
     description: "Spiced yogurt drink served with biryani",
     price: "৳40-80",
     rating: 4.6,
-    image: "https://images.unsplash.com/photo-1568031813264-d394c5d474b9?w=800",
+    image:
+      "https://images.unsplash.com/photo-1568031813264-d394c5d474b9?w=800",
     isVeg: true,
     spiceLevel: 1,
   },
@@ -306,8 +322,9 @@ const foodItems: FoodItem[] = [
 
 export default function FoodGuide() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] =
-    useState<(typeof foodCategories)[number]>("All");
+  const [activeCategory, setActiveCategory] = useState<
+    (typeof foodCategories)[number]
+  >("All");
 
   const filteredFoods = foodItems.filter((food) => {
     const matchesSearch =
@@ -338,10 +355,7 @@ export default function FoodGuide() {
     <ThemedView style={styles.container}>
       <Header title="Food Guide" />
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <LinearGradient
           colors={["#F59E0B", "#F97316"]}
@@ -427,16 +441,12 @@ export default function FoodGuide() {
           {filteredFoods.map((food) => (
             <View key={food.id} style={styles.foodCard}>
               <Image source={{ uri: food.image }} style={styles.foodImage} />
-
+              
               {/* Badges */}
               <View style={styles.badgeContainer}>
                 {food.isVeg && (
                   <View style={[styles.badge, styles.badgeVeg]}>
-                    <MaterialCommunityIcons
-                      name="leaf"
-                      size={12}
-                      color="#10B981"
-                    />
+                    <MaterialCommunityIcons name="leaf" size={12} color="#10B981" />
                   </View>
                 )}
                 <View style={styles.ratingBadge}>
@@ -448,7 +458,7 @@ export default function FoodGuide() {
               <View style={styles.foodInfo}>
                 <Text style={styles.foodName}>{food.name}</Text>
                 <Text style={styles.foodNameLocal}>{food.nameLocal}</Text>
-
+                
                 <View style={styles.foodMeta}>
                   <Ionicons name="location" size={14} color="#6B7280" />
                   <Text style={styles.foodRegion}>{food.region}</Text>
