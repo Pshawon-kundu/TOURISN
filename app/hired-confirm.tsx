@@ -84,7 +84,7 @@ export default function HiredConfirmScreen() {
         {/* Confirmation Badge */}
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
-            <Text style={styles.badgeIcon}>✓</Text>
+            <Ionicons name="checkmark" size={40} color="#FFF" />
           </View>
         </View>
 

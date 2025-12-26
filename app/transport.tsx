@@ -16,10 +16,16 @@ import { Colors, Radii, Spacing } from "@/constants/design";
 
 type TransportType = "car" | "bus" | "bike" | "boat";
 
+const TYPE_ICON: Record<TransportType, string> = {
+  car: "car",
+  bus: "bus",
+  bike: "bicycle",
+  boat: "boat",
+};
+
 const TRANSPORT_OPTIONS = [
   {
     type: "car" as TransportType,
-    icon: "🚗",
     title: "Car Rental",
     description: "Comfortable private rides",
     routes: [
@@ -45,7 +51,6 @@ const TRANSPORT_OPTIONS = [
   },
   {
     type: "bus" as TransportType,
-    icon: "🚌",
     title: "Bus Services",
     description: "Affordable long-distance travel",
     providers: ["Green Line", "Shyamoli", "Hanif", "Ena Transport"],
@@ -53,7 +58,6 @@ const TRANSPORT_OPTIONS = [
   },
   {
     type: "bike" as TransportType,
-    icon: "🏍️",
     title: "Ride Sharing",
     description: "Quick local commute",
     services: ["Uber", "Pathao", "Obhai"],
@@ -61,7 +65,6 @@ const TRANSPORT_OPTIONS = [
   },
   {
     type: "boat" as TransportType,
-    icon: "⛵",
     title: "Boat Rides",
     description: "Scenic water transport",
     locations: ["Sylhet", "Cox's Bazar", "Sundarbans", "Khulna"],
@@ -113,7 +116,12 @@ export default function TransportHub() {
           <Text style={styles.sectionTitle}>Plan Your Route</Text>
           <View style={styles.searchRow}>
             <View style={styles.searchInputWrapper}>
-              <Text style={styles.searchIcon}>📍</Text>
+              <Ionicons
+                name="location"
+                size={18}
+                color={Colors.textPrimary}
+                style={{ marginRight: Spacing.sm }}
+              />
               <TextInput
                 style={styles.searchInput}
                 placeholder="From"
@@ -123,7 +131,12 @@ export default function TransportHub() {
               />
             </View>
             <View style={styles.searchInputWrapper}>
-              <Text style={styles.searchIcon}>🎯</Text>
+              <Ionicons
+                name="flag"
+                size={18}
+                color={Colors.textPrimary}
+                style={{ marginRight: Spacing.sm }}
+              />
               <TextInput
                 style={styles.searchInput}
                 placeholder="To"
@@ -149,7 +162,11 @@ export default function TransportHub() {
             >
               <View style={styles.optionHeader}>
                 <View style={styles.optionIconContainer}>
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
+                  <Ionicons
+                    name={TYPE_ICON[option.type]}
+                    size={24}
+                    color={Colors.secondary}
+                  />
                 </View>
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>{option.title}</Text>

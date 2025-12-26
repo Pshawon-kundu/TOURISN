@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -105,8 +106,7 @@ export default function ExploreScreen() {
               Nature, culture, and adventure await you.
             </Text>
             <Text style={{ fontSize: 14, color: "#64748B", marginBottom: 2 }}>
-              🌊 Cox's Bazar • 🏞️ Bandarban • 🍃 Sylhet • 🏔️ Sajek • 🏙️ Dhaka •
-              🐅 Sundarbans
+              Cox's Bazar • Bandarban • Sylhet • Sajek • Dhaka • Sundarbans
             </Text>
             <Text style={{ fontSize: 13, color: "#475569" }}>
               Tap a card to view details, or add to favorites for your dream
@@ -126,7 +126,7 @@ export default function ExploreScreen() {
               borderColor: "#007AFF",
             }}
           >
-            <Text style={{ fontSize: 32 }}>🇧🇩</Text>
+            <Ionicons name="flag" size={28} color="#007AFF" />
           </View>
         </View>
       </View>

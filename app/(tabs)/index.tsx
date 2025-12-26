@@ -132,7 +132,6 @@ export default function HomeScreen() {
     },
   ];
 
-  const topGuides = [
     {
       name: "Rakibul Islam",
       city: "Chittagong",
@@ -552,9 +551,27 @@ function DrawerItem({
   title: string;
   onPress: () => void;
 }) {
+  const EMOJI_TO_IONICON: Record<string, string> = {
+    "🎒": "bag",
+    "💼": "briefcase",
+    "👥": "people",
+    "🚗": "car",
+    "🏨": "bed",
+    "🍽️": "restaurant",
+    "🗺️": "map",
+    "👤": "person",
+    "🔔": "notifications",
+    "💬": "chatbubbles",
+    "🚪": "log-out",
+  };
   return (
     <TouchableOpacity style={drawerItemStyles.container} onPress={onPress}>
-      <Text style={drawerItemStyles.icon}>{icon}</Text>
+      <Ionicons
+        name={(EMOJI_TO_IONICON[icon] ?? "ellipse-outline") as any}
+        size={24}
+        color={Colors.textPrimary}
+        style={{ marginRight: Spacing.lg, width: 30 }}
+      />
       <Text style={drawerItemStyles.title}>{title}</Text>
     </TouchableOpacity>
   );

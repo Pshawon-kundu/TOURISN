@@ -4,9 +4,18 @@ import { PaymentCard } from "@/components/payment-card";
 import { ThemedView } from "@/components/themed-view";
 import { TripDetailCard } from "@/components/trip-detail-card";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function BookingScreen() {
   const [cardNumber, setCardNumber] = useState("");

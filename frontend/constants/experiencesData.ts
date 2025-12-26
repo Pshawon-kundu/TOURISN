@@ -1,0 +1,502 @@
+export interface Experience {
+  id: string;
+  name: string;
+  category: "adventure" | "cultural" | "nature" | "wellness" | "food";
+  location: string;
+  region: string;
+  price: number;
+  currency: string;
+  duration: string; // e.g., "3 hours", "Full day", "2 days"
+  difficulty: "easy" | "moderate" | "challenging";
+  groupSize: string; // e.g., "2-4 people", "5-8 people"
+  rating: number;
+  reviews: number;
+  image: string;
+  description: string;
+  highlights: string[];
+  included: string[]; // What's included in the price
+  notIncluded: string[];
+  meetingPoint: string;
+  guide: {
+    name: string;
+    avatar: string;
+    languages: string[];
+    experience: number; // years
+    rating: number;
+  };
+  bestSeason: string[];
+  maxParticipants: number;
+  minAge?: number;
+  physicalRequirement: string;
+  cancellation: string;
+}
+
+export const experienceCategories = [
+  { id: "all", label: "All", icon: "🎯", color: "#3B82F6" },
+  { id: "adventure", label: "Adventure", icon: "🏔️", color: "#EF4444" },
+  { id: "cultural", label: "Cultural", icon: "🏛️", color: "#F59E0B" },
+  { id: "nature", label: "Nature", icon: "🌿", color: "#10B981" },
+  { id: "wellness", label: "Wellness", icon: "🧘", color: "#8B5CF6" },
+  { id: "food", label: "Food", icon: "🍜", color: "#EC4899" },
+];
+
+export const experiences: Experience[] = [
+  {
+    id: "1",
+    name: "Cox's Bazar Beach Sunrise & Surfing",
+    category: "adventure",
+    location: "Cox's Bazar",
+    region: "Chittagong Division",
+    price: 2500,
+    currency: "BDT",
+    duration: "4 hours",
+    difficulty: "moderate",
+    groupSize: "2-6 people",
+    rating: 4.9,
+    reviews: 287,
+    image:
+      "https://images.unsplash.com/photo-1589192471364-23e0c3b3f24e?w=500&h=300&fit=crop",
+    description:
+      "Watch the sunrise over the longest natural sea beach in Bangladesh while learning to surf. Professional instructors guide you through basic techniques.",
+    highlights: [
+      "Stunning sunrise views",
+      "Professional surfing lesson",
+      "Beach photography session",
+      "Traditional breakfast included",
+    ],
+    included: [
+      "Surfboard rental",
+      "Professional instructor",
+      "Insurance",
+      "Breakfast",
+      "Hotel pickup/dropoff",
+    ],
+    notIncluded: ["Photography prints", "Extra rental equipment"],
+    meetingPoint: "Cox's Bazar Beach Main Gate",
+    guide: {
+      name: "Rauf Ahmed",
+      avatar:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+      languages: ["Bengali", "English"],
+      experience: 8,
+      rating: 4.9,
+    },
+    bestSeason: ["October", "November", "December", "January", "February"],
+    maxParticipants: 6,
+    minAge: 12,
+    physicalRequirement: "Moderate fitness level required",
+    cancellation: "Free cancellation up to 24 hours before",
+  },
+  {
+    id: "2",
+    name: "Bandarban Hill Trek & Tribal Village Tour",
+    category: "nature",
+    location: "Bandarban",
+    region: "Chittagong Hill Tracts",
+    price: 3500,
+    currency: "BDT",
+    duration: "Full day (8 hours)",
+    difficulty: "challenging",
+    groupSize: "3-8 people",
+    rating: 4.8,
+    reviews: 412,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop",
+    description:
+      "Trek through lush hills, visit authentic tribal villages, and experience the unique culture of the Marma people. Includes traditional meals and homestay interaction.",
+    highlights: [
+      "Scenic hill trek",
+      "Visit Marma tribal villages",
+      "Lunch with local family",
+      "Sunset viewpoint",
+      "Traditional crafts workshop",
+    ],
+    included: [
+      "Guide",
+      "All meals",
+      "Trek equipment",
+      "Transportation",
+      "Insurance",
+    ],
+    notIncluded: ["Souvenirs", "Tips for guide"],
+    meetingPoint: "Bandarban Main Bus Station",
+    guide: {
+      name: "Kamal Chakma",
+      avatar:
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
+      languages: ["Bengali", "English", "Marma"],
+      experience: 12,
+      rating: 4.8,
+    },
+    bestSeason: ["November", "December", "January", "February", "March"],
+    maxParticipants: 8,
+    minAge: 10,
+    physicalRequirement: "High fitness level required",
+    cancellation: "Free cancellation up to 48 hours before",
+  },
+  {
+    id: "3",
+    name: "Sylhet Tea Garden Tour & Tasting",
+    category: "food",
+    location: "Sylhet",
+    region: "Sylhet Division",
+    price: 2000,
+    currency: "BDT",
+    duration: "5 hours",
+    difficulty: "easy",
+    groupSize: "2-10 people",
+    rating: 4.7,
+    reviews: 356,
+    image:
+      "https://images.unsplash.com/photo-1563789031959-4c02bcb41319?w=500&h=300&fit=crop",
+    description:
+      "Explore verdant tea gardens, learn about tea cultivation and processing, and participate in a tea tasting session with a local expert.",
+    highlights: [
+      "Tea plantation tour",
+      "Learn harvesting techniques",
+      "Tea factory visit",
+      "Tasting of 5 varieties",
+      "Traditional tea seller experience",
+    ],
+    included: ["Guide", "Transportation", "Tea tasting", "Light snacks"],
+    notIncluded: ["Tea purchases", "Lunch"],
+    meetingPoint: "Sylhet City Centre",
+    guide: {
+      name: "Biswajit Roy",
+      avatar:
+        "https://images.unsplash.com/photo-1535316783289-c280b88b874d?w=400",
+      languages: ["Bengali", "English"],
+      experience: 15,
+      rating: 4.7,
+    },
+    bestSeason: ["June", "July", "August"],
+    maxParticipants: 10,
+    minAge: 5,
+    physicalRequirement: "Easy - suitable for all fitness levels",
+    cancellation: "Free cancellation up to 12 hours before",
+  },
+  {
+    id: "4",
+    name: "Sajek Valley Camping & Stargazing",
+    category: "adventure",
+    location: "Sajek Valley",
+    region: "Chittagong Hill Tracts",
+    price: 5500,
+    currency: "BDT",
+    duration: "2 days 1 night",
+    difficulty: "moderate",
+    groupSize: "4-12 people",
+    rating: 4.9,
+    reviews: 189,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop",
+    description:
+      "Experience the magic of Sajek Valley with camping under the stars. Wake up to misty mountains and enjoy authentic hill cuisine.",
+    highlights: [
+      "Scenic camping site",
+      "Stargazing session",
+      "Mountain photography",
+      "Sunrise trek",
+      "Bonfire & cultural show",
+    ],
+    included: [
+      "Tent accommodation",
+      "All meals",
+      "Guide",
+      "Transportation",
+      "Camping equipment",
+    ],
+    notIncluded: ["Sleeping bag rental"],
+    meetingPoint: "Rangamati Bus Stand",
+    guide: {
+      name: "Arjun Tripura",
+      avatar:
+        "https://images.unsplash.com/photo-1496345875519-c21a7dc4d881?w=400",
+      languages: ["Bengali", "English", "Chakma"],
+      experience: 10,
+      rating: 4.9,
+    },
+    bestSeason: ["November", "December", "January", "February"],
+    maxParticipants: 12,
+    minAge: 8,
+    physicalRequirement: "Moderate fitness required",
+    cancellation: "Free cancellation up to 72 hours before",
+  },
+  {
+    id: "5",
+    name: "Old Dhaka Walking Tour & Street Food",
+    category: "cultural",
+    location: "Dhaka",
+    region: "Dhaka Division",
+    price: 1800,
+    currency: "BDT",
+    duration: "4 hours",
+    difficulty: "easy",
+    groupSize: "2-8 people",
+    rating: 4.6,
+    reviews: 523,
+    image:
+      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=500&h=300&fit=crop",
+    description:
+      "Wander through the historic lanes of Old Dhaka, visit ancient mosques and temples, and taste authentic street food at local vendors.",
+    highlights: [
+      "Historic monuments",
+      "Street food tasting",
+      "Local markets",
+      "Photography spots",
+      "Cultural stories & history",
+    ],
+    included: ["Guide", "Street food samples", "Transportation between sites"],
+    notIncluded: ["Full meals", "Shopping"],
+    meetingPoint: "Baitul Mukarram Mosque",
+    guide: {
+      name: "Nasrin Akter",
+      avatar:
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
+      languages: ["Bengali", "English", "Hindi"],
+      experience: 9,
+      rating: 4.6,
+    },
+    bestSeason: ["October", "November", "December", "January", "February"],
+    maxParticipants: 8,
+    minAge: 6,
+    physicalRequirement: "Easy - lots of walking",
+    cancellation: "Free cancellation up to 6 hours before",
+  },
+  {
+    id: "6",
+    name: "Sundarbans Tiger Safari & Jungle Expedition",
+    category: "nature",
+    location: "Sundarbans",
+    region: "Khulna Division",
+    price: 7500,
+    currency: "BDT",
+    duration: "3 days 2 nights",
+    difficulty: "moderate",
+    groupSize: "4-10 people",
+    rating: 4.9,
+    reviews: 278,
+    image:
+      "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=500&h=300&fit=crop",
+    description:
+      "The largest mangrove forest and a UNESCO World Heritage Site. Spot Bengal tigers, crocodiles, and exotic birds while exploring pristine waterways.",
+    highlights: [
+      "Tiger safari",
+      "Jungle boat rides",
+      "Exotic wildlife spotting",
+      "Sundarbans interpretation",
+      "Professional photography",
+    ],
+    included: [
+      "Accommodation",
+      "All meals",
+      "Boat & guide",
+      "Equipment",
+      "Binoculars",
+    ],
+    notIncluded: ["Travel insurance", "Personal medications"],
+    meetingPoint: "Khulna City Centre",
+    guide: {
+      name: "Mohammad Hasan",
+      avatar:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+      languages: ["Bengali", "English"],
+      experience: 18,
+      rating: 4.9,
+    },
+    bestSeason: ["November", "December", "January", "February"],
+    maxParticipants: 10,
+    minAge: 12,
+    physicalRequirement: "Moderate fitness required",
+    cancellation: "Free cancellation up to 7 days before",
+  },
+  {
+    id: "7",
+    name: "Yoga & Wellness Retreat - Sylhet",
+    category: "wellness",
+    location: "Sylhet",
+    region: "Sylhet Division",
+    price: 4500,
+    currency: "BDT",
+    duration: "Full day (6 hours)",
+    difficulty: "easy",
+    groupSize: "6-15 people",
+    rating: 4.8,
+    reviews: 234,
+    image:
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=500&h=300&fit=crop",
+    description:
+      "Rejuvenate your mind and body with yoga sessions in nature. Includes meditation, healthy meals, and wellness consultations.",
+    highlights: [
+      "Sunrise yoga",
+      "Meditation sessions",
+      "Healthy meals",
+      "Wellness consultation",
+      "Nature walks",
+    ],
+    included: [
+      "Yoga mat",
+      "All meals",
+      "Instruction",
+      "Meditation CDs",
+      "Wellness guide",
+    ],
+    notIncluded: ["Accommodation (day program)"],
+    meetingPoint: "Sylhet Yoga Center",
+    guide: {
+      name: "Priya Sharma",
+      avatar:
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400",
+      languages: ["Bengali", "English", "Hindi"],
+      experience: 11,
+      rating: 4.8,
+    },
+    bestSeason: ["All year"],
+    maxParticipants: 15,
+    minAge: 0,
+    physicalRequirement: "Easy - suitable for all",
+    cancellation: "Free cancellation up to 48 hours before",
+  },
+  {
+    id: "8",
+    name: "Culinary Tour - Traditional Bengali Cooking",
+    category: "food",
+    location: "Dhaka",
+    region: "Dhaka Division",
+    price: 3000,
+    currency: "BDT",
+    duration: "5 hours",
+    difficulty: "easy",
+    groupSize: "3-6 people",
+    rating: 4.7,
+    reviews: 198,
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=300&fit=crop",
+    description:
+      "Learn to cook authentic Bengali dishes from a professional chef. Shop at local markets, prepare meals, and enjoy everything you cook.",
+    highlights: [
+      "Local market tour",
+      "Cooking class",
+      "Prepare 4-5 dishes",
+      "Eat your creations",
+      "Recipe book included",
+    ],
+    included: [
+      "Chef instruction",
+      "All ingredients",
+      "Kitchen use",
+      "Meals",
+      "Recipe collection",
+    ],
+    notIncluded: ["Transportation"],
+    meetingPoint: "Dhaka Culinary Studio",
+    guide: {
+      name: "Chef Fatema",
+      avatar:
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
+      languages: ["Bengali", "English"],
+      experience: 16,
+      rating: 4.7,
+    },
+    bestSeason: ["All year"],
+    maxParticipants: 6,
+    minAge: 10,
+    physicalRequirement: "Easy",
+    cancellation: "Free cancellation up to 72 hours before",
+  },
+  {
+    id: "9",
+    name: "Mountain Biking Adventure - Khagrachari",
+    category: "adventure",
+    location: "Khagrachari",
+    region: "Chittagong Hill Tracts",
+    price: 2800,
+    currency: "BDT",
+    duration: "6 hours",
+    difficulty: "challenging",
+    groupSize: "2-8 people",
+    rating: 4.7,
+    reviews: 145,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop",
+    description:
+      "Thrilling mountain bike ride through scenic trails, passing villages, waterfalls, and tribal settlements in Khagrachari.",
+    highlights: [
+      "Scenic trails",
+      "Waterfall stop",
+      "Village interactions",
+      "Trail snacks",
+      "Professional guidance",
+    ],
+    included: [
+      "Mountain bike rental",
+      "Helmet & protective gear",
+      "Guide",
+      "Snacks",
+      "First aid kit",
+    ],
+    notIncluded: ["Meals"],
+    meetingPoint: "Khagrachari Town Centre",
+    guide: {
+      name: "Rocky Biswas",
+      avatar:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+      languages: ["Bengali", "English"],
+      experience: 7,
+      rating: 4.7,
+    },
+    bestSeason: ["November", "December", "January", "February", "March"],
+    maxParticipants: 8,
+    minAge: 15,
+    physicalRequirement: "High fitness level required",
+    cancellation: "Free cancellation up to 24 hours before",
+  },
+  {
+    id: "10",
+    name: "Birdwatching Tour - Tanguar Haor Wetland",
+    category: "nature",
+    location: "Sunamganj",
+    region: "Sylhet Division",
+    price: 2200,
+    currency: "BDT",
+    duration: "4 hours",
+    difficulty: "easy",
+    groupSize: "3-10 people",
+    rating: 4.8,
+    reviews: 267,
+    image:
+      "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=500&h=300&fit=crop",
+    description:
+      "Spot over 200 species of birds at Tanguar Haor, a Ramsar wetland. Perfect for bird enthusiasts and nature lovers.",
+    highlights: [
+      "Rare bird spotting",
+      "Expert ornithologist guide",
+      "Boat tour",
+      "Photography opportunities",
+      "Wildlife guide book",
+    ],
+    included: [
+      "Guide",
+      "Binoculars",
+      "Boat",
+      "Field guide",
+      "Snacks",
+      "Photography tips",
+    ],
+    notIncluded: ["Meals"],
+    meetingPoint: "Sunamganj District Centre",
+    guide: {
+      name: "Dr. Sohel Rana",
+      avatar:
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
+      languages: ["Bengali", "English"],
+      experience: 20,
+      rating: 4.8,
+    },
+    bestSeason: ["November", "December", "January", "February"],
+    maxParticipants: 10,
+    minAge: 8,
+    physicalRequirement: "Easy",
+    cancellation: "Free cancellation up to 12 hours before",
+  },
+];

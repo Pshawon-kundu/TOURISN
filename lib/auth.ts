@@ -1,9 +1,9 @@
 import {
   createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
   type Auth,
   type User,
 } from "firebase/auth";
@@ -37,25 +37,86 @@ async function ensureAuth(): Promise<Auth | null> {
 
 export async function signIn(email: string, password: string) {
   const auth = await ensureAuth();
-  if (!auth) throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
-  return signInWithEmailAndPassword(auth, email, password);
+  if (!auth)
+    throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
+
+  const userCredential = await signInWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
+  const idToken = await userCredential.user.getIdToken();
+
+  // Call backend to get user role and validate
+  const API_URL = "http://localhost:5001"; // Update to your backend URL
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, idToken }),
+  });
+
+  const data = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.error || "Login failed");
+  }
+
+  // Reject admin users - they should use web dashboard
+  if (data.user.role === "admin") {
+    await firebaseSignOut(auth);
+    throw new Error("Admin users should visit admin.tourisn.com");
+  }
+
+  return userCredential;
 }
 
-export async function signUp(email: string, password: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  role: "traveler" | "guide" = "traveler",
+  name?: string
+) {
   const auth = await ensureAuth();
-  if (!auth) throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
-  return createUserWithEmailAndPassword(auth, email, password);
+  if (!auth)
+    throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
+
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
+  const idToken = await userCredential.user.getIdToken();
+
+  // Register user in backend with role
+  const API_URL = "http://localhost:5001"; // Update to your backend URL
+  const response = await fetch(`${API_URL}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, role, name }),
+  });
+
+  const data = await response.json();
+
+  if (!data.success) {
+    // Delete Firebase user if backend registration fails
+    await userCredential.user.delete();
+    throw new Error(data.error || "Signup failed");
+  }
+
+  return userCredential;
 }
 
 export async function signOut() {
   const auth = await ensureAuth();
-  if (!auth) throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
+  if (!auth)
+    throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
   return firebaseSignOut(auth);
 }
 
 export async function resetPassword(email: string) {
   const auth = await ensureAuth();
-  if (!auth) throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
+  if (!auth)
+    throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
   return sendPasswordResetEmail(auth, email);
 }
 

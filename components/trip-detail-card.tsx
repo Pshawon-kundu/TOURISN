@@ -1,4 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -28,7 +29,7 @@ export function TripDetailCard({
           <Text style={styles.locationText}>{from}</Text>
         </View>
         <View style={styles.arrowContainer}>
-          <Text style={styles.arrow}>⇄</Text>
+          <Ionicons name="swap-horizontal" size={24} color={Colors.primary} />
         </View>
         <View style={styles.locationBox}>
           <Text style={styles.locationText}>{to}</Text>
@@ -39,19 +40,23 @@ export function TripDetailCard({
         <View style={styles.detailsContainer}>
           {guests && (
             <View style={styles.detailRow}>
-              <Text style={styles.icon}>👥</Text>
+              <Ionicons name="people" size={16} color={Colors.textSecondary} />
               <Text style={styles.detailText}>{guests}</Text>
             </View>
           )}
           {nights && (
             <View style={styles.detailRow}>
-              <Text style={styles.icon}>🌙</Text>
+              <Ionicons name="moon" size={16} color={Colors.textSecondary} />
               <Text style={styles.detailText}>{nights}</Text>
             </View>
           )}
           {date && (
             <View style={styles.detailRow}>
-              <Text style={styles.icon}>📅</Text>
+              <Ionicons
+                name="calendar"
+                size={16}
+                color={Colors.textSecondary}
+              />
               <Text style={styles.detailText}>{date}</Text>
             </View>
           )}
@@ -101,10 +106,6 @@ const styles = StyleSheet.create({
   arrowContainer: {
     marginHorizontal: Spacing.sm,
   },
-  arrow: {
-    fontSize: 24,
-    color: Colors.primary,
-  },
   detailsContainer: {
     gap: Spacing.sm,
   },
@@ -112,9 +113,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-  },
-  icon: {
-    fontSize: 16,
   },
   detailText: {
     fontSize: 14,

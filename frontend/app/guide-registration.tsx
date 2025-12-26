@@ -1,8 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,16 +20,44 @@ import { Colors, Radii, Spacing } from "@/constants/design";
 export default function GuideRegistrationScreen() {
   const [step, setStep] = useState<"details" | "nid" | "expertise">("details");
   const [fullName, setFullName] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [age, setAge] = useState("");
   const [nidNumber, setNidNumber] = useState("");
+  const [nidImage, setNidImage] = useState<string | null>(null);
   const [nidVerified, setNidVerified] = useState(false);
-  const [expertisePlaces, setExpertisePlaces] = useState("");
-  const [experience, setExperience] = useState("");
-  const [yearsExperience, setYearsExperience] = useState("");
+  const [expertiseArea, setExpertiseArea] = useState("");
+  const [experienceYears, setExperienceYears] = useState("");
+  const [perHourRate, setPerHourRate] = useState("");
+
+  const pickNIDImage = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "Permission Required",
+        "Please allow access to your photo library"
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setNidImage(result.assets[0].uri);
+    }
+  };
 
   const handleNIDVerification = () => {
     if (nidNumber.length < 10) {
       Alert.alert("Invalid NID", "NID Number must be at least 10 digits");
+      return;
+    }
+    if (!nidImage) {
+      Alert.alert("Required", "Please upload your NID image");
       return;
     }
     // Simulate NID verification
@@ -41,8 +71,8 @@ export default function GuideRegistrationScreen() {
         Alert.alert("Required", "Please enter your full name");
         return;
       }
-      if (!dateOfBirth.trim()) {
-        Alert.alert("Required", "Please enter your date of birth");
+      if (!age.trim() || isNaN(Number(age))) {
+        Alert.alert("Required", "Please enter a valid age");
         return;
       }
       setStep("nid");
@@ -56,12 +86,16 @@ export default function GuideRegistrationScreen() {
   };
 
   const handleSubmit = () => {
-    if (!expertisePlaces.trim()) {
-      Alert.alert("Required", "Please enter your expertise areas");
+    if (!expertiseArea.trim()) {
+      Alert.alert("Required", "Please enter your expertise area");
       return;
     }
-    if (!yearsExperience.trim()) {
-      Alert.alert("Required", "Please enter years of experience");
+    if (!experienceYears.trim() || isNaN(Number(experienceYears))) {
+      Alert.alert("Required", "Please enter valid years of experience");
+      return;
+    }
+    if (!perHourRate.trim() || isNaN(Number(perHourRate))) {
+      Alert.alert("Required", "Please enter a valid per hour rate");
       return;
     }
 
@@ -130,7 +164,7 @@ export default function GuideRegistrationScreen() {
 
             {/* Full Name */}
             <View style={styles.fieldWrapper}>
-              <Label icon="person" label="Full Name" required />
+              <Label icon="person" label="Name" required />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your full name"
@@ -140,15 +174,16 @@ export default function GuideRegistrationScreen() {
               />
             </View>
 
-            {/* Date of Birth */}
+            {/* Age */}
             <View style={styles.fieldWrapper}>
-              <Label icon="calendar" label="Date of Birth" required />
+              <Label icon="calendar" label="Age" required />
               <TextInput
                 style={styles.input}
-                placeholder="DD/MM/YYYY"
+                placeholder="Enter your age"
                 placeholderTextColor="#999"
-                value={dateOfBirth}
-                onChangeText={setDateOfBirth}
+                value={age}
+                onChangeText={setAge}
+                keyboardType="numeric"
               />
             </View>
 
@@ -174,7 +209,7 @@ export default function GuideRegistrationScreen() {
 
             {/* NID Number Input */}
             <View style={styles.fieldWrapper}>
-              <Label icon="shield-checkmark" label="NID Number" required />
+              <Label icon="shield-checkmark" label="NID" required />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your NID number"
@@ -186,6 +221,38 @@ export default function GuideRegistrationScreen() {
               />
               <Text style={styles.helperText}>
                 Bangladesh NID format: typically 10-17 digits
+              </Text>
+            </View>
+
+            {/* Upload NID Image */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="image" label="Upload NID Image" required />
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={pickNIDImage}
+              >
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={24}
+                  color={Colors.primary}
+                />
+                <Text style={styles.uploadButtonText}>
+                  {nidImage ? "Change NID Image" : "Upload NID Image"}
+                </Text>
+              </TouchableOpacity>
+              {nidImage && (
+                <View style={styles.imagePreview}>
+                  <Image source={{ uri: nidImage }} style={styles.nidImage} />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => setNidImage(null)}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <Text style={styles.helperText}>
+                Upload a clear photo of your NID card
               </Text>
             </View>
 
@@ -239,15 +306,15 @@ export default function GuideRegistrationScreen() {
               Share your knowledge and experience to attract travelers.
             </Text>
 
-            {/* Expertise Places */}
+            {/* Expertise Area */}
             <View style={styles.fieldWrapper}>
-              <Label icon="location" label="Areas of Expertise" required />
+              <Label icon="location" label="Expertise Area" required />
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 placeholder="e.g., Old Dhaka, Cox's Bazar, Sylhet Tea Gardens, Bandarban Hills"
                 placeholderTextColor="#999"
-                value={expertisePlaces}
-                onChangeText={setExpertisePlaces}
+                value={expertiseArea}
+                onChangeText={setExpertiseArea}
                 multiline
                 numberOfLines={4}
               />
@@ -256,33 +323,37 @@ export default function GuideRegistrationScreen() {
               </Text>
             </View>
 
-            {/* Years of Experience */}
+            {/* Experience Years */}
             <View style={styles.fieldWrapper}>
-              <Label icon="briefcase" label="Years of Experience" required />
+              <Label icon="briefcase" label="Experience Year" required />
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 5 years"
+                placeholder="e.g., 5"
                 placeholderTextColor="#999"
-                value={yearsExperience}
-                onChangeText={setYearsExperience}
-              />
-            </View>
-
-            {/* Additional Experience Details */}
-            <View style={styles.fieldWrapper}>
-              <Label icon="document-text" label="About Your Experience" />
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="Tell travelers about your background and what makes you a great guide"
-                placeholderTextColor="#999"
-                value={experience}
-                onChangeText={setExperience}
-                multiline
-                numberOfLines={5}
+                value={experienceYears}
+                onChangeText={setExperienceYears}
+                keyboardType="numeric"
               />
               <Text style={styles.helperText}>
-                Share your unique experiences and specialties
+                Total years of experience as a guide
               </Text>
+            </View>
+
+            {/* Per Hour Rate */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="cash" label="Per Hour Rate" required />
+              <View style={styles.rateInputContainer}>
+                <Text style={styles.currencySymbol}>৳</Text>
+                <TextInput
+                  style={[styles.input, styles.rateInput]}
+                  placeholder="e.g., 500"
+                  placeholderTextColor="#999"
+                  value={perHourRate}
+                  onChangeText={setPerHourRate}
+                  keyboardType="numeric"
+                />
+              </View>
+              <Text style={styles.helperText}>Set your hourly rate in BDT</Text>
             </View>
 
             {/* Benefits Box */}
@@ -686,5 +757,55 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "700",
     fontSize: 16,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderStyle: "dashed",
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.md,
+    backgroundColor: "#F0F9FF",
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
+  imagePreview: {
+    position: "relative",
+    marginTop: Spacing.md,
+    borderRadius: Radii.md,
+    overflow: "hidden",
+  },
+  nidImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: Radii.md,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+  },
+  rateInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  currencySymbol: {
+    position: "absolute",
+    left: Spacing.md,
+    zIndex: 1,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  rateInput: {
+    paddingLeft: 36,
   },
 });

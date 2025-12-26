@@ -42,7 +42,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.editButton}>
-          <Text style={styles.editIcon}>✏️</Text>
+          <Ionicons name="create-outline" size={20} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -87,7 +87,11 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={styles.menuIcon}>👤</Text>
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
               </View>
               <Text style={styles.menuText}>Profile</Text>
             </View>
@@ -100,7 +104,11 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={styles.menuIcon}>🔖</Text>
+                <Ionicons
+                  name="bookmark-outline"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
               </View>
               <Text style={styles.menuText}>Bookmarked</Text>
             </View>
@@ -113,7 +121,11 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={styles.menuIcon}>🌍</Text>
+                <Ionicons
+                  name="earth-outline"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
               </View>
               <Text style={styles.menuText}>Previous Trips</Text>
             </View>
@@ -126,7 +138,11 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={styles.menuIcon}>⚙️</Text>
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
               </View>
               <Text style={styles.menuText}>Settings</Text>
             </View>
@@ -139,7 +155,11 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={styles.menuIcon}>ℹ️</Text>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
               </View>
               <Text style={styles.menuText}>Version</Text>
             </View>
@@ -152,7 +172,7 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <View style={styles.iconContainer}>
-                <Text style={[styles.menuIcon, { color: "#D22" }]}>🚪</Text>
+                <Ionicons name="log-out-outline" size={20} color="#D22" />
               </View>
               <Text style={[styles.menuText, { color: "#D22" }]}>Log Out</Text>
             </View>

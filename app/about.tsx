@@ -64,7 +64,7 @@ export default function AboutScreen() {
           <View style={styles.featureRow}>
             <View style={styles.featureCardLeft}>
               <View style={styles.iconCircle}>
-                <Text style={styles.iconText}>✓</Text>
+                <Ionicons name="checkmark" size={24} color="#fff" />
               </View>
               <Text style={styles.featureTitle}>Trusted Local Guides</Text>
               <Text style={styles.featureDescription}>
@@ -78,7 +78,7 @@ export default function AboutScreen() {
 
             <View style={styles.featureCardRight}>
               <View style={styles.iconCircle}>
-                <Text style={styles.iconText}>✓</Text>
+                <Ionicons name="checkmark" size={24} color="#fff" />
               </View>
               <Text style={styles.featureTitle}>Top-rated Quality</Text>
               <Text style={styles.featureDescription}>
@@ -96,7 +96,7 @@ export default function AboutScreen() {
           <View style={styles.featureRow}>
             <View style={styles.featureCardLeft}>
               <View style={styles.iconCircle}>
-                <Text style={styles.iconText}>✓</Text>
+                <Ionicons name="checkmark" size={24} color="#fff" />
               </View>
               <Text style={styles.featureTitle}>Seamless Booking</Text>
               <Text style={styles.featureDescription}>
@@ -110,7 +110,7 @@ export default function AboutScreen() {
 
             <View style={styles.featureCardRight}>
               <View style={styles.iconCircle}>
-                <Text style={styles.iconText}>✓</Text>
+                <Ionicons name="checkmark" size={24} color="#fff" />
               </View>
               <Text style={styles.featureTitle}>Personalized Experiences</Text>
               <Text style={styles.featureDescription}>
@@ -123,13 +123,13 @@ export default function AboutScreen() {
         {/* Social Media Icons */}
         <View style={styles.socialContainer}>
           <TouchableOpacity style={[styles.socialButton, styles.facebook]}>
-            <Text style={styles.socialIcon}>f</Text>
+            <Ionicons name="logo-facebook" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.socialButton, styles.instagram]}>
-            <Text style={styles.socialIcon}>📷</Text>
+            <Ionicons name="logo-instagram" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.socialButton, styles.twitter]}>
-            <Text style={styles.socialIcon}>🐦</Text>
+            <Ionicons name="logo-twitter" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
 

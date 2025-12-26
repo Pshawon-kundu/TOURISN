@@ -34,7 +34,7 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password);
+      await signUp(email.trim(), password, "traveler", fullName);
       setInfo("Account created! Redirecting...");
       router.replace("/");
     } catch (err: any) {
@@ -118,7 +118,10 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.signupButton, loading ? { opacity: 0.7 } : undefined]}
+            style={[
+              styles.signupButton,
+              loading ? { opacity: 0.7 } : undefined,
+            ]}
             onPress={handleSignup}
             disabled={loading}
           >

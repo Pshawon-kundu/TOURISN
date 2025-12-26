@@ -1,4 +1,5 @@
 import { Radii, Spacing } from "@/constants/design";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import {
   Image,
@@ -16,6 +17,7 @@ interface DestinationCardProps {
   onFavorite?: () => void;
   isFavorited?: boolean;
   large?: boolean;
+  style?: any;
 }
 
 export function DestinationCard({
@@ -25,13 +27,14 @@ export function DestinationCard({
   onFavorite,
   isFavorited = false,
   large = false,
+  style,
 }: DestinationCardProps) {
   const imageSource =
     typeof imageUrl === "string" ? { uri: imageUrl } : imageUrl;
 
   return (
     <TouchableOpacity
-      style={[styles.card, large && styles.largeCard]}
+      style={[styles.card, large && styles.largeCard, style]}
       onPress={onPress}
       activeOpacity={0.8}
     >
@@ -48,7 +51,11 @@ export function DestinationCard({
           onPress={onFavorite}
           activeOpacity={0.7}
         >
-          <Text style={styles.heartIcon}>{isFavorited ? "❤️" : "🤍"}</Text>
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={18}
+            color={isFavorited ? "#ef4444" : "#ffffff"}
+          />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -102,8 +109,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  heartIcon: {
-    fontSize: 18,
   },
 });

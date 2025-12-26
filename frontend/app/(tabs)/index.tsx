@@ -275,6 +275,17 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.quickLabel}>Chat</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/guide-registration")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#DBEAFE" }]}
+              >
+                <Ionicons name="person-add" size={24} color="#0284C7" />
+              </View>
+              <Text style={styles.quickLabel}>Become Guide</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 

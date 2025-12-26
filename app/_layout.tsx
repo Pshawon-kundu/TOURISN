@@ -28,15 +28,17 @@ function RootNavigation() {
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="signup" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="explore" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="guides" options={{ headerShown: false }} />
-        <Stack.Screen name="chat" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen name="guide/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="booking" options={{ headerShown: false }} />
-        <Stack.Screen name="food" options={{ headerShown: false }} />
-        <Stack.Screen name="transport" options={{ headerShown: false }} />
         <Stack.Screen name="about" options={{ headerShown: false }} />
+        <Stack.Screen name="experience" options={{ headerShown: false }} />
+        <Stack.Screen name="hired-confirm" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="guide-registration"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="modal"
           options={{ presentation: "modal", title: "Modal" }}
