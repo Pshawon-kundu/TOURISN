@@ -1,6 +1,7 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { stays, stayTypes } from "@/constants/staysData";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   FlatList,
@@ -89,8 +90,21 @@ export default function StaysScreen() {
         </Text>
 
         {/* Book Button */}
-        <TouchableOpacity style={styles.bookButton}>
-          <Text style={styles.bookButtonText}>View Details</Text>
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() =>
+            router.push({
+              pathname: "/booking",
+              params: {
+                type: "stay",
+                propertyName: item.name,
+                propertyType: item.type,
+                location: item.location,
+              },
+            })
+          }
+        >
+          <Text style={styles.bookButtonText}>Book Now</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

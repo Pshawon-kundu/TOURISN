@@ -8,8 +8,20 @@ import bookingRoutes from "./routes/bookingRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
 import guideRoutes from "./routes/guideRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
+import stayRoutes from "./routes/stayRoutes";
+import transportRoutes from "./routes/transportRoutes";
 
 dotenv.config();
+
+// Global error handlers
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection:", reason);
+});
 
 const app: Express = express();
 const port = process.env.PORT || 5001;
@@ -41,6 +53,8 @@ app.use("/api/experiences", experienceRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/guides", guideRoutes);
+app.use("/api/transport", transportRoutes);
+app.use("/api/stays", stayRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: "Route not found" });

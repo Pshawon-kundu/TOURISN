@@ -1,7 +1,7 @@
-import { Response } from 'express';
-import Review from '../models/Review';
-import Experience from '../models/Experience';
-import { AuthRequest } from '../middleware/auth';
+import { Response } from "express";
+import { AuthRequest } from "../middleware/auth";
+import Experience from "../models/Experience";
+import Review from "../models/Review";
 
 export const createReview = async (
   req: AuthRequest,
@@ -9,26 +9,30 @@ export const createReview = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
+      res.status(401).json({ success: false, error: "Unauthorized" });
       return;
     }
 
     const { experienceId, rating, title, comment, images, userName } = req.body;
 
     if (!experienceId || !rating || !title || !comment) {
-      res.status(400).json({ success: false, error: 'Missing required fields' });
+      res
+        .status(400)
+        .json({ success: false, error: "Missing required fields" });
       return;
     }
 
     if (rating < 1 || rating > 5) {
-      res.status(400).json({ success: false, error: 'Rating must be between 1 and 5' });
+      res
+        .status(400)
+        .json({ success: false, error: "Rating must be between 1 and 5" });
       return;
     }
 
     const review = new Review({
       experienceId,
-      userId: req.user.uid,
-      userName: userName || req.user.name || 'Anonymous',
+      userId: req.user.id,
+      userName: userName || "Anonymous",
       rating,
       title,
       comment,
@@ -51,12 +55,12 @@ export const createReview = async (
 
     res.status(201).json({
       success: true,
-      message: 'Review created successfully',
+      message: "Review created successfully",
       data: review,
     });
   } catch (error) {
-    console.error('Create review error:', error);
-    res.status(500).json({ success: false, error: 'Failed to create review' });
+    console.error("Create review error:", error);
+    res.status(500).json({ success: false, error: "Failed to create review" });
   }
 };
 
@@ -88,8 +92,8 @@ export const getReviews = async (
       },
     });
   } catch (error) {
-    console.error('Get reviews error:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch reviews' });
+    console.error("Get reviews error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch reviews" });
   }
 };
 
@@ -104,18 +108,20 @@ export const updateReview = async (
     const review = await Review.findById(id);
 
     if (!review) {
-      res.status(404).json({ success: false, error: 'Review not found' });
+      res.status(404).json({ success: false, error: "Review not found" });
       return;
     }
 
-    if (review.userId !== req.user?.uid) {
-      res.status(403).json({ success: false, error: 'Forbidden' });
+    if (review.userId !== req.user?.id) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 
     if (rating) {
       if (rating < 1 || rating > 5) {
-        res.status(400).json({ success: false, error: 'Rating must be between 1 and 5' });
+        res
+          .status(400)
+          .json({ success: false, error: "Rating must be between 1 and 5" });
         return;
       }
       review.rating = rating;
@@ -128,7 +134,9 @@ export const updateReview = async (
 
     const experience = await Experience.findById(review.experienceId);
     if (experience) {
-      const allReviews = await Review.find({ experienceId: review.experienceId });
+      const allReviews = await Review.find({
+        experienceId: review.experienceId,
+      });
       const avgRating =
         allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
       experience.rating = Math.round(avgRating * 10) / 10;
@@ -137,12 +145,12 @@ export const updateReview = async (
 
     res.status(200).json({
       success: true,
-      message: 'Review updated successfully',
+      message: "Review updated successfully",
       data: review,
     });
   } catch (error) {
-    console.error('Update review error:', error);
-    res.status(500).json({ success: false, error: 'Failed to update review' });
+    console.error("Update review error:", error);
+    res.status(500).json({ success: false, error: "Failed to update review" });
   }
 };
 
@@ -156,12 +164,12 @@ export const deleteReview = async (
     const review = await Review.findById(id);
 
     if (!review) {
-      res.status(404).json({ success: false, error: 'Review not found' });
+      res.status(404).json({ success: false, error: "Review not found" });
       return;
     }
 
-    if (review.userId !== req.user?.uid) {
-      res.status(403).json({ success: false, error: 'Forbidden' });
+    if (review.userId !== req.user?.id) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 
@@ -173,7 +181,9 @@ export const deleteReview = async (
         (r) => r.toString() !== id
       );
 
-      const allReviews = await Review.find({ experienceId: review.experienceId });
+      const allReviews = await Review.find({
+        experienceId: review.experienceId,
+      });
       if (allReviews.length > 0) {
         const avgRating =
           allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
@@ -187,10 +197,10 @@ export const deleteReview = async (
 
     res.status(200).json({
       success: true,
-      message: 'Review deleted successfully',
+      message: "Review deleted successfully",
     });
   } catch (error) {
-    console.error('Delete review error:', error);
-    res.status(500).json({ success: false, error: 'Failed to delete review' });
+    console.error("Delete review error:", error);
+    res.status(500).json({ success: false, error: "Failed to delete review" });
   }
 };

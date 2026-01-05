@@ -3,6 +3,7 @@ import admin from "firebase-admin";
 
 dotenv.config();
 
+// Initialize Firebase Admin SDK
 const serviceAccount = {
   type: "service_account",
   project_id: process.env.FIREBASE_PROJECT_ID,
@@ -16,32 +17,27 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
 };
 
-// Initialize Firebase only if credentials are properly set
-let firebaseAuth: any;
-let firebaseDB: any;
+let firebaseInitialized = false;
 
-if (
-  !admin.apps.length &&
-  serviceAccount.project_id &&
-  serviceAccount.private_key
-) {
-  try {
+try {
+  if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`,
     });
-    firebaseAuth = admin.auth();
-    firebaseDB = admin.firestore();
-    console.log("Firebase initialized successfully");
-  } catch (error) {
-    console.warn("Firebase initialization failed:", error);
-    console.warn("Firebase features will be disabled");
+    firebaseInitialized = true;
+    console.log("✓ Firebase Admin initialized");
   }
-} else {
+} catch (error) {
   console.warn(
-    "Firebase credentials not fully configured. Firebase features will be disabled."
+    "⚠ Firebase initialization skipped (optional for dual-database setup):",
+    error instanceof Error ? error.message : error
   );
 }
 
-export { firebaseAuth, firebaseDB };
+// Export Firebase services only if initialized
+export const firebaseAuth = firebaseInitialized ? admin.auth() : null;
+export const firebaseDB = firebaseInitialized ? admin.firestore() : null;
+export const firebaseStorage = firebaseInitialized ? admin.storage() : null;
+
 export default admin;

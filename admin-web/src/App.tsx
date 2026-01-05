@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { MainLayout } from "./layouts/MainLayout";
+import { AllBookingsPage } from "./pages/AllBookingsPage";
 import { BookingsPage } from "./pages/BookingsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { GuidesPage } from "./pages/GuidesPage";
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/bookings" element={<BookingsPage />} />
+        <Route path="/all-bookings" element={<AllBookingsPage />} />
         <Route path="/guides" element={<GuidesPage />} />
       </Route>
       <Route

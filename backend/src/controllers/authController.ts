@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import { firebaseAuth, firebaseDB } from "../config/firebase";
+import { supabase } from "../config/supabase";
 
 export interface AuthRequest extends Request {
   user?: {
-    uid: string;
+    id: string;
     email?: string;
-    name?: string;
     role?: "admin" | "traveler" | "guide";
   };
 }
@@ -45,26 +45,75 @@ export const signup = async (
     }
 
     // Create user in Firebase Auth
+    if (!firebaseAuth) {
+      throw new Error("Firebase Auth not initialized");
+    }
+
+    console.log("Creating Firebase user:", email);
     const userRecord = await firebaseAuth.createUser({
       email,
       password,
       displayName: name,
     });
+    console.log("✓ Firebase user created:", userRecord.uid);
+
+    const displayName = name || email.split("@")[0];
+    const [firstName, ...lastNameParts] = displayName.split(" ");
+    const lastName = lastNameParts.join(" ") || "";
+
+    const userData = {
+      auth_id: userRecord.uid,
+      email,
+      role,
+      first_name: firstName,
+      last_name: lastName,
+      phone: null,
+      avatar_url: null,
+      bio: null,
+    };
 
     // Store user metadata in Firestore
-    await firebaseDB
-      .collection("users")
-      .doc(userRecord.uid)
-      .set({
-        uid: userRecord.uid,
-        email,
-        role,
-        name: name || email.split("@")[0],
-        createdAt: new Date().toISOString(),
-      });
+    if (firebaseDB) {
+      try {
+        console.log("Storing in Firestore...");
+        await firebaseDB
+          .collection("users")
+          .doc(userRecord.uid)
+          .set({
+            uid: userRecord.uid,
+            ...userData,
+            created_at: new Date().toISOString(),
+          });
+        console.log(`✓ User stored in Firestore: ${userRecord.uid}`);
+      } catch (fbError: any) {
+        console.error("❌ Firestore write error:", fbError.message);
+      }
+    }
+
+    // Store user in Supabase PostgreSQL - with proper error handling
+    // Temporarily disabled to debug
+    /*
+    if (supabase) {
+      console.log("Attempting Supabase insert...");
+      try {
+        const insertResult = supabase.from("users").insert([userData]);
+        const { data, error } = await insertResult;
+
+        if (error) {
+          console.error("❌ Supabase error:", error.message, error.details);
+        } else {
+          console.log("✓ User stored in Supabase");
+        }
+      } catch (spError: any) {
+        console.error("❌ Supabase exception:", spError.message);
+      }
+    }
+    */
 
     // Generate custom token
+    console.log("Generating token...");
     const token = await firebaseAuth.createCustomToken(userRecord.uid);
+    console.log("✓ Token generated");
 
     res.status(201).json({
       success: true,
@@ -73,7 +122,7 @@ export const signup = async (
         uid: userRecord.uid,
         email,
         role,
-        name: name || email.split("@")[0],
+        name: displayName,
       },
     });
   } catch (error: any) {
@@ -126,18 +175,28 @@ export const login = async (
       return;
     }
 
-    // Get user data from Firestore
-    const userDoc = await firebaseDB.collection("users").doc(uid).get();
+    // Get user data from Firestore or Supabase
+    let userDoc = await firebaseDB.collection("users").doc(uid).get();
 
-    if (!userDoc.exists) {
-      res.status(404).json({
-        success: false,
-        error: "User profile not found",
-      });
-      return;
+    let userData: any = userDoc.data();
+
+    // If not in Firestore, try Supabase
+    if (!userData) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("auth_id", uid)
+        .single();
+
+      if (error || !data) {
+        res.status(404).json({
+          success: false,
+          error: "User profile not found",
+        });
+        return;
+      }
+      userData = data;
     }
-
-    const userData = userDoc.data();
 
     // Generate custom token for subsequent requests
     const token = await firebaseAuth.createCustomToken(uid);
@@ -146,10 +205,12 @@ export const login = async (
       success: true,
       token,
       user: {
-        uid: userData.uid,
+        uid: userData.auth_id || userData.uid,
         email: userData.email,
         role: userData.role,
-        name: userData.name,
+        name:
+          userData.name ||
+          `${userData.first_name} ${userData.last_name}`.trim(),
       },
     });
   } catch (error: any) {
@@ -181,30 +242,42 @@ export const verifyToken = async (
     // Verify the token
     const decodedToken = await firebaseAuth.verifyIdToken(token);
 
-    // Get user data from Firestore
-    const userDoc = await firebaseDB
+    // Get user data from Firestore or Supabase
+    let userDoc = await firebaseDB
       .collection("users")
       .doc(decodedToken.uid)
       .get();
 
-    if (!userDoc.exists) {
-      res.status(404).json({
-        success: false,
-        error: "User profile not found",
-      });
-      return;
-    }
+    let userData: any = userDoc.data();
 
-    const userData = userDoc.data();
+    // If not in Firestore, try Supabase
+    if (!userData) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("auth_id", decodedToken.uid)
+        .single();
+
+      if (error || !data) {
+        res.status(404).json({
+          success: false,
+          error: "User profile not found",
+        });
+        return;
+      }
+      userData = data;
+    }
 
     res.status(200).json({
       success: true,
       valid: true,
       user: {
-        uid: userData.uid,
+        uid: userData.auth_id || userData.uid,
         email: userData.email,
         role: userData.role,
-        name: userData.name,
+        name:
+          userData.name ||
+          `${userData.first_name} ${userData.last_name}`.trim(),
       },
     });
   } catch (error: any) {
@@ -224,7 +297,7 @@ export const getCurrentUser = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (!req.user?.uid) {
+    if (!req.user?.id) {
       res.status(401).json({
         success: false,
         error: "Not authenticated",
@@ -232,29 +305,38 @@ export const getCurrentUser = async (
       return;
     }
 
-    // Get user data from Firestore
-    const userDoc = await firebaseDB
-      .collection("users")
-      .doc(req.user.uid)
-      .get();
+    // Get user data from Firestore or Supabase
+    let userDoc = await firebaseDB.collection("users").doc(req.user.id).get();
 
-    if (!userDoc.exists) {
-      res.status(404).json({
-        success: false,
-        error: "User profile not found",
-      });
-      return;
+    let userData: any = userDoc.data();
+
+    // If not in Firestore, try Supabase
+    if (!userData) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("auth_id", req.user.id)
+        .single();
+
+      if (error || !data) {
+        res.status(404).json({
+          success: false,
+          error: "User profile not found",
+        });
+        return;
+      }
+      userData = data;
     }
-
-    const userData = userDoc.data();
 
     res.status(200).json({
       success: true,
       user: {
-        uid: userData.uid,
+        uid: userData.auth_id || userData.uid,
         email: userData.email,
         role: userData.role,
-        name: userData.name,
+        name:
+          userData.name ||
+          `${userData.first_name} ${userData.last_name}`.trim(),
       },
     });
   } catch (error: any) {

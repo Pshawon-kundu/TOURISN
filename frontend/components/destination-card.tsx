@@ -3,6 +3,7 @@ import React from "react";
 import {
   Image,
   ImageSourcePropType,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -88,9 +89,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: {
+        textShadow: "rgba(0,0,0,0.5) 0px 1px 4px",
+      },
+      ios: {
+        textShadowColor: "rgba(0,0,0,0.5)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
+      },
+      default: {},
+    }),
   },
   favoriteButton: {
     position: "absolute",

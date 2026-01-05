@@ -1,7 +1,7 @@
-import { Response } from 'express';
-import Booking from '../models/Booking';
-import Experience from '../models/Experience';
-import { AuthRequest } from '../middleware/auth';
+import { Response } from "express";
+import { AuthRequest } from "../middleware/auth";
+import Booking from "../models/Booking";
+import Experience from "../models/Experience";
 
 export const createBooking = async (
   req: AuthRequest,
@@ -9,7 +9,7 @@ export const createBooking = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
+      res.status(401).json({ success: false, error: "Unauthorized" });
       return;
     }
 
@@ -29,7 +29,7 @@ export const createBooking = async (
     const experience = await Experience.findById(experienceId);
 
     if (!experience) {
-      res.status(404).json({ success: false, error: 'Experience not found' });
+      res.status(404).json({ success: false, error: "Experience not found" });
       return;
     }
 
@@ -39,13 +39,13 @@ export const createBooking = async (
     ) {
       res.status(400).json({
         success: false,
-        error: 'Not enough spots available',
+        error: "Not enough spots available",
       });
       return;
     }
 
     const booking = new Booking({
-      userId: req.user.uid,
+      userId: req.user.id,
       experienceId,
       numberOfParticipants,
       totalPrice,
@@ -65,12 +65,12 @@ export const createBooking = async (
 
     res.status(201).json({
       success: true,
-      message: 'Booking created successfully',
+      message: "Booking created successfully",
       data: booking,
     });
   } catch (error) {
-    console.error('Create booking error:', error);
-    res.status(500).json({ success: false, error: 'Failed to create booking' });
+    console.error("Create booking error:", error);
+    res.status(500).json({ success: false, error: "Failed to create booking" });
   }
 };
 
@@ -80,20 +80,20 @@ export const getBookings = async (
 ): Promise<void> => {
   try {
     if (!req.user) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
+      res.status(401).json({ success: false, error: "Unauthorized" });
       return;
     }
 
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const bookings = await Booking.find({ userId: req.user.uid })
-      .populate('experienceId')
+    const bookings = await Booking.find({ userId: req.user.id })
+      .populate("experienceId")
       .skip(skip)
       .limit(Number(limit))
       .sort({ createdAt: -1 });
 
-    const total = await Booking.countDocuments({ userId: req.user.uid });
+    const total = await Booking.countDocuments({ userId: req.user.id });
 
     res.status(200).json({
       success: true,
@@ -106,8 +106,8 @@ export const getBookings = async (
       },
     });
   } catch (error) {
-    console.error('Get bookings error:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch bookings' });
+    console.error("Get bookings error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch bookings" });
   }
 };
 
@@ -118,15 +118,15 @@ export const getBookingById = async (
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate('experienceId');
+    const booking = await Booking.findById(id).populate("experienceId");
 
     if (!booking) {
-      res.status(404).json({ success: false, error: 'Booking not found' });
+      res.status(404).json({ success: false, error: "Booking not found" });
       return;
     }
 
-    if (booking.userId !== req.user?.uid) {
-      res.status(403).json({ success: false, error: 'Forbidden' });
+    if (booking.userId !== req.user?.id) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 
@@ -135,8 +135,8 @@ export const getBookingById = async (
       data: booking,
     });
   } catch (error) {
-    console.error('Get booking by ID error:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch booking' });
+    console.error("Get booking by ID error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch booking" });
   }
 };
 
@@ -151,12 +151,12 @@ export const updateBooking = async (
     const booking = await Booking.findById(id);
 
     if (!booking) {
-      res.status(404).json({ success: false, error: 'Booking not found' });
+      res.status(404).json({ success: false, error: "Booking not found" });
       return;
     }
 
-    if (booking.userId !== req.user?.uid) {
-      res.status(403).json({ success: false, error: 'Forbidden' });
+    if (booking.userId !== req.user?.id) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 
@@ -165,12 +165,12 @@ export const updateBooking = async (
 
     res.status(200).json({
       success: true,
-      message: 'Booking updated successfully',
+      message: "Booking updated successfully",
       data: booking,
     });
   } catch (error) {
-    console.error('Update booking error:', error);
-    res.status(500).json({ success: false, error: 'Failed to update booking' });
+    console.error("Update booking error:", error);
+    res.status(500).json({ success: false, error: "Failed to update booking" });
   }
 };
 
@@ -184,16 +184,16 @@ export const cancelBooking = async (
     const booking = await Booking.findById(id);
 
     if (!booking) {
-      res.status(404).json({ success: false, error: 'Booking not found' });
+      res.status(404).json({ success: false, error: "Booking not found" });
       return;
     }
 
-    if (booking.userId !== req.user?.uid) {
-      res.status(403).json({ success: false, error: 'Forbidden' });
+    if (booking.userId !== req.user?.id) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 
-    booking.bookingStatus = 'cancelled';
+    booking.bookingStatus = "cancelled";
     await booking.save();
 
     const experience = await Experience.findById(booking.experienceId);
@@ -204,11 +204,11 @@ export const cancelBooking = async (
 
     res.status(200).json({
       success: true,
-      message: 'Booking cancelled successfully',
+      message: "Booking cancelled successfully",
       data: booking,
     });
   } catch (error) {
-    console.error('Cancel booking error:', error);
-    res.status(500).json({ success: false, error: 'Failed to cancel booking' });
+    console.error("Cancel booking error:", error);
+    res.status(500).json({ success: false, error: "Failed to cancel booking" });
   }
 };

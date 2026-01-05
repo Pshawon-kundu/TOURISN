@@ -4,10 +4,12 @@ import { PaymentCard } from "@/components/payment-card";
 import { ThemedView } from "@/components/themed-view";
 import { TripDetailCard } from "@/components/trip-detail-card";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { createStayBooking, createTransportBooking } from "@/lib/api";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -18,14 +20,82 @@ import {
 } from "react-native";
 
 export default function BookingScreen() {
+  const params = useLocalSearchParams();
+  const bookingType = (params.type as string) || "transport"; // 'transport' or 'stay'
+  const transportType = params.transportType as string;
+  const propertyName = params.propertyName as string;
+  const propertyType = params.propertyType as string;
+  const location = params.location as string;
+
   const [cardNumber, setCardNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [travelerName, setTravelerName] = useState("Mahin Rahman");
-  const [phone, setPhone] = useState("+880 1700 123 456");
+  const [travelerName, sasync () => {
+    setIsSubmitting(true);
+
+    try {
+      // Prepare booking data
+      const bookingData = {
+        userId: "guest_user", // Replace with actual user ID from auth
+        travelerName,
+        phone,
+        email,
+        notes,
+        baseFare: 1450,
+        taxes: 120,
+        serviceFee: 25,
+        discount: 50,
+        totalAmount: 1545,
+        paymentMethod: "Credit Card",
+        cardLastFour: cardNumber.slice(-4),
+      };
+
+      let result;
+
+      if (bookingType === "stay") {
+        // Create stay booking
+        result = await createStayBooking({
+          ...bookingData,
+          propertyName: propertyName || "Sea View Resort",
+          propertyType: (propertyType as any) || "resort",
+          location: location || "Cox's Bazar",
+          checkInDate: new Date().toISOString(),
+          checkOutDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          numberOfGuests: 2,
+          numberOfNights: 2,
+        });
+      } else {
+        // Create transport booking
+        result = await createTransportBooking({
+          ...bookingData,
+          transportType: (transportType as any) || "car",
+          from: "Dhaka",
+          to: "Cox's Bazar",
+          travelDate: new Date().toISOString(),
+          duration: "8-10 hrs",
+        });
+      }
+
+      console.log("Booking created successfully:", result);
+      setBookingId(
+        result.data?.firebaseId || `TRV${Math.floor(Math.random() * 10000)}`
+      );
+      setShowThankYou(true);
+    } catch (error) {
+      console.error("Booking error:", error);
+      Alert.alert(
+        "Booking Failed",
+        error instanceof Error ? error.message : "Unable to complete booking. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsSubmitting(false);
+    }= useState("+880 1700 123 456");
   const [email, setEmail] = useState("mahin.rahman@email.com");
   const [notes, setNotes] = useState("");
   const [step, setStep] = useState<"details" | "payment">("details");
   const [showThankYou, setShowThankYou] = useState(false);
+  const [bookingId, setBookingId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = () => {
     setShowThankYou(true);
@@ -51,8 +121,12 @@ export default function BookingScreen() {
         <View style={styles.stepper}>
           <StepPill label="Details" active={step === "details"} index={1} />
           <StepDivider />
-          <StepPill label="Payment" active={step === "payment"} index={2} />
-        </View>
+          <StepPill label="Payment" active disabled={isSubmitting}>
+          {isSubmitting
+            ? "Processing..."
+            : step === "details"
+            ? "Continue to payment"
+           
 
         <TripDetailCard
           from="Dhaka"
@@ -69,7 +143,7 @@ export default function BookingScreen() {
               value={travelerName}
               onChangeText={setTravelerName}
               placeholder="Enter traveler name"
-            />
+            />{bookingId
             <InputField
               label="Phone"
               value={phone}

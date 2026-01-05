@@ -1,7 +1,14 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { Link } from "expo-router";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function WelcomeScreen() {
   return (
@@ -91,9 +98,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
     textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    ...Platform.select({
+      web: {
+        textShadow: "rgba(0,0,0,0.5) 0px 2px 8px",
+      },
+      ios: {
+        textShadowColor: "rgba(0,0,0,0.5)",
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 8,
+      },
+      default: {},
+    }),
   },
   subtitle: {
     fontSize: 28,
@@ -101,9 +116,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
     marginTop: Spacing.xs,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    ...Platform.select({
+      web: {
+        textShadow: "rgba(0,0,0,0.5) 0px 2px 8px",
+      },
+      ios: {
+        textShadowColor: "rgba(0,0,0,0.5)",
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 8,
+      },
+      default: {},
+    }),
   },
   buttonContainer: {
     gap: Spacing.lg,

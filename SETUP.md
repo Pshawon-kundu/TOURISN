@@ -1,4 +1,8 @@
-# 🚀 TURISON Monorepo Setup Guide
+# 🚀 TURISON - Supabase Setup Guide
+
+## Overview
+
+Turison has been migrated from **MongoDB + Firebase** to **Supabase** (PostgreSQL + Auth + Storage + Real-time).
 
 ## Project Structure
 
@@ -6,6 +10,8 @@
 TURISON/
 ├── 📁 frontend/          React Native + Expo Frontend
 ├── 📁 backend/           Express.js Backend API
+├── 📁 admin-web/         Admin Dashboard (Vite + React)
+├── 📁 components/        Shared React Components
 ├── package.json          Root monorepo config
 ├── .env                  Environment variables
 └── docs/                 Documentation
@@ -15,337 +21,442 @@ TURISON/
 
 ## ⚡ Quick Start
 
-### 1️⃣ Install All Dependencies
+### 1️⃣ Supabase Project Setup
 
-```bash
-cd c:\Users\user\Desktop\turison\TOURISN
-npm install
-```
-
-This installs:
-- Root dependencies (`concurrently`)
-- Frontend dependencies (React Native, Expo, Firebase)
-- Backend dependencies (Express, Mongoose, Firebase Admin)
+1. Go to https://supabase.com and create a new project
+2. Wait for initialization
+3. Go to **Settings** → **API** and copy your credentials
 
 ### 2️⃣ Create .env File
 
-Create a `.env` file in the root `TURISON/` directory:
+Create a `.env` file in the root directory:
 
 ```env
 # Backend Configuration
-PORT=5000
+PORT=3000
 NODE_ENV=development
 
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/turison
-MONGODB_ATLAS_URI=your_mongodb_atlas_uri
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_JWT_SECRET=your_jwt_secret
+```
 
-# Firebase Admin SDK
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_PRIVATE_KEY_ID=your_private_key_id
-FIREBASE_PRIVATE_KEY=your_private_key
-FIREBASE_CLIENT_EMAIL=your_client_email
-FIREBASE_CLIENT_ID=your_client_id
-FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
-FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
-FIREBASE_AUTH_PROVIDER_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
-FIREBASE_CLIENT_CERT_URL=your_cert_url
+### 3️⃣ Frontend .env Setup
 
-# Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_public_key
+Create `frontend/.env` or `frontend/.env.local`:
 
-# Email (Nodemailer)
-SMTP_USER=your_gmail@gmail.com
-SMTP_PASS=your_app_password
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
 
-# JWT
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRE=7d
+### 4️⃣ Admin Web .env Setup
+
+Create `admin-web/.env.local`:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+```
+
+---
+
+## 📋 SQL Database Schema
+
+### Run These in Supabase SQL Editor
+
+#### 1. Users Table (extends Supabase Auth)
+
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  email VARCHAR(255) UNIQUE,
+  phone VARCHAR(20),
+  avatar_url TEXT,
+  bio TEXT,
+  role VARCHAR(20) DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read their own data" ON users
+  FOR SELECT USING (auth.uid() = auth_id);
+
+CREATE POLICY "Users can update their own data" ON users
+  FOR UPDATE USING (auth.uid() = auth_id);
+```
+
+#### 2. Guides Table
+
+```sql
+CREATE TABLE guides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  bio TEXT,
+  specialties TEXT[] DEFAULT ARRAY[]::TEXT[],
+  languages TEXT[] DEFAULT ARRAY[]::TEXT[],
+  years_of_experience INT DEFAULT 0,
+  certifications TEXT[] DEFAULT ARRAY[]::TEXT[],
+  rating DECIMAL(3,2) DEFAULT 0,
+  total_reviews INT DEFAULT 0,
+  is_verified BOOLEAN DEFAULT FALSE,
+  experiences_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE guides ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Guides are publicly readable" ON guides FOR SELECT USING (true);
+CREATE POLICY "Users can update own guide" ON guides FOR UPDATE USING (
+  auth.uid() IN (SELECT auth_id FROM users WHERE id = user_id)
+);
+```
+
+#### 3. Experiences Table
+
+```sql
+CREATE TABLE experiences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  guide_id UUID REFERENCES guides(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  category VARCHAR(50) NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
+  duration VARCHAR(50) NOT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(10) DEFAULT 'BDT',
+  max_participants INT NOT NULL,
+  current_participants INT DEFAULT 0,
+  images TEXT[] DEFAULT ARRAY[]::TEXT[],
+  highlights TEXT[] DEFAULT ARRAY[]::TEXT[],
+  inclusions TEXT[] DEFAULT ARRAY[]::TEXT[],
+  exclusions TEXT[] DEFAULT ARRAY[]::TEXT[],
+  itinerary JSONB,
+  rating DECIMAL(3,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'draft',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE experiences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Experiences publicly readable if active" ON experiences
+  FOR SELECT USING (status = 'active');
+```
+
+#### 4. Bookings Table
+
+```sql
+CREATE TABLE bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  experience_id UUID REFERENCES experiences(id) ON DELETE CASCADE,
+  number_of_participants INT NOT NULL,
+  total_price DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(10) DEFAULT 'BDT',
+  payment_method VARCHAR(20) NOT NULL,
+  payment_status VARCHAR(20) DEFAULT 'pending',
+  booking_status VARCHAR(20) DEFAULT 'confirmed',
+  special_requests TEXT,
+  booker_name VARCHAR(255) NOT NULL,
+  booker_email VARCHAR(255) NOT NULL,
+  booker_phone VARCHAR(20) NOT NULL,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
+  payment_details JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX bookings_user_id ON bookings(user_id);
+CREATE INDEX bookings_experience_id ON bookings(experience_id);
+
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own bookings" ON bookings
+  FOR SELECT USING (auth.uid() IN (SELECT auth_id FROM users WHERE id = user_id));
+```
+
+#### 5. Reviews Table
+
+```sql
+CREATE TABLE reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id UUID REFERENCES experiences(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  title VARCHAR(255) NOT NULL,
+  comment TEXT NOT NULL,
+  images TEXT[] DEFAULT ARRAY[]::TEXT[],
+  helpful INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX reviews_experience_id ON reviews(experience_id);
+CREATE INDEX reviews_user_id ON reviews(user_id);
+
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Reviews are publicly readable" ON reviews FOR SELECT USING (true);
+CREATE POLICY "Users can create reviews" ON reviews FOR INSERT WITH CHECK (
+  auth.uid() IN (SELECT auth_id FROM users WHERE id = user_id)
+);
+```
+
+#### 6. Stay Bookings Table
+
+```sql
+CREATE TABLE stay_bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  property_id VARCHAR(255),
+  property_name VARCHAR(255) NOT NULL,
+  property_type VARCHAR(50) NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  traveler_name VARCHAR(255) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  notes TEXT,
+  check_in_date DATE NOT NULL,
+  check_out_date DATE NOT NULL,
+  number_of_guests INT NOT NULL,
+  number_of_nights INT NOT NULL,
+  room_type VARCHAR(100),
+  base_fare DECIMAL(10,2) NOT NULL,
+  taxes DECIMAL(10,2) NOT NULL,
+  service_fee DECIMAL(10,2) NOT NULL,
+  discount DECIMAL(10,2) DEFAULT 0,
+  total_amount DECIMAL(10,2) NOT NULL,
+  payment_method VARCHAR(50) NOT NULL,
+  card_last_four VARCHAR(4),
+  status VARCHAR(20) DEFAULT 'confirmed',
+  amenities TEXT[] DEFAULT ARRAY[]::TEXT[],
+  special_requests TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX stay_bookings_user_id ON stay_bookings(user_id);
+
+ALTER TABLE stay_bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own stay bookings" ON stay_bookings
+  FOR SELECT USING (auth.uid() IN (SELECT auth_id FROM users WHERE id = user_id));
+```
+
+#### 7. Transport Bookings Table
+
+```sql
+CREATE TABLE transport_bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  transport_type VARCHAR(50) NOT NULL,
+  from_location VARCHAR(255) NOT NULL,
+  to_location VARCHAR(255) NOT NULL,
+  traveler_name VARCHAR(255) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  notes TEXT,
+  base_fare DECIMAL(10,2) NOT NULL,
+  taxes DECIMAL(10,2) NOT NULL,
+  service_fee DECIMAL(10,2) NOT NULL,
+  discount DECIMAL(10,2) DEFAULT 0,
+  total_amount DECIMAL(10,2) NOT NULL,
+  payment_method VARCHAR(50) NOT NULL,
+  card_last_four VARCHAR(4),
+  status VARCHAR(20) DEFAULT 'confirmed',
+  travel_date DATE,
+  duration VARCHAR(100),
+  provider VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX transport_bookings_user_id ON transport_bookings(user_id);
+
+ALTER TABLE transport_bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own transport" ON transport_bookings
+  FOR SELECT USING (auth.uid() IN (SELECT auth_id FROM users WHERE id = user_id));
+```
+
+#### 8. Storage Buckets
+
+```sql
+-- Create storage buckets
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('experiences', 'experiences', true);
+INSERT INTO storage.buckets (id, name, public) VALUES ('reviews', 'reviews', true);
+```
+
+---
+
+## 5️⃣ Install Dependencies
+
+```bash
+# Root
+npm install
+
+# Backend (Supabase client)
+cd backend
+npm install @supabase/supabase-js
+npm install
 
 # Frontend
-EXPO_PUBLIC_API_URL=http://localhost:5000/api
+cd frontend
+npm install @supabase/supabase-js
+npm install
+
+# Admin Web
+cd admin-web
+npm install @supabase/supabase-js
+npm install
 ```
 
-### 3️⃣ Run Development Mode
+---
 
-**Option A: Run Both Frontend & Backend Together**
+## 6️⃣ Run Development
+
 ```bash
+# Option A: Both frontend & backend
 npm run dev
-```
-This starts:
-- Frontend on `http://localhost:19000` (Expo)
-- Backend on `http://localhost:5000`
 
-**Option B: Run Frontend Only**
-```bash
+# Option B: Just backend
+cd backend
+npm run dev
+
+# Option C: Just frontend
 cd frontend
 npm start
-```
 
-**Option C: Run Backend Only**
-```bash
-cd backend
+# Option D: Just admin web
+cd admin-web
 npm run dev
-```
-
----
-
-## 📁 Directory Structure
-
-### Frontend (`frontend/`)
-```
-frontend/
-├── src/
-│   ├── app/              Navigation & screens
-│   ├── components/       Reusable UI components
-│   ├── constants/        Design tokens & config
-│   ├── hooks/            Custom React hooks
-│   └── lib/              Firebase & utilities
-├── assets/               Images, fonts, icons
-├── app.json              Expo configuration
-├── package.json          Frontend dependencies
-└── tsconfig.json         TypeScript config
-```
-
-### Backend (`backend/`)
-```
-backend/
-├── src/
-│   ├── config/           Firebase & MongoDB config
-│   ├── controllers/      Business logic (4 files)
-│   ├── middleware/       Auth & error handling
-│   ├── models/           MongoDB schemas (4 files)
-│   ├── routes/           API endpoints (4 files)
-│   ├── utils/            Helpers & utilities
-│   └── index.ts          Express server entry point
-├── package.json          Backend dependencies
-└── tsconfig.json         TypeScript config
-```
-
----
-
-## 🔧 Available Commands
-
-### Root Level (Monorepo)
-```bash
-npm run dev              # Run both frontend & backend
-npm run frontend         # Run frontend only
-npm run backend          # Run backend only
-npm run lint             # Lint both frontend & backend
-npm install-all          # Reinstall all dependencies
-```
-
-### Frontend
-```bash
-cd frontend
-npm start                # Start Expo development server
-npm run android          # Run on Android emulator
-npm run ios              # Run on iOS simulator
-npm run web              # Run in web browser
-npm run lint             # Lint frontend code
-```
-
-### Backend
-```bash
-cd backend
-npm run dev              # Start with hot-reload (Nodemon)
-npm start                # Start production mode
-npm run build            # Build TypeScript
 ```
 
 ---
 
 ## 🌐 API Endpoints
 
-**Base URL:** `http://localhost:5000/api`
+**Base URL:** `http://localhost:3000/api`
 
-### Health Check
-- `GET /health` - Server status
+### Authentication
+
+- `POST /auth/signup` - Register
+- `POST /auth/login` - Login
+- `POST /auth/logout` - Logout
+- `POST /auth/verify` - Verify token
 
 ### Experiences
+
 - `GET /experiences` - List all
-- `GET /experiences/search` - Search
 - `GET /experiences/:id` - Get details
 - `POST /experiences` - Create (auth required)
-- `PATCH /experiences/:id` - Update (auth required)
-- `DELETE /experiences/:id` - Delete (auth required)
+- `PUT /experiences/:id` - Update (auth required)
 
 ### Bookings
-- `GET /bookings` - List user's (auth required)
-- `GET /bookings/:id` - Get details (auth required)
-- `POST /bookings` - Create (auth required)
-- `PATCH /bookings/:id` - Update (auth required)
-- `DELETE /bookings/:id` - Cancel (auth required)
+
+- `GET /bookings` - List user's bookings
+- `POST /bookings` - Create booking
+- `PUT /bookings/:id` - Update booking
 
 ### Reviews
-- `GET /reviews/:experienceId` - List
-- `POST /reviews` - Create (auth required)
-- `PATCH /reviews/:id` - Update (auth required)
-- `DELETE /reviews/:id` - Delete (auth required)
+
+- `GET /reviews/experience/:experienceId` - Get reviews
+- `POST /reviews` - Create review
 
 ### Guides
+
 - `GET /guides` - List all
-- `GET /guides/:id` - Get details
-- `GET /guides/profile/me` - My profile (auth required)
-- `POST /guides` - Create profile (auth required)
-- `PATCH /guides/profile/me` - Update profile (auth required)
+- `GET /guides/:id` - Get guide
+- `POST /guides` - Create guide profile
+
+### Stays
+
+- `GET /stays` - List user's stays
+- `POST /stays` - Create stay booking
+
+### Transport
+
+- `GET /transport` - List transports
+- `POST /transport` - Create booking
 
 ---
 
-## 🔐 Authentication
+## 🔐 Authentication Flow
 
-All protected endpoints require Firebase ID token in header:
+All requests use JWT token from Supabase Auth:
 
 ```
-Authorization: Bearer <firebase_id_token>
+Authorization: Bearer <supabase_jwt_token>
 ```
 
 ---
 
-## 🗄️ Database
+## 📦 Key Dependencies Changed
 
-### MongoDB Connection
-Connects to local or MongoDB Atlas:
+**Removed:**
 
-```javascript
-// Local
-mongodb://localhost:27017/turison
+- `mongoose` - MongoDB ODM
+- `firebase-admin` - Firebase Admin SDK
+- `firebase` - Firebase Client SDK
 
-// Atlas
-mongodb+srv://user:password@cluster.mongodb.net/turison
-```
+**Added:**
 
-### Collections
-- `experiences` - Tourism experiences
-- `bookings` - Reservations
-- `reviews` - Ratings & reviews
-- `guides` - Tour guide profiles
-
----
-
-## 🧪 Testing
-
-### Test Frontend
-```bash
-cd frontend
-npm run lint
-```
-
-### Test Backend API
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Test with Postman/Thunder Client
-1. Get Firebase ID token
-2. Create request to `http://localhost:5000/api/experiences`
-3. Add header: `Authorization: Bearer <token>`
-
----
-
-## 📦 Dependencies
-
-### Frontend
-- React Native 0.81
-- Expo 54.0
-- React Navigation
-- Firebase SDK
-- TypeScript
-
-### Backend
-- Express.js 4.18
-- MongoDB/Mongoose 7.5
-- Firebase Admin SDK 12.0
-- Stripe 13.6
-- Nodemailer 6.9
-- TypeScript
-
-### Root (Monorepo)
-- Concurrently (run both servers)
+- `@supabase/supabase-js` - Supabase Client
+- `@supabase/auth-helpers-nextjs` - Auth helpers (if needed)
 
 ---
 
 ## ⚠️ Troubleshooting
 
-### "npm: command not found"
-Install Node.js from https://nodejs.org
+### Connection Error
 
-### "Port 5000 already in use"
+- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+- Check RLS policies are enabled
+- Ensure tables are created
+
+### Auth Issues
+
+- Verify JWT secret matches
+- Check Supabase Auth settings
+- Enable email provider in Supabase
+
+### Port Already in Use
+
 ```bash
-PORT=5001 npm run backend
-```
-
-### "Cannot find module"
-```bash
-npm install
-```
-
-### "MONGODB_URI not found"
-Check .env file exists at root with correct URI
-
-### "Firebase credentials invalid"
-Verify all 10 Firebase environment variables are correct
-
-### "Expo not starting"
-```bash
-cd frontend
-npm start
-# Press 'a' for Android or 'i' for iOS
+PORT=3001 npm run backend
 ```
 
 ---
 
-## 🚀 Development Workflow
+## 🎯 Migration Checklist
 
-```
-1. Start monorepo
-   └─ npm run dev
-
-2. Frontend starts
-   └─ http://localhost:19000
-
-3. Backend starts
-   └─ http://localhost:5000
-
-4. Connect frontend to backend
-   └─ API calls to http://localhost:5000/api
-
-5. Make changes
-   └─ Auto-reload on both frontend & backend
-
-6. Test APIs
-   └─ Use Postman or curl
-```
+- ✅ Create Supabase project
+- ✅ Copy credentials to .env
+- ✅ Run SQL schema in Supabase
+- ✅ Update backend database config
+- ✅ Update controllers to use Supabase
+- ✅ Update middleware for JWT verification
+- ✅ Update frontend API calls
+- ✅ Test all endpoints
+- ✅ Deploy to production
 
 ---
 
-## 📚 Documentation Files
+**Migration Complete:** MongoDB + Firebase → Supabase ✓
 
-- `MONOREPO_STRUCTURE.md` - Detailed structure overview
-- `ARCHITECTURE.md` - Architecture diagrams
-- `frontend/README.md` - Frontend-specific docs
-- `backend/README.md` - Backend-specific docs
-
----
-
-## 🎯 Next Steps
-
-1. ✅ Install dependencies: `npm install`
-2. ✅ Create .env file
-3. ✅ Start development: `npm run dev`
-4. ✅ Test health check: `curl http://localhost:5000/api/health`
-5. ✅ Open frontend in Expo
-6. ✅ Start building!
-
----
-
-## 📞 Support
-
-Need help? Check:
-- `MONOREPO_STRUCTURE.md` - How it's organized
-- `ARCHITECTURE.md` - How it works
-- `frontend/README.md` - Frontend guide
 - `backend/README.md` - Backend guide
 
 ---

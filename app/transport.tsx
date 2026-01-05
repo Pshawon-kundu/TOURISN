@@ -79,7 +79,13 @@ export default function TransportHub() {
 
   const handleBook = (type: TransportType) => {
     setSelectedType(type);
-    router.push("/booking");
+    router.push({
+      pathname: "/booking",
+      params: {
+        type: "transport",
+        transportType: type,
+      },
+    });
   };
 
   return (

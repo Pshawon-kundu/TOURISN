@@ -8,6 +8,7 @@ import {
   type User,
 } from "firebase/auth";
 
+import { api } from "./api";
 import { getAuthInstance, initFirebase } from "./firebase";
 
 let cachedConfig: any | null = null;
@@ -71,7 +72,17 @@ export async function watchAuth(
     handler(null);
     return () => {};
   }
-  return onAuthStateChanged(auth, handler);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Get Firebase ID token and set it for API requests
+      const token = await user.getIdToken();
+      api.setToken(token);
+    } else {
+      // Clear token when user logs out
+      api.clearToken();
+    }
+    handler(user);
+  });
 }
 
 export type AuthUser = User | null;

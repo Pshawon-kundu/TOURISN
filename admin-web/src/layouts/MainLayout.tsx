@@ -5,6 +5,7 @@ const navItems = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Users", path: "/users" },
   { label: "Bookings", path: "/bookings" },
+  { label: "All Bookings", path: "/all-bookings" },
   { label: "Guides", path: "/guides" },
 ];
 

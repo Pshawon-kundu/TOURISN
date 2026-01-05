@@ -9,6 +9,7 @@ import {
   Animated,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,13 +41,13 @@ export default function HomeScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
         tension: 20,
         friction: 7,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
   }, []);

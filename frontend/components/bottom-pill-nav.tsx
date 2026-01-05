@@ -1,7 +1,13 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React, { type ComponentProps } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { Colors as DesignColors, Radii, Spacing } from "@/constants/design";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -69,7 +75,7 @@ export function BottomPillNav() {
   };
 
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
+    <View style={[styles.wrapper, { pointerEvents: "box-none" }]}>
       <TouchableOpacity
         style={[
           styles.actionButton,
@@ -154,11 +160,20 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
     width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: "0px -2px 8px rgba(0, 0, 0, 0.1)",
+      },
+    }),
   },
   navItem: {
     flex: 1,
@@ -198,10 +213,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 12,
+      },
+      web: {
+        boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.35)",
+      },
+    }),
   },
   actionIcon: {
     marginBottom: 1,
