@@ -1,5 +1,6 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { signIn, resetPassword } from "@/lib/auth";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -67,6 +68,14 @@ export default function LoginScreen() {
         resizeMode="cover"
       />
       <View style={styles.overlay} />
+
+      {/* Back Button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="chevron-back" size={28} color="#FFF" />
+      </TouchableOpacity>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -164,7 +173,14 @@ export default function LoginScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
+  );Button: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 60 : 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  back
 }
 
 const styles = StyleSheet.create({

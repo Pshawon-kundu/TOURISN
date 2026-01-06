@@ -44,7 +44,9 @@ export default function WelcomeScreen() {
 
           <Link href="/guide-registration" asChild>
             <TouchableOpacity style={styles.guideSignupButton}>
-              <Text style={styles.guideSignupText}>Register as Travel Guide</Text>
+              <Text style={styles.guideSignupText}>
+                Register as Travel Guide
+              </Text>
             </TouchableOpacity>
           </Link>
 

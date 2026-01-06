@@ -15,6 +15,18 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: Colors[colorScheme ?? "light"].tabIconDefault,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 70,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          marginTop: 4,
+        },
       }}
     >
       <Tabs.Screen
@@ -22,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={24} name="house.fill" color={color} />
           ),
         }}
       />
@@ -31,26 +43,28 @@ export default function TabLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
+            <IconSymbol size={24} name="paperplane.fill" color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="stays"
         options={{
-          title: "Stays",
+          title: "Bookings",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="building.fill" color={color} />
+            <IconSymbol size={24} name="calendar.fill" color={color} />
           ),
+          href: "/booking",
         }}
       />
       <Tabs.Screen
         name="experiences"
         options={{
-          title: "Experiences",
+          title: "Profile",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="star.fill" color={color} />
+            <IconSymbol size={24} name="person.fill" color={color} />
           ),
+          href: "/profile",
         }}
       />
     </Tabs>

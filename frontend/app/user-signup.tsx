@@ -80,7 +80,14 @@ export default function UserSignupScreen() {
     setLoading(true);
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      await signUp(email.trim(), password, firstName.trim(), lastName.trim(), "user", phone.trim());
+      await signUp(
+        email.trim(),
+        password,
+        firstName.trim(),
+        lastName.trim(),
+        "user",
+        phone.trim()
+      );
       Alert.alert("Success", "Account created successfully!");
       router.replace("/login");
     } catch (err: any) {
@@ -103,6 +110,11 @@ export default function UserSignupScreen() {
         resizeMode="cover"
       />
       <View style={styles.overlay} />
+
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="chevron-back" size={28} color="#FFF" />
+      </TouchableOpacity>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -232,7 +244,11 @@ export default function UserSignupScreen() {
           {/* Info Message */}
           {info ? (
             <View style={styles.infoContainer}>
-              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={Colors.primary}
+              />
               <Text style={styles.infoText}>{info}</Text>
             </View>
           ) : null}
@@ -259,7 +275,9 @@ export default function UserSignupScreen() {
           {/* Guide Registration Link */}
           <View style={styles.guideContainer}>
             <Text style={styles.guideText}>Want to be a travel guide? </Text>
-            <TouchableOpacity onPress={() => router.push("/guide-registration")}>
+            <TouchableOpacity
+              onPress={() => router.push("/guide-registration")}
+            >
               <Text style={styles.guideLink}>Register Here</Text>
             </TouchableOpacity>
           </View>
@@ -273,6 +291,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  backButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 60 : 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
   },
   backgroundImage: {
     position: "absolute",
