@@ -1,5 +1,24 @@
+import { router } from "expo-router";
+import React, { useEffect } from "react";
+
+/**
+ * This page redirects to the user signup page
+ * The actual signup pages are:
+ * - /user-signup: For regular travelers
+ * - /guide-registration: For travel guides
+ */
+export default function SignupScreen() {
+  useEffect(() => {
+    // Redirect to user signup page
+    router.replace("/user-signup");
+  }, []);
+
+  return null;
+}
+
+/* OLD GUIDE REGISTRATION CODE - MOVED TO guide-registration.tsx
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { signUp } from "@/lib/auth";
+import { registerAsGuide, signUp } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -17,9 +36,10 @@ import {
   View,
 } from "react-native";
 
-export default function SignupScreen() {
+export default function _OLD_SignupScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [nidNumber, setNidNumber] = useState("");
@@ -68,6 +88,10 @@ export default function SignupScreen() {
       setError("Email is required");
       return;
     }
+    if (!phone.trim()) {
+      setError("Phone number is required");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -99,10 +123,42 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password);
+      // Step 1: Sign up user account
+      setInfo("Creating your account...");
+      const [firstName, ...lastNameParts] = fullName.trim().split(" ");
+      const lastName = lastNameParts.join(" ");
+
+      const signupResponse = await signUp(
+        email.trim(),
+        password,
+        firstName,
+        lastName,
+        "guide",
+        phone.trim()
+      );
+
+      console.log("✅ Signup successful:", signupResponse);
+
+      // Step 2: Register as guide
+      setInfo("Registering guide profile...");
+      const guideResponse = await registerAsGuide(
+        firstName,
+        lastName,
+        phone.trim(),
+        nidNumber,
+        nidImage,
+        parseInt(age),
+        expertiseArea,
+        parseInt(experienceYears),
+        parseFloat(perHourRate)
+      );
+
+      console.log("✅ Guide registration successful:", guideResponse);
+
       setInfo("Registration completed! Redirecting...");
       setTimeout(() => router.replace("/"), 1500);
     } catch (err: any) {
+      console.error("❌ Signup error:", err);
       setError(err?.message ?? "Signup failed");
     } finally {
       setLoading(false);
@@ -164,6 +220,18 @@ export default function SignupScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your phone number"
+                placeholderTextColor="#999"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
               />
             </View>
 

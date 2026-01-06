@@ -1,214 +1,117 @@
-import { Response } from "express";
+import { Request, Response } from "express";
+import { supabase } from "../config/supabase";
 import { AuthRequest } from "../middleware/auth";
-import Booking from "../models/Booking";
-import Experience from "../models/Experience";
 
-export const createBooking = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+// Create a new booking
+export const createBooking = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ success: false, error: "Unauthorized" });
-      return;
+    const bookingData = req.body;
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert([bookingData])
+      .select();
+
+    if (error) {
+      console.error("Supabase booking error:", error);
+      return res.status(400).json({ success: false, error: error.message });
     }
 
-    const {
-      experienceId,
-      numberOfParticipants,
-      totalPrice,
-      paymentMethod,
-      specialRequests,
-      bookerName,
-      bookerEmail,
-      bookerPhone,
-      startDate,
-      endDate,
-    } = req.body;
-
-    const experience = await Experience.findById(experienceId);
-
-    if (!experience) {
-      res.status(404).json({ success: false, error: "Experience not found" });
-      return;
-    }
-
-    if (
-      experience.currentParticipants + numberOfParticipants >
-      experience.maxParticipants
-    ) {
-      res.status(400).json({
-        success: false,
-        error: "Not enough spots available",
-      });
-      return;
-    }
-
-    const booking = new Booking({
-      userId: req.user.id,
-      experienceId,
-      numberOfParticipants,
-      totalPrice,
-      paymentMethod,
-      specialRequests,
-      bookerName,
-      bookerEmail,
-      bookerPhone,
-      startDate,
-      endDate,
-    });
-
-    await booking.save();
-
-    experience.currentParticipants += numberOfParticipants;
-    await experience.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Booking created successfully",
-      data: booking,
-    });
+    console.log(`✅ Booking created - Supabase ID: ${data?.[0]?.id}`);
+    res.status(201).json({ success: true, data: data?.[0] });
   } catch (error) {
-    console.error("Create booking error:", error);
+    console.error("Error creating booking:", error);
     res.status(500).json({ success: false, error: "Failed to create booking" });
   }
 };
 
-export const getBookings = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+// Get all bookings for user
+export const getUserBookings = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
-      res.status(401).json({ success: false, error: "Unauthorized" });
-      return;
+      return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .order("created_at", { ascending: false });
 
-    const bookings = await Booking.find({ userId: req.user.id })
-      .populate("experienceId")
-      .skip(skip)
-      .limit(Number(limit))
-      .sort({ createdAt: -1 });
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
 
-    const total = await Booking.countDocuments({ userId: req.user.id });
-
-    res.status(200).json({
-      success: true,
-      data: bookings,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
-      },
-    });
+    res.status(200).json({ success: true, data: data || [] });
   } catch (error) {
-    console.error("Get bookings error:", error);
+    console.error("Error fetching bookings:", error);
     res.status(500).json({ success: false, error: "Failed to fetch bookings" });
   }
 };
 
-export const getBookingById = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+// Get booking by ID
+export const getBookingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate("experienceId");
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (!booking) {
-      res.status(404).json({ success: false, error: "Booking not found" });
-      return;
+    if (error || !data) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Booking not found" });
     }
 
-    if (booking.userId !== req.user?.id) {
-      res.status(403).json({ success: false, error: "Forbidden" });
-      return;
-    }
-
-    res.status(200).json({
-      success: true,
-      data: booking,
-    });
+    res.status(200).json({ success: true, data });
   } catch (error) {
-    console.error("Get booking by ID error:", error);
+    console.error("Error fetching booking:", error);
     res.status(500).json({ success: false, error: "Failed to fetch booking" });
   }
 };
 
-export const updateBooking = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+// Update booking
+export const updateBooking = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
 
-    const booking = await Booking.findById(id);
+    const { data, error } = await supabase
+      .from("bookings")
+      .update(req.body)
+      .eq("id", id)
+      .select();
 
-    if (!booking) {
-      res.status(404).json({ success: false, error: "Booking not found" });
-      return;
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
     }
 
-    if (booking.userId !== req.user?.id) {
-      res.status(403).json({ success: false, error: "Forbidden" });
-      return;
-    }
-
-    Object.assign(booking, updateData);
-    await booking.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Booking updated successfully",
-      data: booking,
-    });
+    res.status(200).json({ success: true, data: data?.[0] });
   } catch (error) {
-    console.error("Update booking error:", error);
+    console.error("Error updating booking:", error);
     res.status(500).json({ success: false, error: "Failed to update booking" });
   }
 };
 
-export const cancelBooking = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+// Cancel booking
+export const cancelBooking = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id);
+    const { error } = await supabase
+      .from("bookings")
+      .update({ booking_status: "cancelled" })
+      .eq("id", id);
 
-    if (!booking) {
-      res.status(404).json({ success: false, error: "Booking not found" });
-      return;
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
     }
 
-    if (booking.userId !== req.user?.id) {
-      res.status(403).json({ success: false, error: "Forbidden" });
-      return;
-    }
-
-    booking.bookingStatus = "cancelled";
-    await booking.save();
-
-    const experience = await Experience.findById(booking.experienceId);
-    if (experience) {
-      experience.currentParticipants -= booking.numberOfParticipants;
-      await experience.save();
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Booking cancelled successfully",
-      data: booking,
-    });
+    res.status(200).json({ success: true, message: "Booking cancelled" });
   } catch (error) {
-    console.error("Cancel booking error:", error);
+    console.error("Error cancelling booking:", error);
     res.status(500).json({ success: false, error: "Failed to cancel booking" });
   }
 };

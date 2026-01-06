@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
-import { firebaseDB } from "../config/firebase";
-import TransportBooking from "../models/TransportBooking";
+import { supabase } from "../config/supabase";
 
 // Create a new transport booking
 export const createTransportBooking = async (req: Request, res: Response) => {
@@ -23,33 +22,33 @@ export const createTransportBooking = async (req: Request, res: Response) => {
       });
     }
 
-    // Save to MongoDB
-    const mongoBooking = new TransportBooking(bookingData);
-    await mongoBooking.save();
+    // Save to Supabase only
+    const { data, error } = await supabase
+      .from("transport_bookings")
+      .insert([
+        {
+          ...bookingData,
+          booking_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ])
+      .select();
 
-    // Save to Firebase Firestore
-    const firebaseBookingRef = await firebaseDB
-      .collection("transportBookings")
-      .add({
-        ...bookingData,
-        mongoId: mongoBooking._id.toString(),
-        bookingDate: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+    if (error) {
+      console.error("Supabase transport booking error:", error);
+      return res.status(400).json({
+        success: false,
+        error: error.message,
       });
+    }
 
-    console.log(
-      `✓ Transport booking created - MongoDB: ${mongoBooking._id}, Firebase: ${firebaseBookingRef.id}`
-    );
+    console.log(`✓ Transport booking created - Supabase ID: ${data?.[0]?.id}`);
 
     res.status(201).json({
       success: true,
       message: "Transport booking created successfully",
-      data: {
-        mongoId: mongoBooking._id,
-        firebaseId: firebaseBookingRef.id,
-        booking: mongoBooking,
-      },
+      data: data?.[0],
     });
   } catch (error) {
     console.error("Error creating transport booking:", error);
@@ -64,30 +63,24 @@ export const createTransportBooking = async (req: Request, res: Response) => {
 // Get all transport bookings
 export const getAllTransportBookings = async (req: Request, res: Response) => {
   try {
-    // Get from MongoDB
-    const mongoBookings = await TransportBooking.find().sort({
-      createdAt: -1,
-    });
+    // Get from Supabase only
+    const { data: bookings, error } = await supabase
+      .from("transport_bookings")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    // Get from Firebase
-    const firebaseSnapshot = await firebaseDB
-      .collection("transportBookings")
-      .orderBy("createdAt", "desc")
-      .get();
-
-    const firebaseBookings = firebaseSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
 
     res.status(200).json({
       success: true,
-      data: {
-        mongodb: mongoBookings,
-        firebase: firebaseBookings,
-        totalMongo: mongoBookings.length,
-        totalFirebase: firebaseBookings.length,
-      },
+      data: bookings || [],
+      total: bookings?.length || 0,
     });
   } catch (error) {
     console.error("Error fetching transport bookings:", error);
@@ -104,24 +97,14 @@ export const getTransportBookingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Try to get from MongoDB
-    const mongoBooking = await TransportBooking.findById(id);
+    // Get from Supabase only
+    const { data: booking, error } = await supabase
+      .from("transport_bookings")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    // Try to get from Firebase
-    let firebaseBooking = null;
-    try {
-      const firebaseDoc = await firebaseDB
-        .collection("transportBookings")
-        .doc(id)
-        .get();
-      if (firebaseDoc.exists) {
-        firebaseBooking = { id: firebaseDoc.id, ...firebaseDoc.data() };
-      }
-    } catch (fbError) {
-      console.log("Firebase fetch error:", fbError);
-    }
-
-    if (!mongoBooking && !firebaseBooking) {
+    if (error || !booking) {
       return res.status(404).json({
         success: false,
         error: "Booking not found",
@@ -130,10 +113,7 @@ export const getTransportBookingById = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        mongodb: mongoBooking,
-        firebase: firebaseBooking,
-      },
+      data: booking,
     });
   } catch (error) {
     console.error("Error fetching transport booking:", error);
@@ -161,31 +141,28 @@ export const updateTransportBookingStatus = async (
       });
     }
 
-    // Update MongoDB
-    const mongoBooking = await TransportBooking.findByIdAndUpdate(
-      id,
-      { status, updatedAt: new Date() },
-      { new: true }
-    );
-
-    // Update Firebase (search by mongoId)
-    const firebaseQuery = await firebaseDB
-      .collection("transportBookings")
-      .where("mongoId", "==", id)
-      .get();
-
-    if (!firebaseQuery.empty) {
-      const firebaseDoc = firebaseQuery.docs[0];
-      await firebaseDoc.ref.update({
+    // Update Supabase only
+    const { data: booking, error } = await supabase
+      .from("transport_bookings")
+      .update({
         status,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      console.error("Supabase update error:", error);
+      return res.status(400).json({
+        success: false,
+        error: error.message,
       });
     }
 
     res.status(200).json({
       success: true,
       message: "Booking status updated successfully",
-      data: mongoBooking,
+      data: booking?.[0],
     });
   } catch (error) {
     console.error("Error updating transport booking:", error);
@@ -202,13 +179,24 @@ export const getUserTransportBookings = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
-    const mongoBookings = await TransportBooking.find({ userId }).sort({
-      createdAt: -1,
-    });
+    // Get from Supabase only
+    const { data: bookings, error } = await supabase
+      .from("transport_bookings")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
 
     res.status(200).json({
       success: true,
-      data: mongoBookings,
+      data: bookings || [],
     });
   } catch (error) {
     console.error("Error fetching user transport bookings:", error);

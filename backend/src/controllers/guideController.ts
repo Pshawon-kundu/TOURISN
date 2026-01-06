@@ -1,6 +1,21 @@
 import { Response } from "express";
+import { supabase } from "../config/supabase";
 import { AuthRequest } from "../middleware/auth";
-import Guide from "../models/Guide";
+
+// Register as a guide (alias for createGuide)
+export const registerGuide = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  // Set default user_id from auth if not provided
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+
+  // Forward to createGuide
+  return createGuide(req, res);
+};
 
 export const createGuide = async (
   req: AuthRequest,
@@ -23,9 +38,63 @@ export const createGuide = async (
       languages,
       yearsOfExperience,
       certifications,
+      nidNumber,
+      nidImageUrl,
+      age,
+      expertiseArea,
+      perHourRate,
     } = req.body;
 
-    const existingGuide = await Guide.findOne({ userId: req.user.id });
+    // Validation
+    if (!nidNumber || !nidImageUrl || !age || !expertiseArea || !perHourRate) {
+      res.status(400).json({
+        success: false,
+        error:
+          "NID Number, NID Image, Age, Expertise Area, and Per Hour Rate are required",
+      });
+      return;
+    }
+
+    // Validate Bangladesh phone number
+    if (phone && !phone.match(/^\+880\d{9,10}$/)) {
+      res.status(400).json({
+        success: false,
+        error:
+          "Phone number must be a valid Bangladesh number (e.g., +880XXXXXXXXX)",
+      });
+      return;
+    }
+
+    if (nidNumber.length < 10 || nidNumber.length > 17) {
+      res.status(400).json({
+        success: false,
+        error: "NID Number must be 10-17 digits",
+      });
+      return;
+    }
+
+    if (age < 18 || age > 120) {
+      res.status(400).json({
+        success: false,
+        error: "Age must be between 18 and 120",
+      });
+      return;
+    }
+
+    if (perHourRate < 0) {
+      res.status(400).json({
+        success: false,
+        error: "Per Hour Rate must be a positive number",
+      });
+      return;
+    }
+
+    // Check if guide already exists
+    const { data: existingGuide } = await supabase
+      .from("guides")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .single();
 
     if (existingGuide) {
       res
@@ -34,26 +103,32 @@ export const createGuide = async (
       return;
     }
 
-    const guide = new Guide({
-      userId: req.user.id,
-      firstName,
-      lastName,
-      email: email || req.user.email,
-      phone,
-      profileImage: profileImage || "",
-      bio: bio || "",
-      specialties: specialties || [],
-      languages: languages || [],
-      yearsOfExperience: yearsOfExperience || 0,
-      certifications: certifications || [],
-    });
+    // Insert into Supabase
+    const { data: guide, error } = await supabase
+      .from("guides")
+      .insert([
+        {
+          user_id: req.user.id,
+          nid_number: nidNumber,
+          nid_image_url: nidImageUrl,
+          age,
+          expertise_area: expertiseArea,
+          per_hour_rate: perHourRate,
+        },
+      ])
+      .select();
 
-    await guide.save();
+    if (error) {
+      console.error("Supabase guide creation error:", error);
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
 
+    console.log("✅ Guide profile created:", guide?.[0]?.id);
     res.status(201).json({
       success: true,
       message: "Guide profile created successfully",
-      data: guide,
+      data: guide?.[0],
     });
   } catch (error) {
     console.error("Create guide error:", error);
@@ -73,9 +148,13 @@ export const getGuideProfile = async (
       return;
     }
 
-    const guide = await Guide.findOne({ userId: req.user.id });
+    const { data: guide, error } = await supabase
+      .from("guides")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .single();
 
-    if (!guide) {
+    if (error || !guide) {
       res
         .status(404)
         .json({ success: false, error: "Guide profile not found" });
@@ -101,9 +180,13 @@ export const getGuideById = async (
   try {
     const { id } = req.params;
 
-    const guide = await Guide.findById(id);
+    const { data: guide, error } = await supabase
+      .from("guides")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (!guide) {
+    if (error || !guide) {
       res.status(404).json({ success: false, error: "Guide not found" });
       return;
     }
@@ -125,26 +208,36 @@ export const getAllGuides = async (
   try {
     const { page = 1, limit = 10, isVerified } = req.query;
 
-    const filter: any = {};
-    if (isVerified === "true") filter.isVerified = true;
+    let query = supabase.from("guides").select("*", { count: "exact" });
+
+    if (isVerified === "true") {
+      query = query.eq("is_verified", true);
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const guides = await Guide.find(filter)
-      .skip(skip)
-      .limit(Number(limit))
-      .sort({ rating: -1 });
+    const {
+      data: guides,
+      error,
+      count,
+    } = await query
+      .order("rating", { ascending: false })
+      .range(skip, skip + Number(limit) - 1);
 
-    const total = await Guide.countDocuments(filter);
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
 
     res.status(200).json({
       success: true,
-      data: guides,
+      data: guides || [],
       pagination: {
         page: Number(page),
         limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
+        total: count || 0,
+        pages: Math.ceil((count || 0) / Number(limit)),
       },
     });
   } catch (error) {
@@ -163,13 +256,19 @@ export const updateGuideProfile = async (
       return;
     }
 
-    const guide = await Guide.findOneAndUpdate(
-      { userId: req.user.id },
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
+    const { data: guide, error } = await supabase
+      .from("guides")
+      .update(req.body)
+      .eq("user_id", req.user.id)
+      .select();
 
-    if (!guide) {
+    if (error) {
+      console.error("Supabase update error:", error);
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+
+    if (!guide || guide.length === 0) {
       res
         .status(404)
         .json({ success: false, error: "Guide profile not found" });
@@ -179,12 +278,45 @@ export const updateGuideProfile = async (
     res.status(200).json({
       success: true,
       message: "Guide profile updated successfully",
-      data: guide,
+      data: guide[0],
     });
   } catch (error) {
     console.error("Update guide profile error:", error);
     res
       .status(500)
       .json({ success: false, error: "Failed to update guide profile" });
+  }
+};
+
+export const deleteGuideProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("guides")
+      .delete()
+      .eq("user_id", req.user.id);
+
+    if (error) {
+      console.error("Supabase delete error:", error);
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Guide profile deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete guide profile error:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to delete guide profile" });
   }
 };

@@ -2,10 +2,11 @@ import { connectSupabaseDB, supabase } from "./supabase";
 
 export const connectDB = async () => {
   try {
+    console.log("📡 Initializing database connections...");
     await connectSupabaseDB();
+    console.log("✅ All databases connected successfully");
   } catch (error) {
-    console.error("❌ Failed to connect to Supabase");
-    // In development, we might want to continue
+    console.error("❌ Database connection failed:", error);
     if (process.env.NODE_ENV === "production") {
       process.exit(1);
     }

@@ -6,6 +6,10 @@ dotenv.config();
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+console.log("🔍 Supabase Config Check:");
+console.log("  URL:", supabaseUrl ? "✓ Set" : "❌ Missing");
+console.log("  Key:", supabaseKey ? "✓ Set" : "❌ Missing");
+
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase credentials");
   console.error("Required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY");
@@ -220,16 +224,20 @@ export interface Database {
 
 export const connectSupabaseDB = async () => {
   try {
+    console.log("🔄 Testing Supabase connection...");
+
     // Test connection by querying users table
     const { count, error } = await supabase
       .from("users")
       .select("*", { count: "exact", head: true });
 
     if (error) {
+      console.error("❌ Supabase query error:", error);
       throw error;
     }
 
-    console.log("✓ Supabase connected successfully");
+    console.log("✅ Supabase connected successfully");
+    console.log(`   Users table has ${count} records`);
     return true;
   } catch (error) {
     console.error(

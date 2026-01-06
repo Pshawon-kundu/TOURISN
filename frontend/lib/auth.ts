@@ -1,5 +1,4 @@
 import {
-  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -43,11 +42,60 @@ export async function signIn(email: string, password: string) {
   return signInWithEmailAndPassword(auth, email, password);
 }
 
-export async function signUp(email: string, password: string) {
-  const auth = await ensureAuth();
-  if (!auth)
-    throw new Error("Firebase config missing. Add constants/firebaseConfig.ts");
-  return createUserWithEmailAndPassword(auth, email, password);
+export async function signUp(
+  email: string,
+  password: string,
+  firstName: string = "",
+  lastName: string = "",
+  role: string = "user",
+  phone: string = ""
+) {
+  // Call backend API instead of Firebase directly
+  const response = await api.post<{
+    success: boolean;
+    token: string;
+    user: { uid: string; email: string; role: string };
+  }>("/auth/signup", {
+    email,
+    password,
+    firstName,
+    lastName,
+    role,
+    phone,
+  });
+
+  // Set the token for future API requests
+  if (response.token) {
+    api.setToken(response.token);
+  }
+
+  return response;
+}
+
+export async function registerAsGuide(
+  firstName: string,
+  lastName: string,
+  phone: string,
+  nidNumber: string,
+  nidImageUrl: string,
+  age: number,
+  expertiseArea: string,
+  yearsOfExperience: number,
+  perHourRate: number
+) {
+  // Call backend API to register guide profile
+  const response = await api.post("/guides/register", {
+    firstName,
+    lastName,
+    phone,
+    nidNumber,
+    nidImageUrl,
+    age,
+    expertiseArea,
+    yearsOfExperience,
+    perHourRate,
+  });
+  return response;
 }
 
 export async function signOut() {

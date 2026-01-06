@@ -17,6 +17,21 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
 };
 
+// Log Firebase config check
+console.log("🔍 Firebase Config Check:");
+console.log(
+  "  Project ID:",
+  process.env.FIREBASE_PROJECT_ID ? "✓ Set" : "❌ Missing"
+);
+console.log(
+  "  Client Email:",
+  process.env.FIREBASE_CLIENT_EMAIL ? "✓ Set" : "❌ Missing"
+);
+console.log(
+  "  Private Key:",
+  process.env.FIREBASE_PRIVATE_KEY ? "✓ Set" : "❌ Missing"
+);
+
 let firebaseInitialized = false;
 
 try {
@@ -26,18 +41,28 @@ try {
       databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`,
     });
     firebaseInitialized = true;
-    console.log("✓ Firebase Admin initialized");
+    console.log("✅ Firebase Admin SDK initialized successfully");
   }
 } catch (error) {
-  console.warn(
-    "⚠ Firebase initialization skipped (optional for dual-database setup):",
+  console.error(
+    "❌ Firebase Admin SDK initialization FAILED:",
     error instanceof Error ? error.message : error
   );
+  console.error("Full error:", error);
+  // Don't exit - allow app to run with null Firebase auth
 }
 
 // Export Firebase services only if initialized
 export const firebaseAuth = firebaseInitialized ? admin.auth() : null;
 export const firebaseDB = firebaseInitialized ? admin.firestore() : null;
 export const firebaseStorage = firebaseInitialized ? admin.storage() : null;
+
+console.log("📊 Firebase Services Status:");
+console.log("  Auth:", firebaseAuth ? "✅ Available" : "❌ Not Available");
+console.log("  Firestore:", firebaseDB ? "✅ Available" : "❌ Not Available");
+console.log(
+  "  Storage:",
+  firebaseStorage ? "✅ Available" : "❌ Not Available"
+);
 
 export default admin;

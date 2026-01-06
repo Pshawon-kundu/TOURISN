@@ -1,231 +1,121 @@
 import { Request, Response } from "express";
-import { firebaseDB } from "../config/firebase";
-import StayBooking from "../models/StayBooking";
+import { supabase } from "../config/supabase";
 
-// Create a new stay booking
-export const createStayBooking = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
+// Create a stay booking
+export const createStayBooking = async (req: Request, res: Response) => {
   try {
     const bookingData = req.body;
 
-    // Validate required fields
-    if (
-      !bookingData.propertyName ||
-      !bookingData.propertyType ||
-      !bookingData.location ||
-      !bookingData.travelerName ||
-      !bookingData.phone ||
-      !bookingData.email ||
-      !bookingData.checkInDate ||
-      !bookingData.checkOutDate ||
-      !bookingData.totalAmount
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields",
-      });
+    const { data, error } = await supabase
+      .from("stay_bookings")
+      .insert([bookingData])
+      .select();
+
+    if (error) {
+      console.error("Supabase stay booking error:", error);
+      return res.status(400).json({ success: false, error: error.message });
     }
 
-    // Save to MongoDB
-    const mongoBooking = new StayBooking(bookingData);
-    await mongoBooking.save();
-
-    // Save to Firebase Firestore
-    const firebaseBookingRef = await firebaseDB.collection("stayBookings").add({
-      ...bookingData,
-      mongoId: mongoBooking._id.toString(),
-      bookingDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    console.log(
-      `✓ Stay booking created - MongoDB: ${mongoBooking._id}, Firebase: ${firebaseBookingRef.id}`
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Stay booking created successfully",
-      data: {
-        mongoId: mongoBooking._id,
-        firebaseId: firebaseBookingRef.id,
-        booking: mongoBooking,
-      },
-    });
+    console.log(`✅ Stay booking created - Supabase ID: ${data?.[0]?.id}`);
+    res.status(201).json({ success: true, data: data?.[0] });
   } catch (error) {
     console.error("Error creating stay booking:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to create stay booking",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to create stay booking" });
   }
 };
 
 // Get all stay bookings
-export const getAllStayBookings = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
+export const getAllStayBookings = async (req: Request, res: Response) => {
   try {
-    // Get from MongoDB
-    const mongoBookings = await StayBooking.find().sort({ createdAt: -1 });
+    const { data, error } = await supabase
+      .from("stay_bookings")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    // Get from Firebase
-    const firebaseSnapshot = await firebaseDB
-      .collection("stayBookings")
-      .orderBy("createdAt", "desc")
-      .get();
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
 
-    const firebaseBookings = firebaseSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: {
-        mongodb: mongoBookings,
-        firebase: firebaseBookings,
-        totalMongo: mongoBookings.length,
-        totalFirebase: firebaseBookings.length,
-      },
-    });
+    res.status(200).json({ success: true, data: data || [] });
   } catch (error) {
     console.error("Error fetching stay bookings:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch stay bookings",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch stay bookings" });
   }
 };
 
-// Get booking by ID
-export const getStayBookingById = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
+// Get stay booking by ID
+export const getStayBookingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Try to get from MongoDB
-    const mongoBooking = await StayBooking.findById(id);
+    const { data, error } = await supabase
+      .from("stay_bookings")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    // Try to get from Firebase
-    let firebaseBooking = null;
-    try {
-      const firebaseDoc = await firebaseDB
-        .collection("stayBookings")
-        .doc(id)
-        .get();
-      if (firebaseDoc.exists) {
-        firebaseBooking = { id: firebaseDoc.id, ...firebaseDoc.data() };
-      }
-    } catch (fbError) {
-      console.log("Firebase fetch error:", fbError);
+    if (error || !data) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Booking not found" });
     }
 
-    if (!mongoBooking && !firebaseBooking) {
-      return res.status(404).json({
-        success: false,
-        error: "Booking not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        mongodb: mongoBooking,
-        firebase: firebaseBooking,
-      },
-    });
+    res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Error fetching stay booking:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch stay booking",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch stay booking" });
   }
 };
 
-// Update booking status
-export const updateStayBookingStatus = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
+// Update stay booking
+export const updateStayBooking = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
 
-    if (!["pending", "confirmed", "cancelled", "completed"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid status",
-      });
+    const { data, error } = await supabase
+      .from("stay_bookings")
+      .update(req.body)
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
     }
 
-    // Update MongoDB
-    const mongoBooking = await StayBooking.findByIdAndUpdate(
-      id,
-      { status, updatedAt: new Date() },
-      { new: true }
-    );
-
-    // Update Firebase (search by mongoId)
-    const firebaseQuery = await firebaseDB
-      .collection("stayBookings")
-      .where("mongoId", "==", id)
-      .get();
-
-    if (!firebaseQuery.empty) {
-      const firebaseDoc = firebaseQuery.docs[0];
-      await firebaseDoc.ref.update({
-        status,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Booking status updated successfully",
-      data: mongoBooking,
-    });
+    res.status(200).json({ success: true, data: data?.[0] });
   } catch (error) {
     console.error("Error updating stay booking:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update booking status",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to update stay booking" });
   }
 };
 
-// Get user bookings
-export const getUserStayBookings = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
+// Cancel stay booking
+export const cancelStayBooking = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const { id } = req.params;
 
-    const mongoBookings = await StayBooking.find({ userId }).sort({
-      createdAt: -1,
-    });
+    const { error } = await supabase
+      .from("stay_bookings")
+      .update({ status: "cancelled" })
+      .eq("id", id);
 
-    res.status(200).json({
-      success: true,
-      data: mongoBookings,
-    });
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+
+    res.status(200).json({ success: true, message: "Stay booking cancelled" });
   } catch (error) {
-    console.error("Error fetching user stay bookings:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch user bookings",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    console.error("Error cancelling stay booking:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to cancel stay booking" });
   }
 };

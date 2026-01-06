@@ -1,10 +1,10 @@
 import express from "express";
 import {
+  cancelStayBooking,
   createStayBooking,
   getAllStayBookings,
   getStayBookingById,
-  getUserStayBookings,
-  updateStayBookingStatus,
+  updateStayBooking,
 } from "../controllers/stayController";
 
 const router = express.Router();
@@ -18,10 +18,10 @@ router.get("/", getAllStayBookings);
 // Get stay booking by ID
 router.get("/:id", getStayBookingById);
 
-// Get user's stay bookings
-router.get("/user/:userId", getUserStayBookings);
+// Update stay booking
+router.patch("/:id", updateStayBooking);
 
-// Update booking status
-router.patch("/:id/status", updateStayBookingStatus);
+// Cancel stay booking
+router.delete("/:id", cancelStayBooking);
 
 export default router;

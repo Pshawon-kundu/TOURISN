@@ -3,8 +3,8 @@ import { Platform } from "react-native";
 // API Configuration
 const API_BASE_URL =
   Platform.OS === "web"
-    ? "http://localhost:5000/api"
-    : "http://10.0.2.2:5000/api"; // For Android emulator
+    ? "http://localhost:5001/api"
+    : "http://10.0.2.2:5001/api"; // For Android emulator
 
 export class APIClient {
   private baseURL: string = API_BASE_URL;
@@ -47,21 +47,36 @@ export class APIClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getHeaders(),
-        ...(options.headers || {}),
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...this.getHeaders(),
+          ...(options.headers || {}),
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || `HTTP ${response.status}`);
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Response is not JSON
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        throw new Error(
+          `Cannot connect to server at ${this.baseURL}. Make sure the backend is running on port 5001.`
+        );
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return data;
   }
 
   /**

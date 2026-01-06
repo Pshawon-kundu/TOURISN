@@ -1,5 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -36,11 +36,19 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
           </Link>
 
-          <Link href="/signup" asChild>
-            <TouchableOpacity style={styles.signupButton}>
-              <Text style={styles.signupText}>Sign Up</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={() => router.push("/user-signup")}
+          >
+            <Text style={styles.signupText}>Sign Up as Traveler</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guideSignupButton}
+            onPress={() => router.push("/guide-registration")}
+          >
+            <Text style={styles.guideSignupText}>Register as Travel Guide</Text>
+          </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -156,6 +164,19 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
   },
   signupText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  guideSignupButton: {
+    backgroundColor: "rgba(100,200,150,0.3)",
+    borderRadius: Radii.full,
+    paddingVertical: Spacing.lg,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(100,200,150,0.8)",
+  },
+  guideSignupText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
