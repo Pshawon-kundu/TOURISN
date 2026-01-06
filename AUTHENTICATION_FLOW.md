@@ -5,12 +5,14 @@
 ### Pages Overview
 
 #### 1. **Welcome Screen** (`/app/welcome.tsx`)
+
 - Landing page with two clear signup options:
   - "Sign Up as Traveler" → routes to `/user-signup`
   - "Register as Travel Guide" → routes to `/guide-registration`
   - "Log In" → routes to `/login`
 
 #### 2. **User Signup** (`/app/user-signup.tsx`)
+
 - **Purpose**: Simple registration for travelers/tourists
 - **Fields Collected**:
   - First Name
@@ -24,6 +26,7 @@
 - **After Signup**: Redirects to login page
 
 #### 3. **Travel Guide Registration** (`/app/guide-registration.tsx`)
+
 - **Purpose**: Complex multi-step registration for travel guides
 - **Steps**:
   1. Basic Details (Name, Age)
@@ -36,11 +39,13 @@
 - **Special Fields**: NID verification, expertise details, hourly rates
 
 #### 4. **Login Screen** (`/app/login.tsx`)
+
 - **Purpose**: Authentication for both users and guides
 - **Fields**: Email, Password
 - **Password Reset**: Available via "Forgot Password" link
 
 #### 5. **Old Signup Redirect** (`/app/signup.tsx`)
+
 - **Purpose**: Redirect to user signup (for backward compatibility)
 - **Behavior**: Automatically redirects to `/user-signup`
 
@@ -49,12 +54,14 @@
 ## User Roles
 
 ### User (Traveler)
+
 - Can browse and book experiences
 - Can write reviews
 - Can track bookings
 - Minimal profile info needed
 
 ### Guide
+
 - Can create and manage experiences
 - Can receive bookings
 - Can chat with travelers
@@ -62,6 +69,7 @@
 - Has hourly rate settings
 
 ### Admin
+
 - System administrators (manual creation only)
 
 ---
@@ -75,6 +83,7 @@
 #### Auth Endpoints
 
 1. **Signup** - `POST /api/auth/signup`
+
    ```json
    {
      "email": "user@example.com",
@@ -87,6 +96,7 @@
    ```
 
 2. **Login** - `POST /api/auth/login`
+
    ```json
    {
      "email": "user@example.com",
@@ -152,6 +162,7 @@ Login (/login)
 ## Database
 
 ### Users Table (Supabase)
+
 - `id` (UUID)
 - `auth_id` (Firebase UID)
 - `email` (unique)
@@ -165,6 +176,7 @@ Login (/login)
 - `updated_at`
 
 ### Guides Table (Supabase)
+
 - `id` (UUID)
 - `user_id` (FK to users)
 - `bio`
@@ -177,4 +189,3 @@ Login (/login)
 - `is_verified`
 - `created_at`
 - `updated_at`
-

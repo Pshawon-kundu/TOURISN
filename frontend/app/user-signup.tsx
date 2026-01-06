@@ -1,4 +1,4 @@
-import { Colors, Radii, Spacing } from "@/constants/design";
+﻿import { Colors, Radii, Spacing } from "@/constants/design";
 import { signUp } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -80,7 +80,7 @@ export default function UserSignupScreen() {
     setLoading(true);
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      await signUp(email.trim(), password, fullName, phone.trim(), "user");
+      await signUp(email.trim(), password, firstName.trim(), lastName.trim(), "user", phone.trim());
       Alert.alert("Success", "Account created successfully!");
       router.replace("/login");
     } catch (err: any) {
@@ -123,7 +123,7 @@ export default function UserSignupScreen() {
               value={firstName}
               onChangeText={setFirstName}
               editable={!loading}
-              placeholderTextColor={Colors.light.text + "80"}
+              placeholderTextColor={Colors.textSecondary}
             />
           </View>
 
@@ -136,7 +136,7 @@ export default function UserSignupScreen() {
               value={lastName}
               onChangeText={setLastName}
               editable={!loading}
-              placeholderTextColor={Colors.light.text + "80"}
+              placeholderTextColor={Colors.textSecondary}
             />
           </View>
 
@@ -151,7 +151,7 @@ export default function UserSignupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
-              placeholderTextColor={Colors.light.text + "80"}
+              placeholderTextColor={Colors.textSecondary}
             />
           </View>
 
@@ -165,7 +165,7 @@ export default function UserSignupScreen() {
               onChangeText={setPhone}
               keyboardType="phone-pad"
               editable={!loading}
-              placeholderTextColor={Colors.light.text + "80"}
+              placeholderTextColor={Colors.textSecondary}
             />
           </View>
 
@@ -180,7 +180,7 @@ export default function UserSignupScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 editable={!loading}
-                placeholderTextColor={Colors.light.text + "80"}
+                placeholderTextColor={Colors.textSecondary}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -189,7 +189,7 @@ export default function UserSignupScreen() {
                 <Ionicons
                   name={showPassword ? "eye" : "eye-off"}
                   size={20}
-                  color={Colors.light.tint}
+                  color={Colors.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -206,7 +206,7 @@ export default function UserSignupScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
                 editable={!loading}
-                placeholderTextColor={Colors.light.text + "80"}
+                placeholderTextColor={Colors.textSecondary}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -215,7 +215,7 @@ export default function UserSignupScreen() {
                 <Ionicons
                   name={showConfirmPassword ? "eye" : "eye-off"}
                   size={20}
-                  color={Colors.light.tint}
+                  color={Colors.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -224,7 +224,7 @@ export default function UserSignupScreen() {
           {/* Error Message */}
           {error ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={16} color="#FF3B30" />
+              <Ionicons name="alert-circle" size={16} color={Colors.error} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
@@ -232,7 +232,7 @@ export default function UserSignupScreen() {
           {/* Info Message */}
           {info ? (
             <View style={styles.infoContainer}>
-              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
               <Text style={styles.infoText}>{info}</Text>
             </View>
           ) : null}
@@ -259,9 +259,7 @@ export default function UserSignupScreen() {
           {/* Guide Registration Link */}
           <View style={styles.guideContainer}>
             <Text style={styles.guideText}>Want to be a travel guide? </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/guide-registration")}
-            >
+            <TouchableOpacity onPress={() => router.push("/guide-registration")}>
               <Text style={styles.guideLink}>Register Here</Text>
             </TouchableOpacity>
           </View>
@@ -274,7 +272,7 @@ export default function UserSignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.background,
   },
   backgroundImage: {
     position: "absolute",
@@ -300,15 +298,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: "#FFF",
     marginBottom: Spacing.sm,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.light.text + "CC",
+    color: "rgba(255,255,255,0.9)",
   },
   formContainer: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: Colors.background,
     borderRadius: Radii.lg,
     padding: Spacing.lg,
     shadowColor: "#000",
@@ -323,33 +321,33 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.light.text + "20",
+    borderColor: Colors.textMuted,
     borderRadius: Radii.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     fontSize: 16,
-    color: Colors.light.text,
-    backgroundColor: Colors.light.text + "05",
+    color: Colors.textPrimary,
+    backgroundColor: Colors.surface,
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.light.text + "20",
+    borderColor: Colors.textMuted,
     borderRadius: Radii.md,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.light.text + "05",
+    backgroundColor: Colors.surface,
   },
   passwordInput: {
     flex: 1,
     paddingVertical: Spacing.sm,
     fontSize: 16,
-    color: Colors.light.text,
+    color: Colors.textPrimary,
   },
   eyeIcon: {
     padding: Spacing.sm,
@@ -364,7 +362,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: "#FF3B30",
+    color: Colors.error,
     marginLeft: Spacing.sm,
     flex: 1,
   },
@@ -378,12 +376,12 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: "#34C759",
+    color: Colors.primary,
     marginLeft: Spacing.sm,
     flex: 1,
   },
   signupButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: Colors.primary,
     borderRadius: Radii.md,
     paddingVertical: Spacing.md,
     alignItems: "center",
@@ -393,7 +391,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   signupButtonText: {
-    color: Colors.light.background,
+    color: Colors.surface,
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -404,11 +402,11 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: Colors.light.text,
+    color: Colors.textPrimary,
   },
   loginLink: {
     fontSize: 14,
-    color: Colors.light.tint,
+    color: Colors.primary,
     fontWeight: "bold",
   },
   guideContainer: {
@@ -417,15 +415,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.light.text + "20",
+    borderTopColor: Colors.textMuted,
   },
   guideText: {
     fontSize: 14,
-    color: Colors.light.text,
+    color: Colors.textPrimary,
   },
   guideLink: {
     fontSize: 14,
-    color: Colors.light.tint,
+    color: Colors.primary,
     fontWeight: "bold",
   },
 });

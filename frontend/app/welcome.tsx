@@ -1,5 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <Image
         source={{
-          uri: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800",
+          uri: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=1200&fit=crop",
         }}
         style={styles.heroImage}
         resizeMode="cover"
@@ -36,19 +36,17 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
           </Link>
 
-          <TouchableOpacity
-            style={styles.signupButton}
-            onPress={() => router.push("/user-signup")}
-          >
-            <Text style={styles.signupText}>Sign Up as Traveler</Text>
-          </TouchableOpacity>
+          <Link href="/user-signup" asChild>
+            <TouchableOpacity style={styles.signupButton}>
+              <Text style={styles.signupText}>Sign Up as Traveler</Text>
+            </TouchableOpacity>
+          </Link>
 
-          <TouchableOpacity
-            style={styles.guideSignupButton}
-            onPress={() => router.push("/guide-registration")}
-          >
-            <Text style={styles.guideSignupText}>Register as Travel Guide</Text>
-          </TouchableOpacity>
+          <Link href="/guide-registration" asChild>
+            <TouchableOpacity style={styles.guideSignupButton}>
+              <Text style={styles.guideSignupText}>Register as Travel Guide</Text>
+            </TouchableOpacity>
+          </Link>
 
           <View style={styles.divider}>
             <View style={styles.line} />
