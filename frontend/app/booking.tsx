@@ -4,10 +4,13 @@ import { PaymentCard } from "@/components/payment-card";
 import { ThemedView } from "@/components/themed-view";
 import { TripDetailCard } from "@/components/trip-detail-card";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { APIClient } from "@/lib/api";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -17,18 +20,112 @@ import {
   View,
 } from "react-native";
 
+const apiClient = new APIClient();
+
+interface BookingData {
+  experienceId?: string;
+  date?: string;
+  guests?: number;
+  totalPrice?: number;
+}
+
 export default function BookingScreen() {
+  const { user } = useAuth();
   const [cardNumber, setCardNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [travelerName, setTravelerName] = useState("Mahin Rahman");
-  const [phone, setPhone] = useState("+880 1700 123 456");
-  const [email, setEmail] = useState("mahin.rahman@email.com");
+  const [travelerName, setTravelerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [step, setStep] = useState<"details" | "payment">("details");
   const [showThankYou, setShowThankYou] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [bookingData, setBookingData] = useState<BookingData>({});
 
-  const handleConfirm = () => {
-    setShowThankYou(true);
+  // Load user data on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (user?.email) {
+        setEmail(user.email);
+        setTravelerName(user.displayName || "");
+      }
+      // Get booking details from route params if available
+      try {
+        const currentUser = await apiClient.getCurrentUser();
+        if (currentUser) {
+          setTravelerName(currentUser.first_name + " " + currentUser.last_name);
+          setEmail(currentUser.email);
+          setPhone(currentUser.phone || "");
+        }
+      } catch (err) {
+        console.log("Could not load user data", err);
+      }
+    };
+    loadUserData();
+  }, [user]);
+
+  const validateForm = () => {
+    if (!travelerName.trim()) {
+      Alert.alert("Error", "Please enter your name");
+      return false;
+    }
+    if (!email.includes("@")) {
+      Alert.alert("Error", "Please enter valid email");
+      return false;
+    }
+    if (!phone.trim()) {
+      Alert.alert("Error", "Please enter phone number");
+      return false;
+    }
+    if (step === "payment" && !cardNumber.trim()) {
+      Alert.alert("Error", "Please enter card number");
+      return false;
+    }
+    return true;
+  };
+
+  const handleConfirm = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      // Create booking in Supabase
+      const booking = await apiClient.request({
+        method: "POST",
+        endpoint: "/bookings",
+        body: {
+          booking_type: "experience",
+          item_id: bookingData.experienceId || "",
+          item_name: "Experience Booking",
+          check_in_date: bookingData.date || new Date().toISOString(),
+          check_out_date: bookingData.date || new Date().toISOString(),
+          guests: bookingData.guests || 1,
+          price_per_unit:
+            (bookingData.totalPrice || 0) / (bookingData.guests || 1),
+          total_days_or_units: 1,
+          subtotal: bookingData.totalPrice || 0,
+          service_fee: 25,
+          total_price: (bookingData.totalPrice || 0) + 25,
+          currency: "TK",
+          payment_method: "card",
+          payment_number: cardNumber.slice(-4),
+          payment_status: "completed",
+          booking_status: "confirmed",
+        },
+      });
+
+      if (booking) {
+        setShowThankYou(true);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Booking Failed",
+        "Could not complete booking. Please try again."
+      );
+      console.error("Booking error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoHome = () => {
@@ -37,6 +134,8 @@ export default function BookingScreen() {
   };
 
   const handleNext = () => {
+    if (!validateForm()) return;
+
     if (step === "details") {
       setStep("payment");
       return;

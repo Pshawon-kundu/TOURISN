@@ -36,13 +36,21 @@ export class APIClient {
       headers["Authorization"] = `Bearer ${this.token}`;
     }
 
+    // Add user email for session management
+    if (typeof window !== "undefined") {
+      const userEmail = localStorage.getItem("userEmail");
+      if (userEmail) {
+        headers["X-User-Email"] = userEmail;
+      }
+    }
+
     return headers;
   }
 
   /**
-   * Generic fetch wrapper
+   * Generic fetch wrapper with method specification
    */
-  private async request<T>(
+  private async doRequest<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
@@ -80,17 +88,36 @@ export class APIClient {
   }
 
   /**
+   * Generic request method (supports all HTTP methods)
+   */
+  async request<T>({
+    method = "GET",
+    endpoint,
+    body,
+  }: {
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    endpoint: string;
+    body?: any;
+  }): Promise<T> {
+    const options: RequestInit = { method };
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+    return this.doRequest<T>(endpoint, options);
+  }
+
+  /**
    * GET request
    */
   async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "GET" });
+    return this.doRequest<T>(endpoint, { method: "GET" });
   }
 
   /**
    * POST request
    */
   async post<T>(endpoint: string, body: any): Promise<T> {
-    return this.request<T>(endpoint, {
+    return this.doRequest<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -100,7 +127,7 @@ export class APIClient {
    * PUT request
    */
   async put<T>(endpoint: string, body: any): Promise<T> {
-    return this.request<T>(endpoint, {
+    return this.doRequest<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(body),
     });
@@ -110,7 +137,7 @@ export class APIClient {
    * PATCH request
    */
   async patch<T>(endpoint: string, body: any): Promise<T> {
-    return this.request<T>(endpoint, {
+    return this.doRequest<T>(endpoint, {
       method: "PATCH",
       body: JSON.stringify(body),
     });
@@ -120,7 +147,7 @@ export class APIClient {
    * DELETE request
    */
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "DELETE" });
+    return this.doRequest<T>(endpoint, { method: "DELETE" });
   }
 
   // ===== AUTH ENDPOINTS =====
@@ -133,7 +160,7 @@ export class APIClient {
   }
 
   async getCurrentUser() {
-    return this.get("/auth/user");
+    return this.get("/auth/me");
   }
 
   // ===== EXPERIENCES ENDPOINTS =====

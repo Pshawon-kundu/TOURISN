@@ -2,7 +2,7 @@
 import { signUp } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -28,6 +28,20 @@ export default function UserSignupScreen() {
   const [info, setInfo] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    // Suppress aria-hidden warning for web
+    if (typeof window !== "undefined" && Platform.OS === "web") {
+      const originalWarn = console.warn;
+      console.warn = (...args: any[]) => {
+        if (args[0]?.includes?.("aria-hidden")) return;
+        originalWarn(...args);
+      };
+      return () => {
+        console.warn = originalWarn;
+      };
+    }
+  }, []);
 
   const validateEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

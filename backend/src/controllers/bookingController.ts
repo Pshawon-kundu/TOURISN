@@ -3,9 +3,21 @@ import { supabase } from "../config/supabase";
 import { AuthRequest } from "../middleware/auth";
 
 // Create a new booking
-export const createBooking = async (req: Request, res: Response) => {
+export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
-    const bookingData = req.body;
+    if (!req.user) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Unauthorized - Please login" });
+    }
+
+    const bookingData = {
+      ...req.body,
+      user_id: req.user.id, // Ensure user_id is set from authenticated user
+    };
+
+    console.log("📝 Creating booking for user:", req.user.email);
+    console.log("📝 Booking data:", JSON.stringify(bookingData, null, 2));
 
     const { data, error } = await supabase
       .from("bookings")
@@ -13,14 +25,14 @@ export const createBooking = async (req: Request, res: Response) => {
       .select();
 
     if (error) {
-      console.error("Supabase booking error:", error);
+      console.error("❌ Supabase booking error:", error);
       return res.status(400).json({ success: false, error: error.message });
     }
 
-    console.log(`✅ Booking created - Supabase ID: ${data?.[0]?.id}`);
+    console.log(`✅ Booking created successfully - ID: ${data?.[0]?.id}`);
     res.status(201).json({ success: true, data: data?.[0] });
   } catch (error) {
-    console.error("Error creating booking:", error);
+    console.error("❌ Error creating booking:", error);
     res.status(500).json({ success: false, error: "Failed to create booking" });
   }
 };

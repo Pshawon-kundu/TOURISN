@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -14,12 +16,62 @@ import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
+import { APIClient } from "@/lib/api";
 import { signOut as signOutUser } from "@/lib/auth";
+
+const apiClient = new APIClient();
+
+interface UserProfile {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  avatar_url?: string;
+  bio?: string;
+  role: string;
+}
 
 export default function ProfileScreen() {
   const { user } = useAuth();
-  const userName = user?.displayName || user?.email || "Ahanaf Rahman";
-  const userEmail = user?.email || "ahanaf_233@gmail.com";
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [bookingCount, setBookingCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
+
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true);
+      const profile = await apiClient.getCurrentUser();
+      if (profile) {
+        setUserProfile(profile as UserProfile);
+        // Load booking count
+        try {
+          const bookings = await apiClient.request({
+            method: "GET",
+            endpoint: "/bookings",
+          });
+          setBookingCount(Array.isArray(bookings) ? bookings.length : 0);
+        } catch {
+          console.log("Could not load bookings count");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+      Alert.alert("Error", "Failed to load your profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const userName = userProfile
+    ? `${userProfile.first_name} ${userProfile.last_name}`.trim()
+    : user?.displayName || "User";
+  const userEmail = userProfile?.email || user?.email || "user@example.com";
 
   const handleLogout = async () => {
     try {
@@ -46,142 +98,156 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Profile Avatar Section */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
-              }}
-              style={styles.avatar}
-            />
-          </View>
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{userEmail}</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
-
-        {/* Stats Section */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Reward Points</Text>
-            <Text style={styles.statValue}>360</Text>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* Profile Avatar Section */}
+          <View style={styles.profileSection}>
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{
+                  uri:
+                    userProfile?.avatar_url ||
+                    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
+                }}
+                style={styles.avatar}
+              />
+            </View>
+            <Text style={styles.userName}>{userName}</Text>
+            <Text style={styles.userEmail}>{userEmail}</Text>
+            {userProfile?.bio && (
+              <Text style={styles.userBio}>{userProfile.bio}</Text>
+            )}
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Travel Trips</Text>
-            <Text style={styles.statValue}>238</Text>
+
+          {/* Stats Section */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Bookings</Text>
+              <Text style={styles.statValue}>{bookingCount}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Saved</Text>
+              <Text style={styles.statValue}>{favoriteCount}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Reviews</Text>
+              <Text style={styles.statValue}>0</Text>
+            </View>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Bucket List</Text>
-            <Text style={styles.statValue}>473</Text>
+
+          {/* Menu Items */}
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/profile")}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name="person-outline"
+                    size={20}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.menuText}>Profile</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/profile")}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name="bookmark-outline"
+                    size={20}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.menuText}>Bookmarked</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/profile")}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name="earth-outline"
+                    size={20}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.menuText}>Previous Trips</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/profile")}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name="settings-outline"
+                    size={20}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.menuText}>Settings</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/profile")}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color={Colors.textPrimary}
+                  />
+                </View>
+                <Text style={styles.menuText}>Version</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={handleLogout}
+            >
+              <View style={styles.menuLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="log-out-outline" size={20} color="#D22" />
+                </View>
+                <Text style={[styles.menuText, { color: "#D22" }]}>
+                  Log Out
+                </Text>
+              </View>
+              <Text style={[styles.chevron, { color: "#D22" }]}>›</Text>
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Menu Items */}
-        <View style={styles.menuContainer}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="person-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Profile</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="bookmark-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Bookmarked</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="earth-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Previous Trips</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="settings-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Settings</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Version</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.menuItem, { borderBottomWidth: 0 }]}
-            onPress={handleLogout}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="log-out-outline" size={20} color="#D22" />
-              </View>
-              <Text style={[styles.menuText, { color: "#D22" }]}>Log Out</Text>
-            </View>
-            <Text style={[styles.chevron, { color: "#D22" }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      )}
       <BottomPillNav />
     </ThemedView>
   );
@@ -336,5 +402,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: Colors.textSecondary,
     fontWeight: "300",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  userBio: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    fontStyle: "italic",
   },
 });

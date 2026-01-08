@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
 import guideRoutes from "./routes/guideRoutes";
+import nidVerificationRoutes from "./routes/nidVerificationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import stayRoutes from "./routes/stayRoutes";
 import transportRoutes from "./routes/transportRoutes";
@@ -31,10 +32,12 @@ const corsOptions = {
     process.env.FRONTEND_URL || "http://localhost:3000",
     "http://localhost:8081",
     "http://127.0.0.1:8081",
+    "http://localhost:8082",
+    "http://127.0.0.1:8082",
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-User-Email"],
 };
 
 app.use(cors(corsOptions));
@@ -59,6 +62,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/guides", guideRoutes);
 app.use("/api/transport", transportRoutes);
 app.use("/api/stays", stayRoutes);
+app.use("/api/nid", nidVerificationRoutes);
 
 // 404 handler
 app.use((req, res) => {

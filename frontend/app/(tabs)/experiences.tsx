@@ -6,10 +6,12 @@ import {
 } from "@/constants/experiencesData";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   FlatList,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +25,39 @@ export default function ExperiencesScreen() {
   const [sortBy, setSortBy] = useState<"rating" | "price" | "duration">(
     "rating"
   );
+
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const filterAnim = useRef(new Animated.Value(0)).current;
+  const cardAnims = useRef(
+    experiences.map(() => new Animated.Value(0))
+  ).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.spring(headerAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.timing(filterAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.stagger(
+        60,
+        cardAnims.map((anim) =>
+          Animated.spring(anim, {
+            toValue: 1,
+            tension: 60,
+            friction: 8,
+            useNativeDriver: Platform.OS !== "web",
+          })
+        )
+      ),
+    ]).start();
+  }, []);
 
   const filteredExperiences = experiences
     .filter((exp) => {
@@ -50,175 +85,236 @@ export default function ExperiencesScreen() {
     }
   };
 
-  const renderExperienceCard = ({ item }: { item: Experience }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/experience-detail?id=${item.id}`)}
+  const renderExperienceCard = ({
+    item,
+    index,
+  }: {
+    item: Experience;
+    index: number;
+  }) => (
+    <Animated.View
+      style={{
+        opacity: cardAnims[index],
+        transform: [
+          {
+            scale: cardAnims[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.9, 1],
+            }),
+          },
+          {
+            translateY: cardAnims[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [30, 0],
+            }),
+          },
+        ],
+      }}
     >
-      {/* Image */}
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push(`/experience-detail?id=${item.id}`)}
+      >
+        {/* Image */}
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: item.image }} style={styles.image} />
 
-        {/* Category Badge */}
-        <View style={[styles.badge, { backgroundColor: item.category }]}>
-          <Text style={styles.badgeIcon}>
-            {experienceCategories.find((c) => c.id === item.category)?.icon}
-          </Text>
-          <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
-        </View>
+          {/* Category Badge */}
+          <View style={[styles.badge, { backgroundColor: item.category }]}>
+            <Text style={styles.badgeIcon}>
+              {experienceCategories.find((c) => c.id === item.category)?.icon}
+            </Text>
+            <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
+          </View>
 
-        {/* Rating Badge */}
-        <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={14} color="#FFD34D" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-          <Text style={styles.reviewsText}>({item.reviews})</Text>
-        </View>
+          {/* Rating Badge */}
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={14} color="#FFD34D" />
+            <Text style={styles.ratingText}>{item.rating}</Text>
+            <Text style={styles.reviewsText}>({item.reviews})</Text>
+          </View>
 
-        {/* Difficulty Badge */}
-        <View
-          style={[
-            styles.difficultyBadge,
-            { borderColor: getDifficultyColor(item.difficulty) },
-          ]}
-        >
-          <Text
+          {/* Difficulty Badge */}
+          <View
             style={[
-              styles.difficultyText,
-              { color: getDifficultyColor(item.difficulty) },
+              styles.difficultyBadge,
+              { borderColor: getDifficultyColor(item.difficulty) },
             ]}
           >
-            {item.difficulty.toUpperCase()}
-          </Text>
-        </View>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={2}>
-          {item.name}
-        </Text>
-
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={16} color={Colors.textSecondary} />
-          <Text style={styles.location}>{item.location}</Text>
-        </View>
-
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-
-        {/* Quick Info Row */}
-        <View style={styles.infoRow}>
-          <View style={styles.infoPill}>
-            <View style={styles.infoLabelRow}>
-              <Ionicons name="time" size={14} color={Colors.textSecondary} />
-              <Text style={styles.infoLabel}>Duration</Text>
-            </View>
-            <Text style={styles.infoValue}>{item.duration}</Text>
-          </View>
-          <View style={styles.infoPill}>
-            <View style={styles.infoLabelRow}>
-              <Ionicons name="people" size={14} color={Colors.textSecondary} />
-              <Text style={styles.infoLabel}>Group Size</Text>
-            </View>
-            <Text style={styles.infoValue}>{item.groupSize}</Text>
-          </View>
-          <View style={styles.infoPill}>
-            <View style={styles.infoLabelRow}>
-              <Ionicons
-                name="location"
-                size={14}
-                color={Colors.textSecondary}
-              />
-              <Text style={styles.infoLabel}>Region</Text>
-            </View>
-            <Text style={styles.infoValue}>{item.region}</Text>
-          </View>
-        </View>
-
-        {/* Guide Info */}
-        <View style={styles.guideSection}>
-          <Image source={{ uri: item.guide.avatar }} style={styles.avatar} />
-          <View style={styles.guideInfo}>
-            <Text style={styles.guideName}>{item.guide.name}</Text>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            <Text
+              style={[
+                styles.difficultyText,
+                { color: getDifficultyColor(item.difficulty) },
+              ]}
             >
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={14}
-                color={Colors.textSecondary}
-              />
-              <Text style={styles.guideDetails}>
-                {item.guide.languages.join(", ")}
-              </Text>
-              <Ionicons name="star" size={14} color="#FFD34D" />
-              <Text style={styles.guideDetails}>{item.guide.rating}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Highlights */}
-        <View style={styles.highlightsContainer}>
-          {item.highlights.slice(0, 3).map((highlight, idx) => (
-            <View key={idx} style={styles.highlightTag}>
-              <Text style={styles.highlightText}>{highlight}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Footer - Price & Button */}
-        <View style={styles.footer}>
-          <View>
-            <Text style={styles.priceLabel}>From</Text>
-            <Text style={styles.price}>
-              {item.price.toLocaleString()} {item.currency}
+              {item.difficulty.toUpperCase()}
             </Text>
           </View>
-          <TouchableOpacity style={styles.bookButton}>
-            <Text style={styles.bookButtonText}>Book Now</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-    </TouchableOpacity>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={styles.name} numberOfLines={2}>
+            {item.name}
+          </Text>
+
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={16} color={Colors.textSecondary} />
+            <Text style={styles.location}>{item.location}</Text>
+          </View>
+
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+
+          {/* Quick Info Row */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoPill}>
+              <View style={styles.infoLabelRow}>
+                <Ionicons name="time" size={14} color={Colors.textSecondary} />
+                <Text style={styles.infoLabel}>Duration</Text>
+              </View>
+              <Text style={styles.infoValue}>{item.duration}</Text>
+            </View>
+            <View style={styles.infoPill}>
+              <View style={styles.infoLabelRow}>
+                <Ionicons
+                  name="people"
+                  size={14}
+                  color={Colors.textSecondary}
+                />
+                <Text style={styles.infoLabel}>Group Size</Text>
+              </View>
+              <Text style={styles.infoValue}>{item.groupSize}</Text>
+            </View>
+            <View style={styles.infoPill}>
+              <View style={styles.infoLabelRow}>
+                <Ionicons
+                  name="location"
+                  size={14}
+                  color={Colors.textSecondary}
+                />
+                <Text style={styles.infoLabel}>Region</Text>
+              </View>
+              <Text style={styles.infoValue}>{item.region}</Text>
+            </View>
+          </View>
+
+          {/* Guide Info */}
+          <View style={styles.guideSection}>
+            <Image source={{ uri: item.guide.avatar }} style={styles.avatar} />
+            <View style={styles.guideInfo}>
+              <Text style={styles.guideName}>{item.guide.name}</Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={14}
+                  color={Colors.textSecondary}
+                />
+                <Text style={styles.guideDetails}>
+                  {item.guide.languages.join(", ")}
+                </Text>
+                <Ionicons name="star" size={14} color="#FFD34D" />
+                <Text style={styles.guideDetails}>{item.guide.rating}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Highlights */}
+          <View style={styles.highlightsContainer}>
+            {item.highlights.slice(0, 3).map((highlight, idx) => (
+              <View key={idx} style={styles.highlightTag}>
+                <Text style={styles.highlightText}>{highlight}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Footer - Price & Button */}
+          <View style={styles.footer}>
+            <View>
+              <Text style={styles.priceLabel}>From</Text>
+              <Text style={styles.price}>
+                {item.price.toLocaleString()} {item.currency}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.bookButton}>
+              <Text style={styles.bookButtonText}>Book Now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: headerAnim,
+            transform: [
+              {
+                translateY: headerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-30, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Text style={styles.headerTitle}>Experiences</Text>
-        <Text style={styles.headerSubtitle}>Create unforgettable memories</Text>
-      </View>
+        <Text style={styles.headerSubtitle}>
+          Create unforgettable memories ✨
+        </Text>
+      </Animated.View>
 
       {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
+      <Animated.View
+        style={{
+          opacity: filterAnim,
+          transform: [
+            {
+              translateX: filterAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-50, 0],
+              }),
+            },
+          ],
+        }}
       >
-        {experienceCategories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.filterPill,
-              selectedCategory === category.id && styles.filterPillActive,
-            ]}
-            onPress={() => setSelectedCategory(category.id)}
-          >
-            <Text style={styles.filterIcon}>{category.icon}</Text>
-            <Text
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContent}
+        >
+          {experienceCategories.map((category) => (
+            <TouchableOpacity
+              key={category.id}
               style={[
-                styles.filterLabel,
-                selectedCategory === category.id && styles.filterLabelActive,
+                styles.filterPill,
+                selectedCategory === category.id && styles.filterPillActive,
               ]}
+              onPress={() => setSelectedCategory(category.id)}
             >
-              {category.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text style={styles.filterIcon}>{category.icon}</Text>
+              <Text
+                style={[
+                  styles.filterLabel,
+                  selectedCategory === category.id && styles.filterLabelActive,
+                ]}
+              >
+                {category.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </Animated.View>
 
       {/* Sort Options */}
       <View style={styles.sortBar}>
@@ -299,7 +395,7 @@ export default function ExperiencesScreen() {
         renderItem={renderExperienceCard}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="disc" size={28} color={Colors.textSecondary} />
@@ -315,26 +411,28 @@ export default function ExperiencesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#0F172A",
   },
 
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-    backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    backgroundColor: "transparent",
   },
 
   headerTitle: {
     fontSize: 32,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    marginBottom: 4,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
 
   headerSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.7)",
+    fontWeight: "500",
   },
 
   filterScroll: {
@@ -348,39 +446,39 @@ const styles = StyleSheet.create({
   },
 
   filterPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderRadius: Radii.full,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    gap: 8,
   },
 
   filterPillActive: {
-    backgroundColor: "#667eea",
-    borderColor: "#667eea",
+    backgroundColor: "#8B5CF6",
+    borderColor: "#A78BFA",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
 
   filterIcon: {
-    fontSize: 16,
+    fontSize: 18,
   },
 
   filterLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.7)",
   },
 
   filterLabelActive: {
-    color: "#fff",
+    color: "#FFFFFF",
   },
 
   sortBar: {
@@ -393,44 +491,51 @@ const styles = StyleSheet.create({
   sortOption: {
     flex: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radii.md,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.lg,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
   },
 
   sortOptionActive: {
-    backgroundColor: "#667eea",
-    borderColor: "#667eea",
+    backgroundColor: "#8B5CF6",
+    borderColor: "#A78BFA",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
 
   sortText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.7)",
   },
 
   sortTextActive: {
-    color: "#fff",
+    color: "#FFFFFF",
   },
 
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: 100,
   },
 
   card: {
     marginBottom: Spacing.lg,
-    borderRadius: Radii.lg,
-    backgroundColor: Colors.surface,
+    borderRadius: Radii.xl,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     overflow: "hidden",
-    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
 
   imageContainer: {
@@ -514,16 +619,17 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
-    color: Colors.textPrimary,
+    color: "#FFFFFF",
     marginBottom: Spacing.sm,
-    lineHeight: 24,
+    lineHeight: 26,
+    letterSpacing: -0.3,
   },
 
   location: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
     marginBottom: Spacing.md,
   },
   locationRow: {
@@ -535,8 +641,8 @@ const styles = StyleSheet.create({
 
   description: {
     fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
+    color: "rgba(255, 255, 255, 0.6)",
+    lineHeight: 20,
     marginBottom: Spacing.md,
   },
 
@@ -548,29 +654,30 @@ const styles = StyleSheet.create({
 
   infoPill: {
     flex: 1,
-    backgroundColor: "rgba(102, 126, 234, 0.08)",
-    paddingVertical: Spacing.sm,
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(102, 126, 234, 0.15)",
+    borderColor: "rgba(139, 92, 246, 0.3)",
     alignItems: "center",
   },
 
   infoLabel: {
     fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
   },
   infoLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 4,
   },
 
   infoValue: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: Colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FFFFFF",
     marginTop: 2,
   },
 
@@ -580,16 +687,16 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
 
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
 
   guideInfo: {
@@ -597,14 +704,14 @@ const styles = StyleSheet.create({
   },
 
   guideName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: "#FFFFFF",
   },
 
   guideDetails: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
     marginTop: 2,
   },
 
@@ -616,18 +723,18 @@ const styles = StyleSheet.create({
   },
 
   highlightTag: {
-    backgroundColor: "rgba(102, 126, 234, 0.1)",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radii.sm,
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: "rgba(102, 126, 234, 0.2)",
+    borderColor: "rgba(139, 92, 246, 0.4)",
   },
 
   highlightText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#667eea",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#A78BFA",
   },
 
   footer: {
@@ -636,53 +743,60 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
 
   priceLabel: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
+    fontWeight: "500",
   },
 
   price: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#667eea",
+    color: "#8B5CF6",
     marginTop: 2,
   },
 
   bookButton: {
-    backgroundColor: "#667eea",
+    backgroundColor: "#8B5CF6",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
 
   bookButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
   },
 
   emptyState: {
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xxl * 2,
     alignItems: "center",
   },
 
   emptyEmoji: {
-    fontSize: 48,
+    fontSize: 64,
     marginBottom: Spacing.md,
   },
 
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: "rgba(255, 255, 255, 0.8)",
     marginBottom: Spacing.sm,
   },
 
   emptySubtext: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: "rgba(255, 255, 255, 0.5)",
   },
 });

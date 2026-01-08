@@ -1,6 +1,6 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { Link } from "expo-router";
-import React from "react";
+import { router } from "expo-router";
+import React, { useEffect } from "react";
 import {
   Image,
   Platform,
@@ -11,6 +11,57 @@ import {
 } from "react-native";
 
 export default function WelcomeScreen() {
+  useEffect(() => {
+    // Suppress accessibility warnings for web
+    if (typeof window !== "undefined" && Platform.OS === "web") {
+      const originalWarn = console.warn;
+      const originalError = console.error;
+
+      console.warn = (...args: any[]) => {
+        const msg = args[0]?.toString?.() || "";
+        if (
+          msg.includes("aria-hidden") ||
+          msg.includes("pointerEvents") ||
+          msg.includes("Blocked aria-hidden")
+        ) {
+          return;
+        }
+        originalWarn(...args);
+      };
+
+      console.error = (...args: any[]) => {
+        const msg = args[0]?.toString?.() || "";
+        if (
+          msg.includes("aria-hidden") ||
+          msg.includes("Blocked aria-hidden")
+        ) {
+          return;
+        }
+        originalError(...args);
+      };
+
+      return () => {
+        console.warn = originalWarn;
+        console.error = originalError;
+      };
+    }
+  }, []);
+
+  const handleLogin = () => {
+    console.log("Navigating to login...");
+    router.push("/login");
+  };
+
+  const handleSignup = () => {
+    console.log("Navigating to user signup...");
+    router.push("/user-signup");
+  };
+
+  const handleGuideRegistration = () => {
+    console.log("Navigating to guide registration...");
+    router.push("/guide-registration");
+  };
+
   return (
     <View style={styles.container}>
       <Image
@@ -30,25 +81,35 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Link href="/login" asChild>
-            <TouchableOpacity style={styles.loginButton}>
-              <Text style={styles.loginText}>Log In</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Log In"
+          >
+            <Text style={styles.loginText}>Log In</Text>
+          </TouchableOpacity>
 
-          <Link href="/user-signup" asChild>
-            <TouchableOpacity style={styles.signupButton}>
-              <Text style={styles.signupText}>Sign Up as Traveler</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={handleSignup}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Sign Up as Traveler"
+          >
+            <Text style={styles.signupText}>Sign Up as Traveler</Text>
+          </TouchableOpacity>
 
-          <Link href="/guide-registration" asChild>
-            <TouchableOpacity style={styles.guideSignupButton}>
-              <Text style={styles.guideSignupText}>
-                Register as Travel Guide
-              </Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.guideSignupButton}
+            onPress={handleGuideRegistration}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Register as Travel Guide"
+          >
+            <Text style={styles.guideSignupText}>Register as Travel Guide</Text>
+          </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.line} />

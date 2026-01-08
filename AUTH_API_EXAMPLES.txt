@@ -1,0 +1,72 @@
+// Test the authentication flow manually
+
+// 1. SIGNUP FLOW
+// POST http://localhost:5001/api/auth/signup
+// Content-Type: application/json
+
+{
+  "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEifQ...",
+  "firstName": "John",
+  "lastName": "Doe",
+  "role": "user",
+  "phone": "+1234567890"
+}
+
+// Expected Response (201):
+{
+  "success": true,
+  "token": "custom-jwt-token",
+  "user": {
+    "uid": "abc123xyz",
+    "email": "john@example.com",
+    "role": "user",
+    "name": "John Doe"
+  }
+}
+
+// 2. LOGIN FLOW
+// POST http://localhost:5001/api/auth/login
+// Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjIifQ..."
+}
+
+// Expected Response (200):
+{
+  "success": true,
+  "token": "custom-jwt-token",
+  "user": {
+    "uid": "abc123xyz",
+    "email": "john@example.com",
+    "role": "user",
+    "name": "John Doe"
+  }
+}
+
+// ERROR RESPONSES:
+
+// 400: Missing required fields
+{
+  "success": false,
+  "error": "Email and password (or idToken) are required"
+}
+
+// 401: Invalid token
+{
+  "success": false,
+  "error": "Invalid or expired authentication token: Token signature verification failed"
+}
+
+// 404: User not found in Supabase
+{
+  "success": false,
+  "error": "User profile not found. Please sign up first with this email."
+}
+
+// 500: Server error
+{
+  "success": false,
+  "error": "Authentication service not available"
+}

@@ -40,9 +40,14 @@ export function getAppInstance() {
   return app;
 }
 
+export function getChatRoomId(userId: string, guideId: string): string {
+  // Create a consistent room ID regardless of order
+  return [userId, guideId].sort().join("_");
+}
+
 export async function sendMessage(
   collectionPath: string,
-  message: { text: string; from?: string }
+  message: { text: string; from?: string; userName?: string }
 ) {
   if (!db) throw new Error("Firebase not initialized");
   const col = collection(db, collectionPath);

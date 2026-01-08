@@ -47,7 +47,7 @@ export default function HiredConfirmScreen() {
     : tripStartDate;
 
   const handleOk = () => {
-    router.back();
+    router.push("/(tabs)");
   };
 
   const handleHireNow = () => {

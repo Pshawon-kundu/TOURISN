@@ -18,7 +18,6 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
@@ -389,6 +388,28 @@ export default function HomeScreen() {
           ))}
         </View>
 
+        {/* Chat Section - Prominent CTA */}
+        <View style={styles.chatSection}>
+          <View style={styles.chatHeader}>
+            <View style={styles.chatIconWrapper}>
+              <Ionicons name="chatbubbles" size={32} color="#EC4899" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.chatTitle}>Need help planning?</Text>
+              <Text style={styles.chatSubtitle}>
+                Chat with our travel experts and local guides
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => router.push("/chat")}
+          >
+            <Ionicons name="chatbubbles-outline" size={18} color="#FFF" />
+            <Text style={styles.chatButtonText}>Start Chat</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Promo CTA */}
         <View style={styles.promoCard}>
           <View style={{ flex: 1 }}>
@@ -549,8 +570,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
-      <BottomPillNav />
     </ThemedView>
   );
 }
@@ -876,6 +895,71 @@ const styles = StyleSheet.create({
   guideActionText: {
     color: "#FFF",
     fontWeight: "700",
+  },
+  chatSection: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xl,
+    backgroundColor: "#FCE7F3",
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: "#FBCFE8",
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  chatIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#831843",
+    marginBottom: 4,
+  },
+  chatSubtitle: {
+    fontSize: 13,
+    color: "#9D174D",
+    fontWeight: "500",
+  },
+  chatButton: {
+    backgroundColor: "#EC4899",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.full,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  chatButtonText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   promoCard: {
     marginHorizontal: Spacing.lg,

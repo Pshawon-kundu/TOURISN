@@ -4,8 +4,9 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   ScrollView,
   StyleSheet,
@@ -102,6 +103,25 @@ export default function GuidesScreen() {
   const [activeCategory, setActiveCategory] =
     useState<(typeof guideCategories)[number]>("All");
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const filteredGuides = useMemo(() => {
     const term = search.toLowerCase();
     return guides.filter((guide) => {
@@ -117,155 +137,186 @@ export default function GuidesScreen() {
   return (
     <ThemedView style={styles.container}>
       <Header title="Local Guides" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={{ flex: 1, gap: 6 }}>
-            <Text style={styles.heroKicker}>Verified locals</Text>
-            <Text style={styles.heroTitle}>Find the perfect guide</Text>
-            <Text style={styles.heroSubtitle}>
-              Compare ratings, languages, and specialties before you book.
-            </Text>
-            <TouchableOpacity
-              style={styles.heroCta}
-              onPress={() => router.push({ pathname: "/hired-confirm" })}
-            >
-              <Text style={styles.heroCtaText}>Hire a guide</Text>
-            </TouchableOpacity>
-          </View>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop",
-            }}
-            style={styles.heroImage}
-          />
-        </View>
-
-        <View style={styles.searchCard}>
-          <View style={styles.searchRow}>
-            <MaterialIcons name="search" size={18} color="#6B7280" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search city, guide, or specialty"
-              placeholderTextColor="#9CA3AF"
-              value={search}
-              onChangeText={setSearch}
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.hero}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={styles.heroKicker}>Verified locals</Text>
+              <Text style={styles.heroTitle}>Find the perfect guide</Text>
+              <Text style={styles.heroSubtitle}>
+                Compare ratings, languages, and specialties before you book.
+              </Text>
+              <TouchableOpacity
+                style={styles.heroCta}
+                onPress={() => router.push({ pathname: "/hired-confirm" })}
+              >
+                <Text style={styles.heroCtaText}>Hire a guide</Text>
+              </TouchableOpacity>
+            </View>
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop",
+              }}
+              style={styles.heroImage}
             />
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipRow}
-          >
-            {guideCategories.map((category) => {
-              const active = category === activeCategory;
-              return (
-                <TouchableOpacity
-                  key={category}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setActiveCategory(category)}
-                >
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
+
+          <View style={styles.searchCard}>
+            <View style={styles.searchRow}>
+              <MaterialIcons name="search" size={18} color="#6B7280" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search city, guide, or specialty"
+                placeholderTextColor="#9CA3AF"
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+            >
+              {guideCategories.map((category) => {
+                const active = category === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={category}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setActiveCategory(category)}
                   >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Top rated</Text>
-          <TouchableOpacity onPress={() => router.push("/guides")}>
-            <Text style={styles.sectionLink}>View all</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.guideList}>
-          {filteredGuides.map((guide) => (
-            <TouchableOpacity
-              key={guide.id}
-              style={styles.guideCard}
-              onPress={() => router.push(`/guide/${guide.id}`)}
-              activeOpacity={0.9}
-            >
-              <Image source={{ uri: guide.photo }} style={styles.guidePhoto} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.guideName}>{guide.name}</Text>
-                  <Text style={styles.badge}>{guide.badge}</Text>
-                </View>
-                <Text style={styles.guideCity}>{guide.city}</Text>
-                <Text style={styles.guideMeta}>{guide.specialty}</Text>
-                <Text style={styles.guideMeta}>{guide.languages}</Text>
-                <View style={styles.cardFooter}>
-                  <View style={styles.ratingRow}>
-                    <MaterialIcons name="star" size={16} color="#F59E0B" />
-                    <Text style={styles.ratingText}>
-                      {guide.rating} ({guide.reviews})
+                    <Text
+                      style={[styles.chipText, active && styles.chipTextActive]}
+                    >
+                      {category}
                     </Text>
-                  </View>
-                  <Text style={styles.price}>{guide.price}</Text>
-                </View>
-              </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Top rated</Text>
+            <TouchableOpacity onPress={() => router.push("/guides")}>
+              <Text style={styles.sectionLink}>View all</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
 
-        <View style={styles.featureGrid}>
-          <View style={styles.featureCard}>
-            <MaterialIcons
-              name="travel-explore"
-              size={24}
-              color={Colors.primary}
-            />
-            <Text style={styles.featureTitle}>Curated plans</Text>
-            <Text style={styles.featureSubtitle}>
-              Ready itineraries you can tweak.
-            </Text>
+          <View style={styles.guideList}>
+            {filteredGuides.map((guide) => (
+              <TouchableOpacity
+                key={guide.id}
+                style={styles.guideCard}
+                onPress={() => router.push(`/guide/${guide.id}`)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: guide.photo }}
+                  style={styles.guidePhoto}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.guideName}>{guide.name}</Text>
+                    <Text style={styles.badge}>{guide.badge}</Text>
+                  </View>
+                  <Text style={styles.guideCity}>{guide.city}</Text>
+                  <Text style={styles.guideMeta}>{guide.specialty}</Text>
+                  <Text style={styles.guideMeta}>{guide.languages}</Text>
+                  <View style={styles.cardFooter}>
+                    <View style={styles.ratingRow}>
+                      <MaterialIcons name="star" size={16} color="#F59E0B" />
+                      <Text style={styles.ratingText}>
+                        {guide.rating} ({guide.reviews})
+                      </Text>
+                    </View>
+                    <Text style={styles.price}>{guide.price}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.quickChatButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push({
+                        pathname: "/chat-room",
+                        params: {
+                          guideId: guide.id,
+                          guideName: guide.name,
+                        },
+                      });
+                    }}
+                  >
+                    <MaterialIcons
+                      name="chat-bubble-outline"
+                      size={16}
+                      color="#3B82F6"
+                    />
+                    <Text style={styles.quickChatText}>Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View style={styles.featureCard}>
-            <MaterialIcons
-              name="verified-user"
-              size={24}
-              color={Colors.primary}
-            />
-            <Text style={styles.featureTitle}>Verified profiles</Text>
-            <Text style={styles.featureSubtitle}>
-              Ratings, reviews, and ID checks.
-            </Text>
-          </View>
-          <View style={styles.featureCard}>
-            <MaterialIcons
-              name="chat-bubble-outline"
-              size={24}
-              color={Colors.primary}
-            />
-            <Text style={styles.featureTitle}>Chat before booking</Text>
-            <Text style={styles.featureSubtitle}>
-              Align expectations instantly.
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.ctaCard}>
-          <View style={{ flex: 1, gap: 6 }}>
-            <Text style={styles.ctaTitle}>Become a guide</Text>
-            <Text style={styles.ctaSubtitle}>
-              Host travelers, set your own rates, and get paid.
-            </Text>
+          <View style={styles.featureGrid}>
+            <View style={styles.featureCard}>
+              <MaterialIcons
+                name="travel-explore"
+                size={24}
+                color={Colors.primary}
+              />
+              <Text style={styles.featureTitle}>Curated plans</Text>
+              <Text style={styles.featureSubtitle}>
+                Ready itineraries you can tweak.
+              </Text>
+            </View>
+            <View style={styles.featureCard}>
+              <MaterialIcons
+                name="verified-user"
+                size={24}
+                color={Colors.primary}
+              />
+              <Text style={styles.featureTitle}>Verified profiles</Text>
+              <Text style={styles.featureSubtitle}>
+                Ratings, reviews, and ID checks.
+              </Text>
+            </View>
+            <View style={styles.featureCard}>
+              <MaterialIcons
+                name="chat-bubble-outline"
+                size={24}
+                color={Colors.primary}
+              />
+              <Text style={styles.featureTitle}>Chat before booking</Text>
+              <Text style={styles.featureSubtitle}>
+                Align expectations instantly.
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.ctaButton}
-            onPress={() => router.push("/signup")}
-          >
-            <Text style={styles.ctaButtonText}>Start now</Text>
-          </TouchableOpacity>
-        </View>
 
-        <View style={{ height: 120 }} />
-      </ScrollView>
+          <View style={styles.ctaCard}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={styles.ctaTitle}>Become a guide</Text>
+              <Text style={styles.ctaSubtitle}>
+                Host travelers, set your own rates, and get paid.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={() => router.push("/signup")}
+            >
+              <Text style={styles.ctaButtonText}>Start now</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 120 }} />
+        </ScrollView>
+      </Animated.View>
       <BottomPillNav />
     </ThemedView>
   );
@@ -451,6 +502,24 @@ const styles = StyleSheet.create({
   price: {
     fontWeight: "800",
     color: Colors.primary,
+  },
+  quickChatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: Spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+  },
+  quickChatText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#3B82F6",
   },
   featureGrid: {
     flexDirection: "row",

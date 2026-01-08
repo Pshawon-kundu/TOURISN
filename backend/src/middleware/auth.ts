@@ -28,19 +28,51 @@ export const authenticateToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // First check for user email in header (for session-based auth)
+    const userEmail = req.headers["x-user-email"] as string;
+
+    if (userEmail) {
+      console.log("🔍 Authenticating with email from header:", userEmail);
+
+      // Look up user by email in Supabase
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", userEmail);
+
+      if (error || !userData || userData.length === 0) {
+        console.error("❌ User not found:", userEmail);
+        res.status(401).json({ error: "User not found" });
+        return;
+      }
+
+      const user = userData[0];
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      };
+      req.userId = user.id;
+
+      console.log("✅ User authenticated:", { id: user.id, email: user.email });
+      next();
+      return;
+    }
+
+    // Fallback to token-based auth
     const authHeader = req.headers["authorization"];
     const token = authHeader?.startsWith("Bearer ")
       ? authHeader.slice(7)
       : authHeader;
 
     if (!token) {
-      res.status(401).json({ error: "No token provided" });
+      res.status(401).json({ error: "No token or email provided" });
       return;
     }
 
     let user = null;
     let userId = null;
-    let userEmail = null;
+    let tokenEmail = null;
 
     // Try to decode the token to see what type it is
     const decoded = decodeToken(token);
@@ -58,7 +90,7 @@ export const authenticateToken = async (
       const decodedToken = await firebaseAuth.verifyIdToken(token);
       console.log("✅ Token verified as Firebase token");
       firebaseUid = decodedToken.uid;
-      userEmail = decodedToken.email;
+      tokenEmail = decodedToken.email;
     } catch (firebaseError: any) {
       console.log("⚠️ Not a standard Firebase token:", firebaseError.message);
 
@@ -67,8 +99,8 @@ export const authenticateToken = async (
         console.log("📋 Firebase custom token detected with UID:", decoded.uid);
         console.log("   Token claims:", JSON.stringify(decoded, null, 2));
         firebaseUid = decoded.uid;
-        userEmail = decoded.email || userEmail;
-        console.log("   Extracted email:", userEmail);
+        tokenEmail = decoded.email || tokenEmail;
+        console.log("   Extracted email:", tokenEmail);
       } else if (decoded && decoded.sub) {
         // If Firebase verification fails, try Supabase token verification
         // Supabase JWTs contain the user ID in the 'sub' claim
@@ -77,7 +109,7 @@ export const authenticateToken = async (
           decoded.sub
         );
         userId = decoded.sub;
-        userEmail = decoded.email;
+        tokenEmail = decoded.email;
       } else {
         console.error("❌ Token format unrecognized");
         console.error("   Decoded token:", JSON.stringify(decoded, null, 2));
@@ -87,19 +119,19 @@ export const authenticateToken = async (
     }
 
     // Look up user by email (always available from token and unique in Supabase)
-    if (!userId && userEmail) {
-      console.log("🔍 Looking up Supabase user by email:", userEmail);
+    if (!userId && tokenEmail) {
+      console.log("🔍 Looking up Supabase user by email:", tokenEmail);
       const { data: userByEmail } = await supabase
         .from("users")
         .select("id, email")
-        .eq("email", userEmail)
+        .eq("email", tokenEmail)
         .maybeSingle();
 
       if (userByEmail) {
         userId = userByEmail.id;
         console.log("✅ Found Supabase user by email:", {
           id: userId,
-          email: userEmail,
+          email: tokenEmail,
         });
       } else {
         console.error("❌ User not found in Supabase");

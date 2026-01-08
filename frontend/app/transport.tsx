@@ -2,7 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,71 +17,179 @@ import {
 
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
-
-type TransportType = "car" | "bus" | "bike" | "boat";
-
-const TRANSPORT_OPTIONS = [
-  {
-    type: "car" as TransportType,
-    icon: "🚗",
-    title: "Car Rental",
-    description: "Comfortable private rides",
-    routes: [
-      {
-        from: "Dhaka",
-        to: "Cox's Bazar",
-        price: "8,000 - 12,000",
-        duration: "8-10 hrs",
-      },
-      {
-        from: "Dhaka",
-        to: "Sylhet",
-        price: "6,000 - 9,000",
-        duration: "5-6 hrs",
-      },
-      {
-        from: "Dhaka",
-        to: "Bandarban",
-        price: "10,000 - 15,000",
-        duration: "10-12 hrs",
-      },
-    ],
-  },
-  {
-    type: "bus" as TransportType,
-    icon: "🚌",
-    title: "Bus Services",
-    description: "Affordable long-distance travel",
-    providers: ["Green Line", "Shyamoli", "Hanif", "Ena Transport"],
-    priceRange: "1,000 - 2,500",
-  },
-  {
-    type: "bike" as TransportType,
-    icon: "🏍️",
-    title: "Ride Sharing",
-    description: "Quick local commute",
-    services: ["Uber", "Pathao", "Obhai"],
-    priceRange: "50 - 500",
-  },
-  {
-    type: "boat" as TransportType,
-    icon: "⛵",
-    title: "Boat Rides",
-    description: "Scenic water transport",
-    locations: ["Sylhet", "Cox's Bazar", "Sundarbans", "Khulna"],
-    priceRange: "200 - 3,000",
-  },
-];
+import {
+  bangladeshDistricts,
+  transportPricing,
+  transportTypes,
+} from "@/constants/transportData";
 
 export default function TransportHub() {
-  const [selectedType, setSelectedType] = useState<TransportType | null>(null);
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
+  const [showFromSuggestions, setShowFromSuggestions] = useState(false);
+  const [showToSuggestions, setShowToSuggestions] = useState(false);
+  const [selectedTransport, setSelectedTransport] = useState<string | null>(
+    null
+  );
+  const [travelDate, setTravelDate] = useState("");
+  const [passengers, setPassengers] = useState(1);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleBook = (type: TransportType) => {
-    setSelectedType(type);
-    router.push("/booking");
+  // Payment details
+  const [paymentNumber, setPaymentNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const fromSuggestions = bangladeshDistricts.filter((district) =>
+    district.toLowerCase().includes(fromLocation.toLowerCase())
+  );
+
+  const toSuggestions = bangladeshDistricts.filter((district) =>
+    district.toLowerCase().includes(toLocation.toLowerCase())
+  );
+
+  const calculateDistance = () => {
+    return Math.floor(Math.random() * 300) + 50;
   };
+
+  const calculatePrice = (transportType: string) => {
+    if (!fromLocation || !toLocation) return 0;
+    const distance = calculateDistance();
+    const pricing = transportPricing[transportType];
+    return pricing.basePrice + distance * pricing.perKm;
+  };
+
+  const handleSearchRoutes = () => {
+    if (!fromLocation || !toLocation) {
+      Alert.alert(
+        "Missing Information",
+        "Please select both From and To locations"
+      );
+      return;
+    }
+    if (fromLocation === toLocation) {
+      Alert.alert("Invalid Route", "From and To locations cannot be the same");
+      return;
+    }
+    setSelectedTransport(null);
+  };
+
+  const handleBookNow = (transportType: string) => {
+    if (!fromLocation || !toLocation) {
+      Alert.alert("Missing Information", "Please search routes first");
+      return;
+    }
+    setSelectedTransport(transportType);
+    setShowBookingModal(true);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!travelDate) {
+      Alert.alert("Missing Date", "Please select travel date");
+      return;
+    }
+    if (!paymentNumber || paymentNumber.replace(/\s/g, "").length < 11) {
+      Alert.alert("Invalid Payment", "Please enter valid payment number");
+      return;
+    }
+    if (!password || password.length < 4) {
+      Alert.alert("Invalid Password", "Please enter password");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userEmail =
+        typeof window !== "undefined"
+          ? localStorage.getItem("userEmail")
+          : null;
+
+      if (!userEmail) {
+        Alert.alert("Error", "Please login again");
+        setIsLoading(false);
+        return;
+      }
+
+      const transportType = selectedTransport || "car";
+      const price = calculatePrice(transportType);
+      const serviceFee = 50;
+      const totalPrice = price + serviceFee;
+
+      const bookingData = {
+        booking_type: "transport",
+        trip_name: `${fromLocation} to ${toLocation}`,
+        location: `${fromLocation} → ${toLocation}`,
+        check_in_date: new Date(travelDate).toISOString(),
+        check_out_date: new Date(travelDate).toISOString(),
+        guests: passengers,
+        item_id: transportType,
+        item_name:
+          transportTypes.find((t) => t.id === transportType)?.name ||
+          "Transport",
+        item_image: "",
+        price_per_unit: price / passengers,
+        total_days_or_units: 1,
+        subtotal: price,
+        service_fee: serviceFee,
+        total_price: totalPrice,
+        currency: "TK",
+        payment_method: "mobile",
+        payment_number: paymentNumber.replace(/\s/g, "").slice(-4),
+        payment_status: "completed",
+        booking_status: "confirmed",
+      };
+
+      const response = await fetch("http://localhost:5001/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Email": userEmail,
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create booking");
+      }
+
+      setShowBookingModal(false);
+      setShowSuccessModal(true);
+
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        router.replace("/(tabs)");
+      }, 2000);
+    } catch (error) {
+      console.error("Booking error:", error);
+      Alert.alert(
+        "Booking Failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderSuggestion = (
+    item: string,
+    onSelect: (value: string) => void
+  ) => (
+    <TouchableOpacity
+      style={styles.suggestionItem}
+      onPress={() => {
+        onSelect(item);
+        setShowFromSuggestions(false);
+        setShowToSuggestions(false);
+      }}
+    >
+      <Ionicons name="location" size={18} color={Colors.primary} />
+      <Text style={styles.suggestionText}>{item}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -111,160 +223,302 @@ export default function TransportHub() {
         {/* Search Section */}
         <View style={styles.searchSection}>
           <Text style={styles.sectionTitle}>Plan Your Route</Text>
-          <View style={styles.searchRow}>
-            <View style={styles.searchInputWrapper}>
-              <Text style={styles.searchIcon}>📍</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="From"
-                placeholderTextColor="#999"
-                value={fromLocation}
-                onChangeText={setFromLocation}
-              />
+
+          {/* From Location */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIconWrapper}>
+              <Ionicons name="location" size={22} color={Colors.primary} />
             </View>
-            <View style={styles.searchInputWrapper}>
-              <Text style={styles.searchIcon}>🎯</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="To"
-                placeholderTextColor="#999"
-                value={toLocation}
-                onChangeText={setToLocation}
-              />
-            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="From (Type district name)"
+              placeholderTextColor="#999"
+              value={fromLocation}
+              onChangeText={(text) => {
+                setFromLocation(text);
+                setShowFromSuggestions(text.length > 0);
+              }}
+              onFocus={() => setShowFromSuggestions(fromLocation.length > 0)}
+            />
+            {fromLocation.length > 0 && (
+              <TouchableOpacity onPress={() => setFromLocation("")}>
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
           </View>
-          <TouchableOpacity style={styles.searchButton}>
+
+          {/* From Suggestions */}
+          {showFromSuggestions && fromSuggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <FlatList
+                data={fromSuggestions}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) =>
+                  renderSuggestion(item, setFromLocation)
+                }
+                style={styles.suggestionsList}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+
+          {/* To Location */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIconWrapper}>
+              <Ionicons name="flag" size={22} color={Colors.accent} />
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="To (Type district name)"
+              placeholderTextColor="#999"
+              value={toLocation}
+              onChangeText={(text) => {
+                setToLocation(text);
+                setShowToSuggestions(text.length > 0);
+              }}
+              onFocus={() => setShowToSuggestions(toLocation.length > 0)}
+            />
+            {toLocation.length > 0 && (
+              <TouchableOpacity onPress={() => setToLocation("")}>
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* To Suggestions */}
+          {showToSuggestions && toSuggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <FlatList
+                data={toSuggestions}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => renderSuggestion(item, setToLocation)}
+                style={styles.suggestionsList}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleSearchRoutes}
+          >
+            <Ionicons name="search" size={20} color="#FFF" />
             <Text style={styles.searchButtonText}>Search Routes</Text>
           </TouchableOpacity>
         </View>
 
         {/* Transport Options */}
-        <View style={styles.optionsSection}>
-          <Text style={styles.sectionTitle}>Transport Options</Text>
-          {TRANSPORT_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option.type}
-              style={styles.optionCard}
-              onPress={() => setSelectedType(option.type)}
-            >
-              <View style={styles.optionHeader}>
-                <View style={styles.optionIconContainer}>
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{option.title}</Text>
-                  <Text style={styles.optionDescription}>
-                    {option.description}
-                  </Text>
-                </View>
+        {fromLocation && toLocation && (
+          <View style={styles.optionsSection}>
+            <Text style={styles.sectionTitle}>Available Transport</Text>
+            <Text style={styles.sectionSubtitle}>
+              Choose your preferred mode of transportation
+            </Text>
+            {transportTypes.map((transport) => {
+              const price = calculatePrice(transport.id);
+              const iconName =
+                transport.id === "car"
+                  ? "car-sport"
+                  : transport.id === "bus"
+                  ? "bus"
+                  : transport.id === "bike"
+                  ? "bicycle"
+                  : "boat";
+
+              return (
                 <TouchableOpacity
-                  style={styles.bookButton}
-                  onPress={() => handleBook(option.type)}
+                  key={transport.id}
+                  style={styles.transportCard}
+                  onPress={() => handleBookNow(transport.id)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.bookButtonText}>Book</Text>
+                  <View style={styles.transportIconContainer}>
+                    <Ionicons
+                      name={iconName as any}
+                      size={32}
+                      color={Colors.primary}
+                    />
+                  </View>
+                  <View style={styles.transportInfo}>
+                    <Text style={styles.transportName}>{transport.name}</Text>
+                    <Text style={styles.transportDescription}>
+                      {transport.description}
+                    </Text>
+                    <View style={styles.priceContainer}>
+                      <Ionicons
+                        name="cash-outline"
+                        size={16}
+                        color={Colors.primary}
+                      />
+                      <Text style={styles.transportPrice}>৳ {price} TK</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.bookButton}
+                    onPress={() => handleBookNow(transport.id)}
+                  >
+                    <Text style={styles.bookButtonText}>Book</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#FFF" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </View>
-
-              {selectedType === option.type && (
-                <View style={styles.optionDetails}>
-                  {option.type === "car" && option.routes && (
-                    <View style={styles.detailsContent}>
-                      {option.routes.map((route, idx) => (
-                        <View key={idx} style={styles.routeRow}>
-                          <View style={styles.routeInfo}>
-                            <Text style={styles.routeText}>
-                              {route.from} → {route.to}
-                            </Text>
-                            <Text style={styles.routeDuration}>
-                              {route.duration}
-                            </Text>
-                          </View>
-                          <Text style={styles.routePrice}>৳ {route.price}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {option.type === "bus" && option.providers && (
-                    <View style={styles.detailsContent}>
-                      <Text style={styles.detailLabel}>Providers:</Text>
-                      <View style={styles.chipContainer}>
-                        {option.providers.map((provider, idx) => (
-                          <View key={idx} style={styles.chip}>
-                            <Text style={styles.chipText}>{provider}</Text>
-                          </View>
-                        ))}
-                      </View>
-                      <Text style={styles.priceInfo}>
-                        Price Range: ৳ {option.priceRange}
-                      </Text>
-                    </View>
-                  )}
-
-                  {option.type === "bike" && option.services && (
-                    <View style={styles.detailsContent}>
-                      <Text style={styles.detailLabel}>
-                        Available Services:
-                      </Text>
-                      <View style={styles.chipContainer}>
-                        {option.services.map((service, idx) => (
-                          <View key={idx} style={styles.chip}>
-                            <Text style={styles.chipText}>{service}</Text>
-                          </View>
-                        ))}
-                      </View>
-                      <Text style={styles.priceInfo}>
-                        Price Range: ৳ {option.priceRange}
-                      </Text>
-                    </View>
-                  )}
-
-                  {option.type === "boat" && option.locations && (
-                    <View style={styles.detailsContent}>
-                      <Text style={styles.detailLabel}>Popular Locations:</Text>
-                      <View style={styles.chipContainer}>
-                        {option.locations.map((location, idx) => (
-                          <View key={idx} style={styles.chip}>
-                            <Text style={styles.chipText}>{location}</Text>
-                          </View>
-                        ))}
-                      </View>
-                      <Text style={styles.priceInfo}>
-                        Price Range: ৳ {option.priceRange}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Popular Routes */}
-        <View style={styles.popularSection}>
-          <Text style={styles.sectionTitle}>Popular Routes</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.popularScroll}
-          >
-            <View style={styles.popularCard}>
-              <Text style={styles.popularRoute}>Dhaka → Cox's Bazar</Text>
-              <Text style={styles.popularPrice}>From ৳ 1,200</Text>
-            </View>
-            <View style={styles.popularCard}>
-              <Text style={styles.popularRoute}>Dhaka → Sylhet</Text>
-              <Text style={styles.popularPrice}>From ৳ 800</Text>
-            </View>
-            <View style={styles.popularCard}>
-              <Text style={styles.popularRoute}>Chittagong → Bandarban</Text>
-              <Text style={styles.popularPrice}>From ৳ 600</Text>
-            </View>
-          </ScrollView>
-        </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Booking Modal */}
+      <Modal
+        visible={showBookingModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Complete Booking</Text>
+              <TouchableOpacity onPress={() => setShowBookingModal(false)}>
+                <Ionicons name="close" size={28} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Trip Summary */}
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Trip Summary</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>From:</Text>
+                  <Text style={styles.summaryValue}>{fromLocation}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>To:</Text>
+                  <Text style={styles.summaryValue}>{toLocation}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Transport:</Text>
+                  <Text style={styles.summaryValue}>
+                    {
+                      transportTypes.find((t) => t.id === selectedTransport)
+                        ?.name
+                    }
+                  </Text>
+                </View>
+              </View>
+
+              {/* Travel Date */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Travel Date</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="YYYY-MM-DD"
+                  value={travelDate}
+                  onChangeText={setTravelDate}
+                />
+              </View>
+
+              {/* Passengers */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Number of Passengers</Text>
+                <View style={styles.counterContainer}>
+                  <TouchableOpacity
+                    style={styles.counterButton}
+                    onPress={() => setPassengers(Math.max(1, passengers - 1))}
+                  >
+                    <Ionicons name="remove" size={20} color={Colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.counterValue}>{passengers}</Text>
+                  <TouchableOpacity
+                    style={styles.counterButton}
+                    onPress={() => setPassengers(passengers + 1)}
+                  >
+                    <Ionicons name="add" size={20} color={Colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Payment Details */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Payment Number</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="01XXXXXXXXX"
+                  value={paymentNumber}
+                  onChangeText={setPaymentNumber}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Password</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Enter password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              {/* Price Breakdown */}
+              <View style={styles.priceCard}>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Base Fare:</Text>
+                  <Text style={styles.priceValue}>
+                    ৳ {calculatePrice(selectedTransport || "car")}
+                  </Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Service Fee:</Text>
+                  <Text style={styles.priceValue}>৳ 50</Text>
+                </View>
+                <View style={styles.priceDivider} />
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceTotalLabel}>Total:</Text>
+                  <Text style={styles.priceTotalValue}>
+                    ৳ {calculatePrice(selectedTransport || "car") + 50} TK
+                  </Text>
+                </View>
+              </View>
+
+              {/* Confirm Button */}
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  isLoading && styles.confirmButtonDisabled,
+                ]}
+                onPress={handleConfirmBooking}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Confirm & Pay</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccessModal} animationType="fade" transparent={true}>
+        <View style={styles.successOverlay}>
+          <View style={styles.successContent}>
+            <Ionicons
+              name="checkmark-circle"
+              size={80}
+              color={Colors.success}
+            />
+            <Text style={styles.successTitle}>Booking Confirmed!</Text>
+            <Text style={styles.successMessage}>
+              Your transport has been booked successfully
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -286,11 +540,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: Spacing.sm,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: Colors.primary,
-    fontWeight: "600",
   },
   headerTitle: {
     fontSize: 18,
@@ -349,22 +598,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
     marginBottom: Spacing.md,
   },
-  searchRow: {
-    gap: Spacing.sm,
-  },
-  searchInputWrapper: {
+  inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.background,
-    borderRadius: Radii.small,
+    borderRadius: Radii.medium,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.sm,
+    borderWidth: 2,
+    borderColor: "#E5E5E5",
   },
-  searchIcon: {
-    fontSize: 18,
+  inputIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary + "10",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.sm,
+  },
+  inputIcon: {
     marginRight: Spacing.sm,
   },
   searchInput: {
@@ -372,12 +633,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textPrimary,
   },
+  suggestionsContainer: {
+    backgroundColor: "#FFF",
+    borderRadius: Radii.small,
+    marginBottom: Spacing.sm,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    overflow: "hidden",
+  },
+  suggestionsList: {
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    backgroundColor: "#FFF",
+  },
+  suggestionText: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
   searchButton: {
     backgroundColor: Colors.primary,
     paddingVertical: Spacing.md,
-    borderRadius: Radii.small,
+    borderRadius: Radii.medium,
     alignItems: "center",
     marginTop: Spacing.sm,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   searchButtonText: {
     color: "#FFF",
@@ -388,146 +683,246 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginTop: Spacing.md,
   },
-  optionCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radii.medium,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  optionHeader: {
+  transportCard: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.medium,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
-  optionIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.secondary + "20",
+  transportIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: Colors.primary + "15",
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.primary + "30",
   },
-  optionIcon: {
+  transportIcon: {
     fontSize: 28,
   },
-  optionInfo: {
+  transportInfo: {
     flex: 1,
   },
-  optionTitle: {
+  transportName: {
     fontSize: 16,
     fontWeight: "700",
     color: Colors.textPrimary,
     marginBottom: 4,
   },
-  optionDescription: {
+  transportDescription: {
     fontSize: 13,
     color: Colors.textSecondary,
+    marginBottom: 6,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  transportPrice: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.primary,
   },
   bookButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     borderRadius: Radii.full,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   bookButtonText: {
     color: "#FFF",
     fontSize: 14,
     fontWeight: "700",
   },
-  optionDetails: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
-  detailsContent: {
-    gap: Spacing.sm,
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radii.large,
+    borderTopRightRadius: Radii.large,
+    maxHeight: "90%",
   },
-  routeRow: {
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: Spacing.sm,
+    padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#E0E0E0",
   },
-  routeInfo: {
-    flex: 1,
-  },
-  routeText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  routeDuration: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  routePrice: {
-    fontSize: 15,
+  modalTitle: {
+    fontSize: 20,
     fontWeight: "700",
-    color: Colors.primary,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: "600",
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
   },
-  chipContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
+  modalBody: {
+    padding: Spacing.lg,
+  },
+  summaryCard: {
+    backgroundColor: Colors.primary + "10",
+    borderRadius: Radii.medium,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
   },
-  chip: {
-    backgroundColor: Colors.primary + "15",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radii.full,
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: Spacing.xs,
   },
-  chipText: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: "600",
+  summaryLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
-  priceInfo: {
+  summaryValue: {
     fontSize: 14,
     fontWeight: "600",
     color: Colors.textPrimary,
-    marginTop: Spacing.sm,
   },
-  popularSection: {
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
+  formGroup: {
+    marginBottom: Spacing.lg,
   },
-  popularScroll: {
-    gap: Spacing.md,
-    paddingRight: Spacing.md,
-  },
-  popularCard: {
-    backgroundColor: Colors.accent + "20",
-    padding: Spacing.md,
-    borderRadius: Radii.medium,
-    minWidth: 160,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-  },
-  popularRoute: {
+  formLabel: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
-  popularPrice: {
-    fontSize: 13,
+  formInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radii.small,
+    padding: Spacing.md,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  counterContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.background,
+    borderRadius: Radii.small,
+    padding: Spacing.sm,
+  },
+  counterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  counterValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginHorizontal: Spacing.xl,
+  },
+  priceCard: {
+    backgroundColor: Colors.background,
+    borderRadius: Radii.medium,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  priceLabel: {
+    fontSize: 14,
     color: Colors.textSecondary,
-    fontWeight: "500",
+  },
+  priceValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  priceDivider: {
+    height: 1,
+    backgroundColor: "#E0E0E0",
+    marginVertical: Spacing.sm,
+  },
+  priceTotalLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  priceTotalValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  confirmButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.small,
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.6,
+  },
+  confirmButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successContent: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.large,
+    padding: Spacing.xl * 2,
+    alignItems: "center",
+    marginHorizontal: Spacing.xl,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
 });

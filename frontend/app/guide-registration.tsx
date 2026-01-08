@@ -1,10 +1,12 @@
+import { useAuth } from "@/hooks/use-auth";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,9 +18,15 @@ import {
 import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { signUp } from "@/lib/auth";
 
 export default function GuideRegistrationScreen() {
-  const [step, setStep] = useState<"details" | "nid" | "expertise">("details");
+  const { user } = useAuth();
+  const [step, setStep] = useState<"auth" | "details" | "nid" | "expertise">(
+    "details"
+  );
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [nidNumber, setNidNumber] = useState("");
@@ -27,6 +35,30 @@ export default function GuideRegistrationScreen() {
   const [expertiseArea, setExpertiseArea] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
   const [perHourRate, setPerHourRate] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // If user is already logged in or not logged in, adjust initial step
+    if (!user) {
+      setStep("auth");
+    } else {
+      setStep("details");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // Suppress aria-hidden warning for web
+    if (typeof window !== "undefined" && Platform.OS === "web") {
+      const originalWarn = console.warn;
+      console.warn = (...args: any[]) => {
+        if (args[0]?.includes?.("aria-hidden")) return;
+        originalWarn(...args);
+      };
+      return () => {
+        console.warn = originalWarn;
+      };
+    }
+  }, []);
 
   const pickNIDImage = async () => {
     const permissionResult =
@@ -65,8 +97,14 @@ export default function GuideRegistrationScreen() {
     setNidVerified(true);
   };
 
-  const handleNext = () => {
-    if (step === "details") {
+  const handleNext = async () => {
+    if (step === "auth") {
+      if (!email.trim() || !password.trim()) {
+        Alert.alert("Required", "Please enter email and password");
+        return;
+      }
+      setStep("details");
+    } else if (step === "details") {
       if (!fullName.trim()) {
         Alert.alert("Required", "Please enter your full name");
         return;
@@ -85,7 +123,7 @@ export default function GuideRegistrationScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!expertiseArea.trim()) {
       Alert.alert("Required", "Please enter your expertise area");
       return;
@@ -99,17 +137,85 @@ export default function GuideRegistrationScreen() {
       return;
     }
 
-    Alert.alert("Success", "Registration submitted successfully!", [
-      {
-        text: "OK",
-        onPress: () => router.push("/guides"),
-      },
-    ]);
+    setLoading(true);
+    try {
+      // Parse full name into first and last name
+      const nameParts = fullName.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      // If user is not logged in, sign them up first
+      let userEmail = email.trim();
+      let userPassword = password;
+
+      if (!user) {
+        console.log("Creating new guide user account...");
+        await signUp(
+          userEmail,
+          userPassword,
+          firstName,
+          lastName,
+          "guide", // Role
+          "" // Phone
+        );
+        // Wait a moment for auth state to update
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      console.log("Submitting guide registration to /api/guides/signup");
+
+      // Call the new signup endpoint
+      const response = await fetch("http://localhost:5001/api/guides/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          password: userPassword,
+          firstName,
+          lastName,
+          phone: "", // Not collected in this form
+          bio: `Expert in ${expertiseArea} with ${experienceYears} years of experience`,
+          specialties: expertiseArea,
+          languages: "English", // Default, can be added to form later
+          yearsOfExperience: Number(experienceYears),
+          certifications: "",
+          nidNumber: nidNumber,
+          nidImageUrl: nidImage || "",
+          city: "", // Not collected in this form
+          district: "", // Not collected in this form
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      console.log("Guide registration response:", data);
+
+      Alert.alert("Success", "Registration submitted successfully!", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/(tabs)"),
+        },
+      ]);
+    } catch (err: any) {
+      console.error("Guide registration error:", err);
+      Alert.alert("Error", err?.message ?? "Registration failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
-    if (step === "details") {
+    if (step === "auth") {
       router.back();
+    } else if (step === "details") {
+      if (!user) setStep("auth");
+      else router.back();
     } else if (step === "nid") {
       setStep("details");
     } else {
@@ -130,11 +236,22 @@ export default function GuideRegistrationScreen() {
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
+        {!user && (
+          <>
+            <ProgressStep
+              number={0}
+              label="Account"
+              active={step === "auth"}
+              completed={step !== "auth"}
+            />
+            <ProgressDivider completed={step !== "auth"} />
+          </>
+        )}
         <ProgressStep
           number={1}
           label="Details"
           active={step === "details"}
-          completed={step !== "details"}
+          completed={step !== "details" && step !== "auth"}
         />
         <ProgressDivider completed={step === "nid" || step === "expertise"} />
         <ProgressStep
@@ -153,6 +270,41 @@ export default function GuideRegistrationScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Step 0: Auth (New Users) */}
+        {step === "auth" && (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Create Account</Text>
+            <Text style={styles.stepDescription}>
+              Create a guide account to get started.
+            </Text>
+
+            <View style={styles.fieldWrapper}>
+              <Label icon="mail" label="Email" required />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#999"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
+
+            <View style={styles.fieldWrapper}>
+              <Label icon="lock-closed" label="Password" required />
+              <TextInput
+                style={styles.input}
+                placeholder="Create a password"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+          </View>
+        )}
+
         {/* Step 1: Personal Details */}
         {step === "details" && (
           <View style={styles.stepContainer}>
@@ -374,32 +526,49 @@ export default function GuideRegistrationScreen() {
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
-        {step !== "details" && (
+        {step !== "details" && step !== "auth" && (
           <TouchableOpacity style={styles.secondaryButton} onPress={handleBack}>
             <Text style={styles.secondaryButtonText}>Back</Text>
           </TouchableOpacity>
         )}
+        {step === "details" && user && (
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.secondaryButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+        {(step === "auth" || (step === "details" && !user)) && (
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </TouchableOpacity>
+        )}
+
         {step === "expertise" ? (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
-            ]}
+            style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
             onPress={handleSubmit}
           >
             <Ionicons name="checkmark" size={20} color="#FFF" />
-            <Text style={styles.primaryButtonText}>Submit Registration</Text>
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Registering..." : "Submit Registration"}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
-            ]}
+            style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
             onPress={handleNext}
           >
             <Text style={styles.primaryButtonText}>
-              {step === "nid" && nidVerified ? "Continue" : "Next"}
+              {step === "nid" && nidVerified
+                ? "Continue"
+                : step === "auth"
+                ? "Account Created? Next"
+                : "Next"}
             </Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
@@ -582,6 +751,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
+    paddingBottom: 100,
   },
   stepContainer: {
     gap: Spacing.lg,
@@ -722,6 +892,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   buttonContainer: {
+    position: "absolute",
+    bottom: 75,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,

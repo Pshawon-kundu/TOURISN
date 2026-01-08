@@ -15,12 +15,12 @@ export interface Stay {
 }
 
 export const stayTypes = [
-  { id: "all", label: "All", icon: "🏠" },
-  { id: "hotel", label: "Hotels", icon: "🏨" },
-  { id: "room", label: "Rooms", icon: "🚪" },
-  { id: "camping", label: "Camping", icon: "⛺" },
-  { id: "jungle", label: "Jungle", icon: "🌳" },
-  { id: "resort", label: "Resorts", icon: "🏝️" },
+  { id: "all", label: "All", icon: "apps" },
+  { id: "hotel", label: "Hotels", icon: "business" },
+  { id: "room", label: "Rooms", icon: "bed" },
+  { id: "camping", label: "Camping", icon: "bonfire" },
+  { id: "jungle", label: "Jungle", icon: "leaf" },
+  { id: "resort", label: "Resorts", icon: "island" },
 ];
 
 export const stays: Stay[] = [

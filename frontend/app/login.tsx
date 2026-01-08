@@ -1,5 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { signIn, resetPassword } from "@/lib/auth";
+import { resetPassword, signIn } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -25,12 +25,58 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setError("");
     setInfo("");
+
+    // Validation
+    if (!email.trim()) {
+      setError("Please enter your email");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log("Attempting login with:", email.trim());
       await signIn(email.trim(), password);
+      console.log("Login successful!");
       router.replace("/");
     } catch (err: any) {
-      setError(err?.message ?? "Login failed");
+      console.error("Login error:", err);
+
+      // Better error messages
+      let errorMessage = "Login failed";
+
+      if (
+        err?.code === "auth/user-not-found" ||
+        err?.message?.includes("user-not-found")
+      ) {
+        errorMessage =
+          "No account found with this email. Please sign up first.";
+      } else if (
+        err?.code === "auth/wrong-password" ||
+        err?.message?.includes("wrong-password")
+      ) {
+        errorMessage = "Incorrect password. Please try again.";
+      } else if (
+        err?.code === "auth/invalid-email" ||
+        err?.message?.includes("invalid-email")
+      ) {
+        errorMessage = "Invalid email format.";
+      } else if (err?.code === "auth/too-many-requests") {
+        errorMessage = "Too many failed attempts. Please try again later.";
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -70,10 +116,7 @@ export default function LoginScreen() {
       <View style={styles.overlay} />
 
       {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={28} color="#FFF" />
       </TouchableOpacity>
 
@@ -119,10 +162,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.loginButton,
-              loading ? { opacity: 0.7 } : undefined,
-            ]}
+            style={[styles.loginButton, loading ? { opacity: 0.7 } : undefined]}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -166,21 +206,27 @@ export default function LoginScreen() {
 
           <View style={styles.signupContainer}>
             <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push("/signup")}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/user-signup")}
+              testID="signup-button"
+            >
+              <Text style={styles.signupLink}>Sign Up as Traveler</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.guideContainer}>
+            <Text style={styles.guideText}>Want to be a travel guide? </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/guide-registration")}
+              testID="guide-register-button"
+            >
+              <Text style={styles.guideLink}>Register Here</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );Button: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 60 : 20,
-    left: 20,
-    zIndex: 10,
-    padding: 8,
-  },
-  back
+  );
 }
 
 const styles = StyleSheet.create({
@@ -336,6 +382,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   signupLink: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  guideContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  guideText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  guideLink: {
     color: Colors.primary,
     fontSize: 14,
     fontWeight: "700",

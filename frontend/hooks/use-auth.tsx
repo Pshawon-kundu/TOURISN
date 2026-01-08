@@ -1,8 +1,14 @@
 import { useRouter, useSegments } from "expo-router";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-import { watchAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
+import { watchAuth } from "@/lib/auth";
 
 type AuthContextValue = {
   user: AuthUser;
@@ -72,7 +78,12 @@ export function useRequireAuth() {
     if (loading) return;
 
     const top = segments[0];
-    const isPublic = top === "welcome" || top === "login" || top === "signup";
+    const isPublic =
+      top === "welcome" ||
+      top === "login" ||
+      top === "signup" ||
+      top === "user-signup" ||
+      top === "guide-registration";
 
     if (!user && !isPublic) {
       router.replace("/welcome");

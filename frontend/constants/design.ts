@@ -1,14 +1,39 @@
-export const Colors = {
-  primary: "#2E7D5A",
-  accent: "#F2C94C",
-  secondary: "#7BC8B3",
-  background: "#F6F7F8",
-  surface: "#FFFFFF",
-  textPrimary: "#0F172A",
-  textSecondary: "#6B7280",
-  textMuted: "#6B7280",
-  error: "#E53E3E",
+// Define color schemes for light and dark modes
+export const ColorSchemes = {
+  light: {
+    primary: "#2E7D5A",
+    accent: "#F2C94C",
+    secondary: "#7BC8B3",
+    background: "#FFFFFF",
+    surface: "#F8F9FA",
+    card: "#FFFFFF",
+    textPrimary: "#0F172A",
+    textSecondary: "#6B7280",
+    textMuted: "#9CA3AF",
+    border: "#E5E7EB",
+    error: "#E53E3E",
+    success: "#10B981",
+    overlay: "rgba(0, 0, 0, 0.5)",
+  },
+  dark: {
+    primary: "#2E7D5A",
+    accent: "#F2C94C",
+    secondary: "#7BC8B3",
+    background: "#0F172A",
+    surface: "#1E293B",
+    card: "#1E293B",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#CBD5E1",
+    textMuted: "#94A3B8",
+    border: "#334155",
+    error: "#EF4444",
+    success: "#10B981",
+    overlay: "rgba(0, 0, 0, 0.7)",
+  },
 };
+
+// Static colors (for backward compatibility) - use light scheme
+export const Colors = ColorSchemes.light;
 
 export const Spacing = {
   xs: 4,
@@ -40,6 +65,7 @@ export const Typography = {
 
 export default {
   Colors,
+  ColorSchemes,
   Spacing,
   Radii,
   Typography,
