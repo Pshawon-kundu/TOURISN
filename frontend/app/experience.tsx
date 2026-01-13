@@ -73,9 +73,12 @@ export default function ExperienceScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Experiences</Text>
-          <Text style={styles.headerSubtitle}>
-            Create unforgettable memories
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={styles.headerSubtitle}>
+              Create unforgettable memories
+            </Text>
+            <Ionicons name="sparkles" size={14} color="#F59E0B" />
+          </View>
         </View>
         <TouchableOpacity style={styles.shareButton} activeOpacity={0.7}>
           <Ionicons name="share-outline" size={24} color={Colors.textPrimary} />

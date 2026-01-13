@@ -258,6 +258,62 @@ export class APIClient {
   async getTransportBookings(page: number = 1, limit: number = 10) {
     return this.get(`/transport?page=${page}&limit=${limit}`);
   }
+
+  // ===== SETTINGS ENDPOINTS =====
+  async getSettings() {
+    return this.get("/settings");
+  }
+
+  async updateSettings(data: {
+    notifications_enabled?: boolean;
+    location_enabled?: boolean;
+    dark_mode_enabled?: boolean;
+    language?: string;
+    currency?: string;
+  }) {
+    return this.put("/settings", data);
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.post("/settings/change-password", {
+      currentPassword,
+      newPassword,
+    });
+  }
+
+  async getPaymentMethods() {
+    return this.get("/settings/payment-methods");
+  }
+
+  async addPaymentMethod(data: {
+    type: string;
+    last_four: string;
+    card_brand?: string;
+    expiry_month?: number;
+    expiry_year?: number;
+  }) {
+    return this.post("/settings/payment-methods", data);
+  }
+
+  async deletePaymentMethod(id: string) {
+    return this.delete(`/settings/payment-methods/${id}`);
+  }
+
+  async clearCache() {
+    return this.post("/settings/clear-cache", {});
+  }
+
+  async deleteAccount() {
+    return this.request({
+      method: "DELETE",
+      endpoint: "/settings/account",
+      body: { confirmation: "DELETE" },
+    });
+  }
+
+  async getAppInfo() {
+    return this.get("/settings/app-info");
+  }
 }
 
 // Export singleton instance

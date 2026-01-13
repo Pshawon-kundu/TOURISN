@@ -22,6 +22,7 @@ export const signupGuide = async (req: Request, res: Response) => {
       nidImageUrl,
       city,
       district,
+      perHourRate,
     } = req.body;
 
     // Validation
@@ -32,58 +33,90 @@ export const signupGuide = async (req: Request, res: Response) => {
       });
     }
 
-    if (!phone || !nidNumber) {
+    if (!nidNumber) {
       return res.status(400).json({
         success: false,
-        error:
-          "Phone number and NID number are required for guide registration",
+        error: "NID number is required for guide registration",
       });
     }
 
-    // Create auth user in Supabase Auth
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true, // Auto-confirm email for now
-        user_metadata: {
-          first_name: firstName,
-          last_name: lastName,
-          role: "guide",
-        },
-      });
-
-    if (authError || !authData.user) {
-      console.error("Auth creation error:", authError);
-      return res.status(400).json({
-        success: false,
-        error: authError?.message || "Failed to create guide account",
-      });
-    }
-
-    const userId = authData.user.id;
-
-    // Create user profile in users table
-    const { data: userData, error: userError } = await supabase
+    // Check if user already exists in Supabase Auth
+    const { data: existingUsers } = await supabase
       .from("users")
-      .insert({
-        auth_id: userId,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        phone,
-        role: "guide",
-      })
-      .select()
+      .select("*")
+      .eq("email", email)
       .single();
 
-    if (userError) {
-      console.error("User profile creation error:", userError);
-      // Rollback: delete auth user if user profile creation fails
-      await supabase.auth.admin.deleteUser(userId);
+    let userId: string;
+    let userData: any;
+
+    if (existingUsers) {
+      // User already exists, use their ID
+      console.log("User already exists, using existing account");
+      userId = existingUsers.auth_id;
+      userData = existingUsers;
+    } else {
+      // Create new auth user in Supabase Auth
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true, // Auto-confirm email for now
+          user_metadata: {
+            first_name: firstName,
+            last_name: lastName,
+            role: "guide",
+          },
+        });
+
+      if (authError || !authData.user) {
+        console.error("Auth creation error:", authError);
+        return res.status(400).json({
+          success: false,
+          error: authError?.message || "Failed to create guide account",
+        });
+      }
+
+      userId = authData.user.id;
+
+      // Create user profile in users table
+      const { data: newUserData, error: userError } = await supabase
+        .from("users")
+        .insert({
+          auth_id: userId,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || null,
+          role: "guide",
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error("User profile creation error:", userError);
+        // Rollback: delete auth user if user profile creation fails
+        await supabase.auth.admin.deleteUser(userId);
+        return res.status(400).json({
+          success: false,
+          error: "Failed to create user profile",
+        });
+      }
+
+      userData = newUserData;
+    }
+
+    // Check if guide profile already exists
+    const { data: existingGuide } = await supabase
+      .from("guides")
+      .select("*")
+      .eq("user_id", userData.id)
+      .single();
+
+    if (existingGuide) {
       return res.status(400).json({
         success: false,
-        error: "Failed to create user profile",
+        error: "Guide profile already exists for this user",
       });
     }
 
@@ -101,6 +134,7 @@ export const signupGuide = async (req: Request, res: Response) => {
         total_reviews: 0,
         is_verified: false,
         experiences_count: 0,
+        per_hour_rate: perHourRate ? Number(perHourRate) : 0,
       })
       .select()
       .single();

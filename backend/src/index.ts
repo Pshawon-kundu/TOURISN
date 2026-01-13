@@ -8,7 +8,9 @@ import bookingRoutes from "./routes/bookingRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
 import guideRoutes from "./routes/guideRoutes";
 import nidVerificationRoutes from "./routes/nidVerificationRoutes";
+import profileRoutes from "./routes/profileRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
+import settingsRoutes from "./routes/settingsRoutes";
 import stayRoutes from "./routes/stayRoutes";
 import transportRoutes from "./routes/transportRoutes";
 
@@ -56,6 +58,7 @@ app.get("/api/health", (req, res) => {
 
 // Register all routes
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api/experiences", experienceRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
@@ -63,6 +66,7 @@ app.use("/api/guides", guideRoutes);
 app.use("/api/transport", transportRoutes);
 app.use("/api/stays", stayRoutes);
 app.use("/api/nid", nidVerificationRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -16,16 +16,33 @@ let db: Firestore | null = null;
 let auth: Auth | null = null;
 
 export function initFirebase(firebaseConfig: any) {
-  if (!firebaseConfig) return null;
-  if (!getApps().length) {
-    initializeApp(firebaseConfig);
+  if (!firebaseConfig) {
+    console.error("❌ Firebase config is missing");
+    return null;
   }
 
-  app = getApps()[0] || null;
-  db = getFirestore();
-  auth = getAuth();
+  try {
+    // Check if app is already initialized
+    const existingApps = getApps();
+    if (existingApps.length === 0) {
+      console.log("🔥 Initializing Firebase app...");
+      app = initializeApp(firebaseConfig);
+      console.log("✅ Firebase app initialized");
+    } else {
+      console.log("✅ Using existing Firebase app");
+      app = existingApps[0];
+    }
 
-  return db;
+    // Initialize services
+    db = getFirestore(app);
+    auth = getAuth(app);
+
+    console.log("✅ Firebase services initialized (Firestore & Auth)");
+    return db;
+  } catch (error) {
+    console.error("❌ Firebase initialization error:", error);
+    return null;
+  }
 }
 
 export function getDb() {

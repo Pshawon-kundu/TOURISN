@@ -124,6 +124,19 @@ export default function GuideRegistrationScreen() {
   };
 
   const handleSubmit = async () => {
+    console.log("🔥 SUBMIT BUTTON CLICKED!");
+    console.log("Current form data:", {
+      expertiseArea,
+      experienceYears,
+      perHourRate,
+      fullName,
+      age,
+      nidNumber,
+      nidImage: !!nidImage,
+      email,
+      user: !!user,
+    });
+
     if (!expertiseArea.trim()) {
       Alert.alert("Required", "Please enter your expertise area");
       return;
@@ -137,6 +150,7 @@ export default function GuideRegistrationScreen() {
       return;
     }
 
+    console.log("✅ Validation passed, starting registration...");
     setLoading(true);
     try {
       // Parse full name into first and last name
@@ -145,27 +159,57 @@ export default function GuideRegistrationScreen() {
       const lastName = nameParts.slice(1).join(" ") || "";
 
       // If user is not logged in, sign them up first
-      let userEmail = email.trim();
+      let userEmail = user?.email || email.trim();
       let userPassword = password;
 
       if (!user) {
+        if (!userEmail || !userPassword) {
+          throw new Error("Email and password are required");
+        }
         console.log("Creating new guide user account...");
-        await signUp(
-          userEmail,
-          userPassword,
-          firstName,
-          lastName,
-          "guide", // Role
-          "" // Phone
-        );
-        // Wait a moment for auth state to update
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          await signUp(
+            userEmail,
+            userPassword,
+            firstName,
+            lastName,
+            "guide", // Role
+            "" // Phone
+          );
+          // Wait a moment for auth state to update
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        } catch (signupError: any) {
+          throw new Error(`Account creation failed: ${signupError.message}`);
+        }
+      } else {
+        // For existing users, we need a dummy password for backend
+        userPassword = "existing_user_temp_password";
       }
 
       console.log("Submitting guide registration to /api/guides/signup");
+      console.log("Registration data:", {
+        email: userEmail,
+        firstName,
+        lastName,
+        nidNumber,
+        hasNidImage: !!nidImage,
+        expertiseArea,
+        experienceYears,
+        perHourRate,
+      });
+
+      // Use localhost for web/emulator, or your computer's IP for physical device
+      // If testing on physical device, replace 'localhost' with your computer's IP (e.g., '192.168.1.100')
+      const API_URL =
+        Platform.OS === "web"
+          ? "http://localhost:5001"
+          : "http://10.0.2.2:5001"; // 10.0.2.2 is Android emulator host, use your IP for physical device
+
+      const endpoint = `${API_URL}/api/guides/signup`;
+      console.log("Calling API:", endpoint);
 
       // Call the new signup endpoint
-      const response = await fetch("http://localhost:5001/api/guides/signup", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -175,7 +219,7 @@ export default function GuideRegistrationScreen() {
           password: userPassword,
           firstName,
           lastName,
-          phone: "", // Not collected in this form
+          phone: "+8801700000000", // Default phone - can be updated later
           bio: `Expert in ${expertiseArea} with ${experienceYears} years of experience`,
           specialties: expertiseArea,
           languages: "English", // Default, can be added to form later
@@ -185,26 +229,55 @@ export default function GuideRegistrationScreen() {
           nidImageUrl: nidImage || "",
           city: "", // Not collected in this form
           district: "", // Not collected in this form
+          perHourRate: Number(perHourRate),
         }),
       });
 
       const data = await response.json();
+      console.log("Backend response:", response.status, data);
 
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+        const errorMsg = data.error || data.message || "Registration failed";
+        console.error("Registration failed:", errorMsg);
+        Alert.alert(
+          "Registration Failed",
+          `Error: ${errorMsg}\n\nStatus: ${response.status}\n\nPlease check:\n1. Backend is running on port 5001\n2. You're connected to the same network\n3. Check console for details`,
+          [{ text: "OK" }]
+        );
+        throw new Error(errorMsg);
       }
 
-      console.log("Guide registration response:", data);
+      console.log("✅ Guide registration success:", data);
 
-      Alert.alert("Success", "Registration submitted successfully!", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/(tabs)"),
-        },
-      ]);
+      Alert.alert(
+        "Thank You for Registering! 🎉",
+        "Your guide registration has been submitted successfully. Our team will review your application and verify your credentials. You'll be notified once approved.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(tabs)"),
+          },
+        ]
+      );
     } catch (err: any) {
-      console.error("Guide registration error:", err);
-      Alert.alert("Error", err?.message ?? "Registration failed");
+      console.error("❌ Guide registration error:", err);
+      console.error("Error details:", {
+        message: err.message,
+        name: err.name,
+        stack: err.stack,
+      });
+
+      let errorMessage = err?.message || "Registration failed";
+
+      // Check for network errors
+      if (
+        err.message?.includes("Network request failed") ||
+        err.message?.includes("fetch")
+      ) {
+        errorMessage = `Cannot connect to backend server.\n\nPlease check:\n1. Backend is running: npm run dev\n2. Server on port 5001\n3. Same network/WiFi\n\nError: ${err.message}`;
+      }
+
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -551,24 +624,25 @@ export default function GuideRegistrationScreen() {
         {step === "expertise" ? (
           <TouchableOpacity
             style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
-            onPress={handleSubmit}
+            onPress={() => {
+              console.log("🚀 Submit button pressed!");
+              handleSubmit();
+            }}
+            disabled={loading}
           >
-            <Ionicons name="checkmark" size={20} color="#FFF" />
+            {!loading && <Ionicons name="checkmark" size={20} color="#FFF" />}
             <Text style={styles.primaryButtonText}>
-              {loading ? "Registering..." : "Submit Registration"}
+              {loading ? "Submitting..." : "Submit Registration"}
             </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
             onPress={handleNext}
+            disabled={loading}
           >
             <Text style={styles.primaryButtonText}>
-              {step === "nid" && nidVerified
-                ? "Continue"
-                : step === "auth"
-                ? "Account Created? Next"
-                : "Next"}
+              {step === "nid" && nidVerified ? "Continue" : "Next"}
             </Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>

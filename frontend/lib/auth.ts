@@ -27,13 +27,29 @@ async function loadFirebaseConfig() {
 
 async function ensureAuth(): Promise<Auth | null> {
   const existingAuth = getAuthInstance();
-  if (existingAuth) return existingAuth;
+  if (existingAuth) {
+    console.log("✅ Using existing Auth instance");
+    return existingAuth;
+  }
 
+  console.log("🔄 Loading Firebase config...");
   const config = await loadFirebaseConfig();
-  if (!config) return null;
+  if (!config) {
+    console.error("❌ Firebase config not found");
+    return null;
+  }
 
+  console.log("🔄 Initializing Firebase...");
   initFirebase(config);
-  return getAuthInstance();
+
+  const auth = getAuthInstance();
+  if (auth) {
+    console.log("✅ Auth instance ready");
+  } else {
+    console.error("❌ Failed to get Auth instance after initialization");
+  }
+
+  return auth;
 }
 
 export async function signIn(email: string, password: string) {

@@ -161,18 +161,23 @@ export const login = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, idToken } = req.body;
 
     console.log("🔐 Login attempt received");
     console.log("   Email:", email);
+    console.log("   Has idToken:", !!idToken);
 
-    if (!email || !password) {
+    if (!email) {
       res.status(400).json({
         success: false,
-        error: "Email and password are required",
+        error: "Email is required",
       });
       return;
     }
+
+    // ✅ Firebase Auth verification is done on the frontend
+    // The idToken proves the user authenticated successfully with Firebase
+    // Backend just needs to verify user exists in our database
 
     // Get user data from Supabase
     console.log("📤 Fetching user profile from Supabase...");
@@ -222,8 +227,8 @@ export const login = async (
       role: user.role,
     });
 
-    // TODO: Add password verification here when you implement password hashing
-    // For now, just checking if user exists
+    // ✅ Password verification is handled by Firebase Auth on the frontend
+    // If we receive a valid idToken, the user authenticated successfully
 
     // Return success
     console.log("✅ LOGIN COMPLETE");

@@ -27,5 +27,6 @@ router.post("/verify", asyncHandler(verifyToken));
 
 // Protected routes
 router.get("/me", authenticateToken, asyncHandler(getCurrentUser));
+router.patch("/me", authenticateToken, asyncHandler(getCurrentUser)); // For now, redirect to profile update
 
 export default router;

@@ -5,11 +5,15 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import "react-native-reanimated";
 
+import AnimatedSplashScreen from "@/components/AnimatedSplashScreen";
+import { firebaseConfig } from "@/constants/firebaseConfig";
 import { AuthProvider, useRequireAuth } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { initFirebase } from "@/lib/firebase";
 
 // Suppress aria-hidden warnings globally for web
 if (typeof window !== "undefined" && Platform.OS === "web") {
@@ -43,6 +47,33 @@ if (typeof window !== "undefined" && Platform.OS === "web") {
 }
 
 export default function RootLayout() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [firebaseReady, setFirebaseReady] = useState(false);
+
+  // Initialize Firebase immediately when app loads
+  useEffect(() => {
+    console.log("🚀 Root layout mounted, initializing Firebase...");
+    try {
+      initFirebase(firebaseConfig);
+      setFirebaseReady(true);
+      console.log("✅ Firebase initialized in root layout");
+    } catch (error) {
+      console.error("❌ Error initializing Firebase in root layout:", error);
+      setFirebaseReady(true); // Continue anyway
+    }
+  }, []);
+
+  if (showSplash) {
+    return (
+      <AnimatedSplashScreen onAnimationFinish={() => setShowSplash(false)} />
+    );
+  }
+
+  // Wait for Firebase to be ready before rendering auth provider
+  if (!firebaseReady) {
+    return null;
+  }
+
   return (
     <AuthProvider>
       <RootNavigation />

@@ -117,7 +117,15 @@ export default function ExperiencesScreen() {
       >
         {/* Image */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: item.image }} style={styles.image} />
+          <Image
+            source={{
+              uri:
+                item.image ||
+                "https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?w=800&q=80",
+            }}
+            style={styles.image}
+            defaultSource={require("@/assets/images/icon.png")}
+          />
 
           {/* Category Badge */}
           <View style={[styles.badge, { backgroundColor: item.category }]}>
@@ -202,7 +210,15 @@ export default function ExperiencesScreen() {
 
           {/* Guide Info */}
           <View style={styles.guideSection}>
-            <Image source={{ uri: item.guide.avatar }} style={styles.avatar} />
+            <Image
+              source={{
+                uri:
+                  item.guide.avatar ||
+                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80",
+              }}
+              style={styles.avatar}
+              defaultSource={require("@/assets/images/icon.png")}
+            />
             <View style={styles.guideInfo}>
               <Text style={styles.guideName}>{item.guide.name}</Text>
               <View
@@ -240,7 +256,12 @@ export default function ExperiencesScreen() {
               </Text>
             </View>
             <TouchableOpacity style={styles.bookButton}>
-              <Text style={styles.bookButtonText}>Book Now</Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <Ionicons name="calendar" size={18} color="#fff" />
+                <Text style={styles.bookButtonText}>Book Now</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -250,7 +271,7 @@ export default function ExperiencesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Back Button */}
       <Animated.View
         style={[
           styles.header,
@@ -267,10 +288,25 @@ export default function ExperiencesScreen() {
           },
         ]}
       >
-        <Text style={styles.headerTitle}>Experiences</Text>
-        <Text style={styles.headerSubtitle}>
-          Create unforgettable memories ✨
-        </Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Experiences</Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text style={styles.headerSubtitle}>
+                Create unforgettable memories
+              </Text>
+              {/* Removed sparkles icon for cleaner look */}
+            </View>
+          </View>
+        </View>
       </Animated.View>
 
       {/* Category Filter */}
@@ -302,7 +338,14 @@ export default function ExperiencesScreen() {
               ]}
               onPress={() => setSelectedCategory(category.id)}
             >
-              <Text style={styles.filterIcon}>{category.icon}</Text>
+              <Ionicons
+                name={category.icon as any}
+                size={24}
+                color={
+                  selectedCategory === category.id ? "#fff" : category.color
+                }
+                style={{ marginRight: 4 }}
+              />
               <Text
                 style={[
                   styles.filterLabel,
@@ -398,7 +441,12 @@ export default function ExperiencesScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="disc" size={28} color={Colors.textSecondary} />
+            <Ionicons
+              name="sad-outline"
+              size={48}
+              color={Colors.textSecondary}
+              style={{ marginBottom: 8 }}
+            />
             <Text style={styles.emptyText}>No experiences found</Text>
             <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
           </View>
@@ -411,27 +459,62 @@ export default function ExperiencesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: "#F9FAFB",
   },
 
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.xl + 10,
+    paddingBottom: Spacing.lg,
+    backgroundColor: "#fff",
+    borderBottomLeftRadius: Radii.xl,
+    borderBottomRightRadius: Radii.xl,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
     paddingBottom: Spacing.lg,
     backgroundColor: "transparent",
+  },
+
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  headerTextContainer: {
+    flex: 1,
   },
 
   headerTitle: {
     fontSize: 32,
     fontWeight: "900",
-    color: "#FFFFFF",
-    marginBottom: 6,
+    color: "#1F2937",
+    marginBottom: 4,
     letterSpacing: -0.5,
   },
 
   headerSubtitle: {
-    fontSize: 15,
-    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 14,
+    color: "#6B7280",
     fontWeight: "500",
   },
 
@@ -449,12 +532,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderRadius: Radii.full,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
 
   filterPillActive: {
@@ -467,14 +555,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  filterIcon: {
-    fontSize: 18,
-  },
-
   filterLabel: {
     fontSize: 14,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.7)",
+    color: "#6B7280",
   },
 
   filterLabelActive: {
@@ -484,7 +568,7 @@ const styles = StyleSheet.create({
   sortBar: {
     flexDirection: "row",
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
 
@@ -493,10 +577,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderRadius: Radii.lg,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "#E5E7EB",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
 
   sortOptionActive: {
@@ -512,7 +601,7 @@ const styles = StyleSheet.create({
   sortText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.7)",
+    color: "#6B7280",
   },
 
   sortTextActive: {
@@ -520,34 +609,35 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
     paddingBottom: 100,
   },
 
   card: {
     marginBottom: Spacing.lg,
     borderRadius: Radii.xl,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(0,0,0,0.06)",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 6,
   },
 
   imageContainer: {
     width: "100%",
-    height: 200,
+    height: 220,
     position: "relative",
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#F3F4F6",
   },
 
   image: {
     width: "100%",
     height: "100%",
+    resizeMode: "cover",
   },
 
   badge: {
@@ -621,7 +711,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1F2937",
     marginBottom: Spacing.sm,
     lineHeight: 26,
     letterSpacing: -0.3,
@@ -629,9 +719,10 @@ const styles = StyleSheet.create({
 
   location: {
     fontSize: 14,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
     marginBottom: Spacing.md,
   },
+
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -641,7 +732,7 @@ const styles = StyleSheet.create({
 
   description: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
     lineHeight: 20,
     marginBottom: Spacing.md,
   },
@@ -654,19 +745,20 @@ const styles = StyleSheet.create({
 
   infoPill: {
     flex: 1,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: "#F9FAFB",
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(0,0,0,0.05)",
     alignItems: "center",
   },
 
   infoLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
   },
+
   infoLabelRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -677,7 +769,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1F2937",
     marginTop: 2,
   },
 
@@ -687,16 +779,16 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: "#E5E7EB",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    borderBottomColor: "#E5E7EB",
   },
 
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#F3F4F6",
   },
 
   guideInfo: {
@@ -706,12 +798,12 @@ const styles = StyleSheet.create({
   guideName: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1F2937",
   },
 
   guideDetails: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
     marginTop: 2,
   },
 
@@ -723,18 +815,18 @@ const styles = StyleSheet.create({
   },
 
   highlightTag: {
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    backgroundColor: "#EDE9FE",
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.4)",
+    borderColor: "#DDD6FE",
   },
 
   highlightText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#A78BFA",
+    color: "#7C3AED",
   },
 
   footer: {
@@ -743,12 +835,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: "#E5E7EB",
   },
 
   priceLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
     fontWeight: "500",
   },
 
@@ -791,12 +883,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "#1F2937",
     marginBottom: Spacing.sm,
   },
 
   emptySubtext: {
     fontSize: 14,
-    color: "rgba(255, 255, 255, 0.5)",
+    color: "#6B7280",
   },
 });

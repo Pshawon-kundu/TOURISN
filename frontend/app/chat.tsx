@@ -1,7 +1,5 @@
-/* eslint-disable import/no-unresolved */
-
 import { ThemedView } from "@/components/themed-view";
-import { Colors, Radii, Spacing } from "@/constants/design";
+import { Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -43,7 +41,8 @@ export default function ChatListScreen() {
 
   const fetchGuides = async () => {
     try {
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:5001";
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:5001";
       const response = await fetch(`${backendUrl}/api/guides/with-status`);
       const data = await response.json();
 
@@ -161,7 +160,11 @@ export default function ChatListScreen() {
           </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.4)" />
+        <Ionicons
+          name="chevron-forward"
+          size={24}
+          color="rgba(255,255,255,0.4)"
+        />
       </TouchableOpacity>
     );
   };
@@ -170,7 +173,14 @@ export default function ChatListScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push("/(tabs)")}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Messages</Text>
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
@@ -183,10 +193,19 @@ export default function ChatListScreen() {
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredGuides.filter((g) => g.isOnline).length} guides online
-        </Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push("/(tabs)")}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerSubtitle}>
+            {filteredGuides.filter((g) => g.isOnline).length} guides online
+          </Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.searchContainer}>
@@ -205,14 +224,22 @@ export default function ChatListScreen() {
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.5)" />
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color="rgba(255,255,255,0.5)"
+            />
           </TouchableOpacity>
         )}
       </View>
 
       {filteredGuides.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={64} color="rgba(255,255,255,0.2)" />
+          <Ionicons
+            name="chatbubbles-outline"
+            size={64}
+            color="rgba(255,255,255,0.2)"
+          />
           <Text style={styles.emptyText}>
             {searchQuery ? "No guides found" : "No guides available"}
           </Text>
@@ -260,12 +287,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F172A",
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.md,
     backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerSpacer: {
+    width: 40,
   },
   headerTitle: {
     fontSize: 28,

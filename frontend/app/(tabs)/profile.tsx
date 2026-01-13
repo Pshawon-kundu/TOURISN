@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,6 +49,7 @@ interface Booking {
 export default function ProfileScreen() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rewardPoints, setRewardPoints] = useState(0);
@@ -127,38 +127,56 @@ export default function ProfileScreen() {
 
   const handleSaveProfile = async () => {
     try {
+      // Validate required fields
+      if (!editFirstName.trim()) {
+        Alert.alert("Required", "Please enter your first name");
+        return;
+      }
+
+      setSaving(true);
+
       // Update profile via API
       const result = await apiClient.request({
         method: "PATCH",
         endpoint: "/profile",
         body: {
-          first_name: editFirstName,
-          last_name: editLastName,
-          phone: editPhone,
-          bio: editBio,
+          first_name: editFirstName.trim(),
+          last_name: editLastName.trim(),
+          phone: editPhone.trim(),
+          bio: editBio.trim(),
           avatar_url: editAvatar,
-          address: editAddress,
+          address: editAddress.trim(),
         },
       });
 
-      if (result.success) {
-        Alert.alert("Success", "Profile updated successfully!");
-        setUserProfile({
-          ...userProfile!,
-          first_name: editFirstName,
-          last_name: editLastName,
-          phone: editPhone,
-          bio: editBio,
-          avatar_url: editAvatar,
-          address: editAddress,
-        });
-        setShowEditModal(false);
-      } else {
-        Alert.alert("Error", "Failed to update profile");
-      }
+      // Update local state with new data
+      setUserProfile({
+        ...userProfile!,
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim(),
+        bio: editBio.trim(),
+        avatar_url: editAvatar,
+        address: editAddress.trim(),
+      });
+
+      // Close modal first
+      setShowEditModal(false);
+
+      // Show success popup
+      setTimeout(() => {
+        Alert.alert("Done", "Profile updated successfully!", [
+          { text: "OK", style: "default" },
+        ]);
+      }, 300);
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to update profile");
-      console.error(err);
+      console.error("Error updating profile:", err);
+      Alert.alert(
+        "Error",
+        err.message || "Failed to update profile. Please try again."
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -178,6 +196,18 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleSavedPlaces = () => {
+    router.push("/saved-places");
+  };
+
+  const handleFavorites = () => {
+    router.push("/favorites");
+  };
+
+  const handleSettings = () => {
+    router.push("/settings");
   };
 
   const userName = userProfile
@@ -413,19 +443,28 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.actionsCard}>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleSavedPlaces}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons name="bookmark" size={20} color={Colors.primary} />
                 </View>
                 <Text style={styles.actionText}>Saved Places</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleFavorites}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons name="heart" size={20} color="#EF4444" />
                 </View>
                 <Text style={styles.actionText}>Favorites</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleSettings}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons
                     name="settings"
@@ -531,21 +570,29 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
                 onPress={() => setShowEditModal(false)}
+                disabled={saving}
               >
                 <Text style={styles.modalButtonCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave]}
+                style={[
+                  styles.modalButton,
+                  styles.modalButtonSave,
+                  saving && styles.modalButtonDisabled,
+                ]}
                 onPress={handleSaveProfile}
+                disabled={saving}
               >
-                <Text style={styles.modalButtonSaveText}>Save Changes</Text>
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalButtonSaveText}>Save Changes</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      <BottomPillNav />
     </ThemedView>
   );
 }
@@ -1108,6 +1155,10 @@ const styles = StyleSheet.create({
   },
   modalButtonSave: {
     backgroundColor: Colors.primary,
+  },
+  modalButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.7,
   },
   modalButtonSaveText: {
     fontSize: 16,

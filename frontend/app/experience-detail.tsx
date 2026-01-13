@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ export default function ExperienceDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [quantity, setQuantity] = useState(1);
+  const [showThankYou, setShowThankYou] = useState(false);
 
   const experience = experiences.find((exp) => exp.id === id);
 
@@ -42,6 +44,21 @@ export default function ExperienceDetailScreen() {
 
   const totalPrice = experience.price * quantity;
 
+  const handleBookNow = () => {
+    setShowThankYou(true);
+  };
+
+  const handleMessageGuide = () => {
+    // Navigate to chat with the guide
+    router.push({
+      pathname: "/chat-room",
+      params: {
+        guideId: experience.id, // Use experience ID as guide identifier
+        guideName: experience.guide.name,
+      },
+    });
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -49,16 +66,6 @@ export default function ExperienceDetailScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Image */}
         <Image source={{ uri: experience.image }} style={styles.image} />
 
@@ -155,7 +162,7 @@ export default function ExperienceDetailScreen() {
 
         {/* Included */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What's Included</Text>
+          <Text style={styles.sectionTitle}>What&apos;s Included</Text>
           {experience.included.map((item, idx) => (
             <View key={idx} style={styles.listItem}>
               <Ionicons name="checkmark" size={16} color="#10B981" />
@@ -214,35 +221,76 @@ export default function ExperienceDetailScreen() {
 
       {/* Booking Footer */}
       <View style={styles.footerContainer}>
-        <View style={styles.quantitySection}>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => quantity > 1 && setQuantity(quantity - 1)}
-          >
-            <Text style={styles.quantityButtonText}>−</Text>
-          </TouchableOpacity>
-          <Text style={styles.quantityValue}>{quantity}</Text>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() =>
-              quantity < experience.maxParticipants && setQuantity(quantity + 1)
-            }
-          >
-            <Text style={styles.quantityButtonText}>+</Text>
+        <View style={styles.topRow}>
+          <View style={styles.quantitySection}>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() => quantity > 1 && setQuantity(quantity - 1)}
+            >
+              <Text style={styles.quantityButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.quantityValue}>{quantity}</Text>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() =>
+                quantity < experience.maxParticipants &&
+                setQuantity(quantity + 1)
+              }
+            >
+              <Text style={styles.quantityButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.priceSection}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalPrice}>
+              {totalPrice.toLocaleString()} {experience.currency}
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.bookButton} onPress={handleBookNow}>
+            <Text style={styles.bookButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.priceSection}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalPrice}>
-            {totalPrice.toLocaleString()} {experience.currency}
-          </Text>
-        </View>
-
-        <TouchableOpacity style={styles.bookButton}>
-          <Text style={styles.bookButtonText}>Book Now</Text>
+        <TouchableOpacity
+          style={styles.messageButton}
+          onPress={handleMessageGuide}
+        >
+          <Ionicons name="chatbubble-ellipses" size={20} color="#667eea" />
+          <Text style={styles.messageButtonText}>Message Guide</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Thank You Modal */}
+      <Modal
+        visible={showThankYou}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowThankYou(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.checkmarkCircle}>
+              <Ionicons name="checkmark" size={40} color="#10B981" />
+            </View>
+            <Text style={styles.thankYouTitle}>Thank You!</Text>
+            <Text style={styles.thankYouMessage}>
+              Your booking request has been submitted successfully. We&apos;ll
+              send you a confirmation shortly.
+            </Text>
+            <TouchableOpacity
+              style={styles.okButton}
+              onPress={() => {
+                setShowThankYou(false);
+                router.back();
+              }}
+            >
+              <Text style={styles.okButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -259,23 +307,6 @@ const styles = StyleSheet.create({
 
   content: {
     paddingBottom: Spacing.xxl * 3,
-  },
-
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-
-  backButton: {
-    width: 60,
-    paddingVertical: Spacing.sm,
-  },
-
-  backText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#667eea",
   },
 
   image: {
@@ -490,14 +521,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: "rgba(0, 0, 0, 0.1)",
+    gap: Spacing.sm,
+  },
+
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
   },
 
   quantitySection: {
@@ -554,6 +589,77 @@ const styles = StyleSheet.create({
 
   bookButtonText: {
     fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  messageButton: {
+    backgroundColor: "#fff",
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 2,
+    borderColor: "#667eea",
+  },
+
+  messageButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#667eea",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: Radii.lg,
+    padding: Spacing.xxl,
+    width: "85%",
+    alignItems: "center",
+  },
+
+  checkmarkCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#D1FAE5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+  },
+
+  thankYouTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+
+  thankYouMessage: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+
+  okButton: {
+    backgroundColor: "#667eea",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl * 2,
+    borderRadius: Radii.md,
+  },
+
+  okButtonText: {
+    fontSize: 16,
     fontWeight: "700",
     color: "#fff",
   },
