@@ -1,4 +1,3 @@
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
@@ -317,7 +316,6 @@ export default function GuidesScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
       </Animated.View>
-      <BottomPillNav />
     </ThemedView>
   );
 }

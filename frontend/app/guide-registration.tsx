@@ -15,10 +15,104 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { signUp } from "@/lib/auth";
+
+const expertiseCategories = [
+  "Historical Sites & Heritage",
+  "Natural Landscapes & Parks",
+  "Cultural Tours & Festivals",
+  "Food & Culinary Tours",
+  "Adventure & Trekking",
+  "Beach & Coastal Areas",
+  "Religious Sites",
+  "Photography Tours",
+  "Wildlife & Nature",
+  "City Tours & Urban Exploration",
+];
+
+const bangladeshDistricts = [
+  // Dhaka Division
+  "Dhaka",
+  "Faridpur",
+  "Gazipur",
+  "Gopalganj",
+  "Kishoreganj",
+  "Madaripur",
+  "Manikganj",
+  "Munshiganj",
+  "Narayanganj",
+  "Narsingdi",
+  "Rajbari",
+  "Shariatpur",
+  "Tangail",
+
+  // Chattogram Division
+  "Chattogram",
+  "Bandarban",
+  "Brahmanbaria",
+  "Chandpur",
+  "Cumilla",
+  "Cox's Bazar",
+  "Feni",
+  "Khagrachari",
+  "Lakshmipur",
+  "Noakhali",
+  "Rangamati",
+
+  // Rajshahi Division
+  "Rajshahi",
+  "Bogura",
+  "Joypurhat",
+  "Naogaon",
+  "Natore",
+  "Chapainawabganj",
+  "Pabna",
+  "Sirajganj",
+
+  // Khulna Division
+  "Khulna",
+  "Bagerhat",
+  "Chuadanga",
+  "Jessore",
+  "Jhenaidah",
+  "Kushtia",
+  "Magura",
+  "Meherpur",
+  "Narail",
+  "Satkhira",
+
+  // Barishal Division
+  "Barishal",
+  "Barguna",
+  "Bhola",
+  "Jhalokathi",
+  "Patuakhali",
+  "Pirojpur",
+
+  // Sylhet Division
+  "Sylhet",
+  "Habiganj",
+  "Moulvibazar",
+  "Sunamganj",
+
+  // Rangpur Division
+  "Rangpur",
+  "Dinajpur",
+  "Gaibandha",
+  "Kurigram",
+  "Lalmonirhat",
+  "Nilphamari",
+  "Panchagarh",
+  "Thakurgaon",
+
+  // Mymensingh Division
+  "Mymensingh",
+  "Jamalpur",
+  "Netrokona",
+  "Sherpur",
+];
 
 export default function GuideRegistrationScreen() {
   const { user } = useAuth();
@@ -36,6 +130,12 @@ export default function GuideRegistrationScreen() {
   const [experienceYears, setExperienceYears] = useState("");
   const [perHourRate, setPerHourRate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [phone, setPhone] = useState("");
+  const [selectedExpertiseCategories, setSelectedExpertiseCategories] =
+    useState<string[]>([]);
+  const [coverageAreas, setCoverageAreas] = useState<string[]>([]);
+  const [experience, setExperience] = useState("");
 
   useEffect(() => {
     // If user is already logged in or not logged in, adjust initial step
@@ -126,33 +226,104 @@ export default function GuideRegistrationScreen() {
   const handleSubmit = async () => {
     console.log("🔥 SUBMIT BUTTON CLICKED!");
     console.log("Current form data:", {
-      expertiseArea,
-      experienceYears,
-      perHourRate,
       fullName,
-      age,
-      nidNumber,
-      nidImage: !!nidImage,
+      dateOfBirth,
+      phone,
       email,
-      user: !!user,
+      selectedExpertiseCategories,
+      coverageAreas,
+      perHourRate,
+      experienceYears,
+      experience,
+      nidNumber,
     });
 
-    if (!expertiseArea.trim()) {
-      Alert.alert("Required", "Please enter your expertise area");
+    // Enhanced validation
+    if (!fullName.trim()) {
+      Alert.alert("Required", "Please enter your full name");
       return;
     }
-    if (!experienceYears.trim() || isNaN(Number(experienceYears))) {
-      Alert.alert("Required", "Please enter valid years of experience");
+
+    if (!dateOfBirth.trim()) {
+      Alert.alert("Required", "Please enter your date of birth");
       return;
     }
-    if (!perHourRate.trim() || isNaN(Number(perHourRate))) {
-      Alert.alert("Required", "Please enter a valid per hour rate");
+
+    if (!phone.trim()) {
+      Alert.alert("Required", "Please enter your phone number");
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert("Required", "Please enter your email address");
+      return;
+    }
+
+    if (!nidNumber.trim()) {
+      Alert.alert("Required", "Please enter your NID number");
+      return;
+    }
+
+    if (selectedExpertiseCategories.length === 0) {
+      Alert.alert("Required", "Please select at least one area of expertise");
+      return;
+    }
+
+    if (coverageAreas.length === 0) {
+      Alert.alert("Required", "Please select at least one coverage area");
+      return;
+    }
+
+    if (
+      !perHourRate.trim() ||
+      isNaN(Number(perHourRate)) ||
+      Number(perHourRate) <= 0
+    ) {
+      Alert.alert("Required", "Please enter a valid hourly rate");
+      return;
+    }
+
+    if (!experienceYears.trim()) {
+      Alert.alert("Required", "Please enter your years of experience");
+      return;
+    }
+
+    // Validate phone number format
+    if (!phone.match(/^\+880\d{9,10}$/)) {
+      Alert.alert(
+        "Validation Error",
+        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)"
+      );
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Validation Error", "Please enter a valid email address");
       return;
     }
 
     console.log("✅ Validation passed, starting registration...");
     setLoading(true);
+
     try {
+      // Calculate age from date of birth
+      const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
+      const today = new Date();
+      const calculatedAge = Math.floor(
+        (today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+      );
+
+      if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
+        Alert.alert(
+          "Validation Error",
+          "Please enter a valid date of birth. You must be between 18 and 120 years old."
+        );
+        setLoading(false);
+        return;
+      }
+
       // Parse full name into first and last name
       const nameParts = fullName.trim().split(" ");
       const firstName = nameParts[0] || "";
@@ -174,63 +345,62 @@ export default function GuideRegistrationScreen() {
             firstName,
             lastName,
             "guide", // Role
-            "" // Phone
+            phone
           );
           // Wait a moment for auth state to update
           await new Promise((resolve) => setTimeout(resolve, 1500));
         } catch (signupError: any) {
           throw new Error(`Account creation failed: ${signupError.message}`);
         }
-      } else {
-        // For existing users, we need a dummy password for backend
-        userPassword = "existing_user_temp_password";
       }
 
-      console.log("Submitting guide registration to /api/guides/signup");
-      console.log("Registration data:", {
-        email: userEmail,
-        firstName,
-        lastName,
-        nidNumber,
-        hasNidImage: !!nidImage,
-        expertiseArea,
-        experienceYears,
-        perHourRate,
-      });
+      console.log("Submitting guide registration to /api/guides/register");
 
       // Use localhost for web/emulator, or your computer's IP for physical device
-      // If testing on physical device, replace 'localhost' with your computer's IP (e.g., '192.168.1.100')
       const API_URL =
         Platform.OS === "web"
           ? "http://localhost:5001"
           : "http://10.0.2.2:5001"; // 10.0.2.2 is Android emulator host, use your IP for physical device
 
-      const endpoint = `${API_URL}/api/guides/signup`;
+      const endpoint = `${API_URL}/api/guides/register`;
       console.log("Calling API:", endpoint);
 
-      // Call the new signup endpoint
+      // Create guide profile data with enhanced fields
+      const guideData = {
+        firstName,
+        lastName,
+        email: userEmail,
+        phone: phone.trim(),
+        nidNumber: nidNumber.trim(),
+        nidImageUrl: nidImage || "https://example.com/nid-placeholder.jpg",
+        age: calculatedAge,
+        expertiseArea: selectedExpertiseCategories[0] || "Tourism",
+        selectedExpertiseCategories: selectedExpertiseCategories,
+        coverageAreas: coverageAreas,
+        perHourRate: parseFloat(perHourRate),
+        bio:
+          experience ||
+          `Experienced guide specializing in ${selectedExpertiseCategories.join(
+            ", "
+          )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
+            coverageAreas.length > 3 ? " and more areas" : ""
+          }.`,
+        specialties: selectedExpertiseCategories,
+        languages: ["Bengali", "English"], // Default languages
+        yearsOfExperience: parseInt(experienceYears) || 1,
+        certifications: [],
+        dateOfBirth: dateOfBirth,
+      };
+
+      console.log("Registration data:", guideData);
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Note: In production, you'd add the auth token here
         },
-        body: JSON.stringify({
-          email: userEmail,
-          password: userPassword,
-          firstName,
-          lastName,
-          phone: "+8801700000000", // Default phone - can be updated later
-          bio: `Expert in ${expertiseArea} with ${experienceYears} years of experience`,
-          specialties: expertiseArea,
-          languages: "English", // Default, can be added to form later
-          yearsOfExperience: Number(experienceYears),
-          certifications: "",
-          nidNumber: nidNumber,
-          nidImageUrl: nidImage || "",
-          city: "", // Not collected in this form
-          district: "", // Not collected in this form
-          perHourRate: Number(perHourRate),
-        }),
+        body: JSON.stringify(guideData),
       });
 
       const data = await response.json();
@@ -241,7 +411,7 @@ export default function GuideRegistrationScreen() {
         console.error("Registration failed:", errorMsg);
         Alert.alert(
           "Registration Failed",
-          `Error: ${errorMsg}\n\nStatus: ${response.status}\n\nPlease check:\n1. Backend is running on port 5001\n2. You're connected to the same network\n3. Check console for details`,
+          `Error: ${errorMsg}\n\nStatus: ${response.status}`,
           [{ text: "OK" }]
         );
         throw new Error(errorMsg);
@@ -249,13 +419,20 @@ export default function GuideRegistrationScreen() {
 
       console.log("✅ Guide registration success:", data);
 
+      // Show enhanced thank you popup
       Alert.alert(
-        "Thank You for Registering! 🎉",
-        "Your guide registration has been submitted successfully. Our team will review your application and verify your credentials. You'll be notified once approved.",
+        "🎉 Thank You for Registering!",
+        `Welcome to our tourism community, ${fullName}! Your guide profile has been created successfully and will be reviewed within 24 hours. You can now be found in the guides section and receive chat messages from travelers.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
         [
           {
-            text: "OK",
-            onPress: () => router.replace("/(tabs)"),
+            text: "View My Profile",
+            onPress: () => router.push("/profile"),
+            style: "default",
+          },
+          {
+            text: "Explore Guides",
+            onPress: () => router.push("/guides"),
+            style: "cancel",
           },
         ]
       );
@@ -285,10 +462,10 @@ export default function GuideRegistrationScreen() {
 
   const handleBack = () => {
     if (step === "auth") {
-      router.back();
+      router.push("/(tabs)/");
     } else if (step === "details") {
       if (!user) setStep("auth");
-      else router.back();
+      else router.push("/(tabs)/");
     } else if (step === "nid") {
       setStep("details");
     } else {
@@ -399,7 +576,46 @@ export default function GuideRegistrationScreen() {
               />
             </View>
 
-            {/* Age */}
+            {/* Date of Birth */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="calendar" label="Date of Birth" required />
+              <TextInput
+                style={styles.input}
+                placeholder="DD/MM/YYYY"
+                placeholderTextColor="#999"
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+              />
+            </View>
+
+            {/* Phone Number */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="call" label="Phone Number" required />
+              <TextInput
+                style={styles.input}
+                placeholder="+880 1XXXXXXXXX"
+                placeholderTextColor="#999"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            {/* Email */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="mail" label="Email Address" required />
+              <TextInput
+                style={styles.input}
+                placeholder="your.email@example.com"
+                placeholderTextColor="#999"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Age (keeping for compatibility but will calculate from DOB) */}
             <View style={styles.fieldWrapper}>
               <Label icon="calendar" label="Age" required />
               <TextInput
@@ -523,34 +739,155 @@ export default function GuideRegistrationScreen() {
           </View>
         )}
 
-        {/* Step 3: Expertise */}
+        {/* Step 3: Expertise & Areas */}
         {step === "expertise" && (
           <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Your Expertise</Text>
+            <Text style={styles.stepTitle}>Expertise & Areas</Text>
             <Text style={styles.stepDescription}>
-              Share your knowledge and experience to attract travelers.
+              Share your knowledge and areas you can serve to attract travelers.
             </Text>
 
-            {/* Expertise Area */}
+            {/* Area Based Expertise */}
             <View style={styles.fieldWrapper}>
-              <Label icon="location" label="Expertise Area" required />
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="e.g., Old Dhaka, Cox's Bazar, Sylhet Tea Gardens, Bandarban Hills"
-                placeholderTextColor="#999"
-                value={expertiseArea}
-                onChangeText={setExpertiseArea}
-                multiline
-                numberOfLines={4}
+              <Label icon="school" label="Area Based Expertise" required />
+              <Text style={styles.helperText}>
+                Select your areas of expertise (you can select multiple)
+              </Text>
+
+              <View style={styles.checkboxGrid}>
+                {expertiseCategories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.checkboxItem,
+                      selectedExpertiseCategories.includes(category) &&
+                        styles.checkboxItemSelected,
+                    ]}
+                    onPress={() => {
+                      if (selectedExpertiseCategories.includes(category)) {
+                        setSelectedExpertiseCategories(
+                          selectedExpertiseCategories.filter(
+                            (cat) => cat !== category
+                          )
+                        );
+                      } else {
+                        setSelectedExpertiseCategories([
+                          ...selectedExpertiseCategories,
+                          category,
+                        ]);
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={
+                        selectedExpertiseCategories.includes(category)
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={20}
+                      color={
+                        selectedExpertiseCategories.includes(category)
+                          ? "#3B82F6"
+                          : "#666"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.checkboxText,
+                        selectedExpertiseCategories.includes(category) &&
+                          styles.checkboxTextSelected,
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Coverage Areas */}
+            <View style={styles.fieldWrapper}>
+              <Label
+                icon="location"
+                label="Which areas can you cover?"
+                required
               />
               <Text style={styles.helperText}>
-                List the places and regions you know best
+                Select districts you can provide services in
+              </Text>
+
+              <ScrollView
+                style={styles.districtContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.checkboxGrid}>
+                  {bangladeshDistricts.map((district) => (
+                    <TouchableOpacity
+                      key={district}
+                      style={[
+                        styles.checkboxItem,
+                        coverageAreas.includes(district) &&
+                          styles.checkboxItemSelected,
+                      ]}
+                      onPress={() => {
+                        if (coverageAreas.includes(district)) {
+                          setCoverageAreas(
+                            coverageAreas.filter((area) => area !== district)
+                          );
+                        } else {
+                          setCoverageAreas([...coverageAreas, district]);
+                        }
+                      }}
+                    >
+                      <Ionicons
+                        name={
+                          coverageAreas.includes(district)
+                            ? "checkmark-circle"
+                            : "ellipse-outline"
+                        }
+                        size={16}
+                        color={
+                          coverageAreas.includes(district) ? "#3B82F6" : "#666"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.checkboxText,
+                          styles.districtText,
+                          coverageAreas.includes(district) &&
+                            styles.checkboxTextSelected,
+                        ]}
+                      >
+                        {district}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Per Hour Rate */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="cash" label="Per Hour Rate (BDT)" required />
+              <View style={styles.rateInputContainer}>
+                <Text style={styles.currencySymbol}>৳</Text>
+                <TextInput
+                  style={[styles.input, styles.rateInput]}
+                  placeholder="e.g., 500"
+                  placeholderTextColor="#999"
+                  value={perHourRate}
+                  onChangeText={setPerHourRate}
+                  keyboardType="numeric"
+                />
+              </View>
+              <Text style={styles.helperText}>
+                Your hourly service rate in Bangladeshi Taka
               </Text>
             </View>
 
             {/* Experience Years */}
             <View style={styles.fieldWrapper}>
-              <Label icon="briefcase" label="Experience Year" required />
+              <Label icon="briefcase" label="Experience Years" required />
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 5"
@@ -564,21 +901,21 @@ export default function GuideRegistrationScreen() {
               </Text>
             </View>
 
-            {/* Per Hour Rate */}
+            {/* Additional Experience Details */}
             <View style={styles.fieldWrapper}>
-              <Label icon="cash" label="Per Hour Rate" required />
-              <View style={styles.rateInputContainer}>
-                <Text style={styles.currencySymbol}>৳</Text>
-                <TextInput
-                  style={[styles.input, styles.rateInput]}
-                  placeholder="e.g., 500"
-                  placeholderTextColor="#999"
-                  value={perHourRate}
-                  onChangeText={setPerHourRate}
-                  keyboardType="numeric"
-                />
-              </View>
-              <Text style={styles.helperText}>Set your hourly rate in BDT</Text>
+              <Label icon="document-text" label="About Your Experience" />
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                placeholder="Tell travelers about your background and what makes you a great guide"
+                placeholderTextColor="#999"
+                value={experience}
+                onChangeText={setExperience}
+                multiline
+                numberOfLines={5}
+              />
+              <Text style={styles.helperText}>
+                Share your unique experiences and specialties
+              </Text>
             </View>
 
             {/* Benefits Box */}
@@ -648,8 +985,6 @@ export default function GuideRegistrationScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      <BottomPillNav />
     </ThemedView>
   );
 }
@@ -1055,5 +1390,47 @@ const styles = StyleSheet.create({
   },
   rateInput: {
     paddingLeft: 36,
+  },
+  checkboxGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  checkboxItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+    gap: 8,
+    minWidth: "45%",
+  },
+  checkboxItemSelected: {
+    borderColor: "#3B82F6",
+    backgroundColor: "#EFF6FF",
+  },
+  checkboxText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  checkboxTextSelected: {
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
+  districtContainer: {
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: Radii.md,
+    backgroundColor: "#F9FAFB",
+    padding: 8,
+  },
+  districtText: {
+    fontSize: 12,
   },
 });

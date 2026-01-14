@@ -208,7 +208,7 @@ export default function ExploreScreen() {
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Experiences</Text>
+            <Text style={styles.headerTitle}>Explore</Text>
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >

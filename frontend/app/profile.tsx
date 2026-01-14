@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
@@ -544,8 +543,6 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-
-      <BottomPillNav />
     </ThemedView>
   );
 }

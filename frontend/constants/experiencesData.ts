@@ -33,7 +33,7 @@ export interface Experience {
 
 export const experienceCategories = [
   { id: "all", label: "All", icon: "grid", color: "#3B82F6" },
-  { id: "adventure", label: "Adventure", icon: "mountain", color: "#EF4444" },
+  { id: "adventure", label: "Adventure", icon: "navigate", color: "#EF4444" },
   { id: "cultural", label: "Cultural", icon: "business", color: "#F59E0B" },
   { id: "nature", label: "Nature", icon: "leaf", color: "#10B981" },
   { id: "wellness", label: "Wellness", icon: "fitness", color: "#8B5CF6" },

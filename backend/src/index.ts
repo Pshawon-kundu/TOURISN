@@ -5,6 +5,7 @@ import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
+import chatRoutes from "./routes/chatRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
 import guideRoutes from "./routes/guideRoutes";
 import nidVerificationRoutes from "./routes/nidVerificationRoutes";
@@ -36,6 +37,12 @@ const corsOptions = {
     "http://127.0.0.1:8081",
     "http://localhost:8082",
     "http://127.0.0.1:8082",
+    "http://localhost:8084",
+    "http://127.0.0.1:8084",
+    "http://192.168.0.196:8081",
+    "http://192.168.0.196:8084",
+    "exp://192.168.0.196:8081",
+    "exp://192.168.0.196:8084",
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -59,6 +66,7 @@ app.get("/api/health", (req, res) => {
 // Register all routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/chat", chatRoutes);
 app.use("/api/experiences", experienceRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);

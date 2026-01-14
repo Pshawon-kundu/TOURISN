@@ -34,9 +34,13 @@ export default function TransportHub() {
   const [travelDate, setTravelDate] = useState("");
   const [passengers, setPassengers] = useState(1);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [calculatedDistance, setCalculatedDistance] = useState(0);
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   // Payment details
+  const [paymentMethod, setPaymentMethod] = useState<string>("bkash");
   const [paymentNumber, setPaymentNumber] = useState("");
   const [password, setPassword] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -55,9 +59,12 @@ export default function TransportHub() {
 
   const calculatePrice = (transportType: string) => {
     if (!fromLocation || !toLocation) return 0;
-    const distance = calculateDistance();
+    // Use stored distance to prevent recalculation on every render
+    const distance = calculatedDistance || calculateDistance();
     const pricing = transportPricing[transportType];
-    return pricing.basePrice + distance * pricing.perKm;
+    // Base price multiplied by number of passengers
+    const baseFare = pricing.basePrice + distance * pricing.perKm;
+    return baseFare * passengers;
   };
 
   const handleSearchRoutes = () => {
@@ -80,6 +87,8 @@ export default function TransportHub() {
       Alert.alert("Missing Information", "Please search routes first");
       return;
     }
+    // Calculate and store distance once when booking starts
+    setCalculatedDistance(calculateDistance());
     setSelectedTransport(transportType);
     setShowBookingModal(true);
   };
@@ -87,14 +96,6 @@ export default function TransportHub() {
   const handleConfirmBooking = async () => {
     if (!travelDate) {
       Alert.alert("Missing Date", "Please select travel date");
-      return;
-    }
-    if (!paymentNumber || paymentNumber.replace(/\s/g, "").length < 11) {
-      Alert.alert("Invalid Payment", "Please enter valid payment number");
-      return;
-    }
-    if (!password || password.length < 4) {
-      Alert.alert("Invalid Password", "Please enter password");
       return;
     }
 
@@ -113,35 +114,34 @@ export default function TransportHub() {
       }
 
       const transportType = selectedTransport || "car";
-      const price = calculatePrice(transportType);
+      const distance = calculatedDistance;
+      const pricing = transportPricing[transportType];
+      const baseFare = pricing.basePrice + distance * pricing.perKm;
+      const perPassengerFare = baseFare;
       const serviceFee = 50;
-      const totalPrice = price + serviceFee;
+      const totalAmount = baseFare * passengers + serviceFee;
 
       const bookingData = {
-        booking_type: "transport",
-        trip_name: `${fromLocation} to ${toLocation}`,
-        location: `${fromLocation} → ${toLocation}`,
-        check_in_date: new Date(travelDate).toISOString(),
-        check_out_date: new Date(travelDate).toISOString(),
-        guests: passengers,
-        item_id: transportType,
-        item_name:
-          transportTypes.find((t) => t.id === transportType)?.name ||
-          "Transport",
-        item_image: "",
-        price_per_unit: price / passengers,
-        total_days_or_units: 1,
-        subtotal: price,
+        from_location: fromLocation,
+        to_location: toLocation,
+        transport_type: transportType,
+        travel_date: new Date(travelDate).toISOString(),
+        passengers,
+        base_fare: baseFare,
+        per_passenger_fare: perPassengerFare,
         service_fee: serviceFee,
-        total_price: totalPrice,
-        currency: "TK",
-        payment_method: "mobile",
-        payment_number: paymentNumber.replace(/\s/g, "").slice(-4),
-        payment_status: "completed",
-        booking_status: "confirmed",
+        total_amount: totalAmount,
+        payment_method: "pending",
+        payment_status: "pending",
       };
 
-      const response = await fetch("http://localhost:5001/api/bookings", {
+      console.log("📤 Sending booking request:", {
+        userEmail,
+        bookingData,
+        url: "http://192.168.0.196:5001/api/transport",
+      });
+
+      const response = await fetch("http://192.168.0.196:5001/api/transport", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -150,27 +150,128 @@ export default function TransportHub() {
         body: JSON.stringify(bookingData),
       });
 
+      console.log("📥 Response status:", response.status);
+
       const result = await response.json();
+      console.log("📥 Response data:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to create booking");
       }
 
-      setShowBookingModal(false);
-      setShowSuccessModal(true);
+      // Store booking ID for payment processing
+      setBookingId(result.data?.booking_id || result.data?.id);
 
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        router.replace("/(tabs)");
-      }, 2000);
+      // Close booking modal and show payment modal
+      setShowBookingModal(false);
+      setShowPaymentModal(true);
     } catch (error) {
-      console.error("Booking error:", error);
+      console.error("❌ Booking error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
       Alert.alert(
         "Booking Failed",
+        `Failed to create booking: ${errorMessage}\n\nPlease check:\n- Backend is running on http://192.168.0.196:5001\n- You are logged in\n- Network connection is working`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!paymentNumber || paymentNumber.replace(/\s/g, "").length < 11) {
+      Alert.alert("Invalid Payment", "Please enter valid payment number");
+      return;
+    }
+    if (!password || password.length < 4) {
+      Alert.alert("Invalid Password", "Please enter your PIN");
+      return;
+    }
+
+    if (!bookingId) {
+      Alert.alert("Error", "Booking ID not found");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userEmail =
+        typeof window !== "undefined"
+          ? localStorage.getItem("userEmail")
+          : null;
+
+      if (!userEmail) {
+        Alert.alert("Error", "Please login again");
+        setIsLoading(false);
+        return;
+      }
+
+      const paymentData = {
+        payment_method: paymentMethod,
+        payment_number: paymentNumber.replace(/\s/g, ""),
+        transaction_id: `TXN-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+      };
+
+      const response = await fetch(
+        `http://192.168.0.196:5001/api/transport/${bookingId}/payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-Email": userEmail,
+          },
+          body: JSON.stringify(paymentData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Payment failed");
+      }
+
+      // Close payment modal and show success
+      setShowPaymentModal(false);
+      setShowSuccessModal(true);
+
+      // Reset form
+      setPaymentNumber("");
+      setPassword("");
+      setPaymentMethod("bkash");
+
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        setFromLocation("");
+        setToLocation("");
+        setSelectedTransport(null);
+        setTravelDate("");
+        setPassengers(1);
+        router.replace("/(tabs)");
+      }, 3000);
+    } catch (error) {
+      console.error("Payment error:", error);
+      Alert.alert(
+        "Payment Failed",
         error instanceof Error ? error.message : "Please try again"
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBackPress = () => {
+    if (showSuccessModal) {
+      setShowSuccessModal(false);
+    } else if (showPaymentModal) {
+      setShowPaymentModal(false);
+    } else if (showBookingModal) {
+      setShowBookingModal(false);
+    } else {
+      router.back();
     }
   };
 
@@ -195,10 +296,7 @@ export default function TransportHub() {
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Transport Hub</Text>
@@ -439,29 +537,6 @@ export default function TransportHub() {
                 </View>
               </View>
 
-              {/* Payment Details */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Payment Number</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="01XXXXXXXXX"
-                  value={paymentNumber}
-                  onChangeText={setPaymentNumber}
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Password</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
               {/* Price Breakdown */}
               <View style={styles.priceCard}>
                 <View style={styles.priceRow}>
@@ -473,6 +548,10 @@ export default function TransportHub() {
                 <View style={styles.priceRow}>
                   <Text style={styles.priceLabel}>Service Fee:</Text>
                   <Text style={styles.priceValue}>৳ 50</Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Number of Passengers:</Text>
+                  <Text style={styles.priceValue}>{passengers}</Text>
                 </View>
                 <View style={styles.priceDivider} />
                 <View style={styles.priceRow}>
@@ -503,18 +582,147 @@ export default function TransportHub() {
         </View>
       </Modal>
 
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Payment Method</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Ionicons name="close" size={28} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Payment Method Selection */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Choose Payment Gateway</Text>
+                <View style={styles.paymentMethods}>
+                  {[
+                    { id: "bkash", name: "bKash", icon: "logo-bitcoin" },
+                    { id: "nagad", name: "Nagad", icon: "wallet" },
+                    { id: "rocket", name: "Rocket", icon: "rocket" },
+                    { id: "card", name: "Card", icon: "card" },
+                  ].map((method) => (
+                    <TouchableOpacity
+                      key={method.id}
+                      style={[
+                        styles.paymentMethodCard,
+                        paymentMethod === method.id &&
+                          styles.paymentMethodCardActive,
+                      ]}
+                      onPress={() => setPaymentMethod(method.id)}
+                    >
+                      <Ionicons
+                        name={method.icon as any}
+                        size={32}
+                        color={
+                          paymentMethod === method.id
+                            ? Colors.primary
+                            : Colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.paymentMethodName,
+                          paymentMethod === method.id &&
+                            styles.paymentMethodNameActive,
+                        ]}
+                      >
+                        {method.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Payment Details */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {paymentMethod === "card" ? "Card Number" : "Mobile Number"}
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder={
+                    paymentMethod === "card"
+                      ? "1234 5678 9012 3456"
+                      : "01XXXXXXXXX"
+                  }
+                  value={paymentNumber}
+                  onChangeText={setPaymentNumber}
+                  keyboardType={
+                    paymentMethod === "card" ? "numeric" : "phone-pad"
+                  }
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {paymentMethod === "card" ? "PIN" : "Password/PIN"}
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder={`Enter your ${
+                    paymentMethod === "card" ? "PIN" : "password"
+                  }`}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Amount Display */}
+              <View style={styles.amountCard}>
+                <Text style={styles.amountLabel}>Amount to Pay</Text>
+                <Text style={styles.amountValue}>
+                  ৳ {calculatePrice(selectedTransport || "car") + 50} TK
+                </Text>
+              </View>
+
+              {/* Pay Button */}
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  isLoading && styles.confirmButtonDisabled,
+                ]}
+                onPress={handlePayment}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="card" size={20} color="#FFF" />
+                    <Text style={styles.confirmButtonText}>Pay Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Success Modal */}
       <Modal visible={showSuccessModal} animationType="fade" transparent={true}>
         <View style={styles.successOverlay}>
           <View style={styles.successContent}>
             <Ionicons
               name="checkmark-circle"
-              size={80}
+              size={100}
               color={Colors.success}
             />
-            <Text style={styles.successTitle}>Booking Confirmed!</Text>
+            <Text style={styles.successTitle}>Thank You!</Text>
             <Text style={styles.successMessage}>
-              Your transport has been booked successfully
+              Your payment has been processed successfully.
+            </Text>
+            <Text style={styles.successSubMessage}>
+              Your transport booking is confirmed!
             </Text>
           </View>
         </View>
@@ -890,6 +1098,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radii.small,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
   confirmButtonDisabled: {
@@ -924,5 +1135,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: "center",
+  },
+  successSubMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginTop: Spacing.xs,
+  },
+  paymentMethods: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  paymentMethodCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderRadius: Radii.medium,
+    padding: Spacing.lg,
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  paymentMethodCardActive: {
+    borderColor: Colors.primary,
+    backgroundColor: `${Colors.primary}10`,
+  },
+  paymentMethodName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  paymentMethodNameActive: {
+    color: Colors.primary,
+  },
+  amountCard: {
+    backgroundColor: `${Colors.primary}10`,
+    borderRadius: Radii.medium,
+    padding: Spacing.lg,
+    alignItems: "center",
+    marginVertical: Spacing.md,
+  },
+  amountLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  amountValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: Colors.primary,
   },
 });

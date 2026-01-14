@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { APIClient } from "@/lib/api";
@@ -196,7 +195,6 @@ export default function SavedPlacesScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
-      <BottomPillNav />
     </ThemedView>
   );
 }

@@ -101,31 +101,67 @@ export default function BookingConfirmScreen() {
         return;
       }
 
-      const bookingData = {
-        booking_type: params.bookingType ?? "stay",
-        trip_name: tripName,
-        location: location,
-        check_in_date: checkInDate.toISOString(),
-        check_out_date: checkOutDate.toISOString(),
-        guests: guests,
-        item_id: params.itemId ?? "",
-        item_name: params.itemName ?? tripName,
-        item_image: params.itemImage ?? "",
-        price_per_unit: parseFloat(params.pricePerUnit ?? "0"),
-        total_days_or_units: daysDiff,
-        subtotal: totalPrice,
-        service_fee: serviceFee,
-        total_price: finalTotal,
-        currency: currency,
-        payment_method: "card",
-        payment_number: paymentNumber.replace(/\s/g, "").slice(-4), // Store only last 4 digits
-        payment_status: "completed",
-        booking_status: "confirmed",
-      };
+      const bookingType = params.bookingType ?? "stay";
 
-      console.log("Creating booking with data:", bookingData);
+      // Prepare booking data based on type
+      let bookingData: any;
+      let apiEndpoint: string;
 
-      const response = await fetch("http://localhost:5001/api/bookings", {
+      if (bookingType === "transport") {
+        // Transport booking data structure
+        bookingData = {
+          from: location.split(" → ")[0] || location,
+          to: location.split(" → ")[1] || "Destination",
+          transport_type: "car", // Default or from params
+          travel_date: checkInDate.toISOString(),
+          passengers: guests,
+          base_fare: totalPrice,
+          service_fee: serviceFee,
+          total_amount: finalTotal,
+          payment_method: "card",
+          payment_number: paymentNumber.replace(/\s/g, "").slice(-4),
+          payment_status: "completed",
+          booking_status: "confirmed",
+          traveler_name: user?.displayName || "Guest User",
+          phone: "N/A", // You can add phone input if needed
+          email: userEmail,
+        };
+        apiEndpoint = "http://localhost:5001/api/transport";
+      } else {
+        // Stay booking data structure - FIXED with all required fields
+        bookingData = {
+          booking_type: "stay",
+          trip_name: tripName,
+          location: location,
+          check_in_date: checkInDate.toISOString(),
+          check_out_date: checkOutDate.toISOString(),
+          guests: guests,
+          item_id: params.itemId ?? "",
+          item_name: params.itemName ?? tripName,
+          item_image: params.itemImage ?? "",
+          price_per_unit: parseFloat(params.pricePerUnit ?? "0"),
+          total_days_or_units: daysDiff,
+          subtotal: totalPrice,
+          service_fee: serviceFee,
+          total_price: finalTotal,
+          currency: currency,
+          payment_method: "card",
+          payment_number: paymentNumber.replace(/\s/g, "").slice(-4),
+          payment_status: "completed",
+          booking_status: "confirmed",
+          // REQUIRED fields for stay_bookings table - ensures automatic save to Supabase
+          traveler_name:
+            user?.displayName || user?.email?.split("@")[0] || "Guest User",
+          phone: "01234567890", // Default phone number
+          email: userEmail || "guest@example.com",
+        };
+        apiEndpoint = "http://localhost:5001/api/stays";
+      }
+
+      console.log(`🚀 Creating ${bookingType} booking with data:`, bookingData);
+      console.log(`📡 API Endpoint: ${apiEndpoint}`);
+
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -134,13 +170,25 @@ export default function BookingConfirmScreen() {
         body: JSON.stringify(bookingData),
       });
 
+      console.log(`📥 API Response Status: ${response.status}`);
+
       const result = await response.json();
+      console.log(`📊 API Response Data:`, result);
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to create booking");
       }
 
-      console.log("Booking created successfully:", result);
+      console.log("✅ Booking saved to Supabase successfully!", result);
+
+      // Confirm the booking ID for tracking
+      const bookingId = result.data?.id;
+      if (bookingId) {
+        console.log(`🎫 Booking ID: ${bookingId}`);
+        console.log(
+          `💰 Total Amount: ${result.data?.total_amount || finalTotal}`
+        );
+      }
 
       // Show success modal
       setShowSuccessModal(true);

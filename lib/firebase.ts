@@ -68,3 +68,8 @@ export function subscribeToMessages(
   });
   return unsub;
 }
+
+export function getChatRoomId(userId: string, guideId: string): string {
+  // Create consistent room ID by sorting IDs
+  return [userId, guideId].sort().join("_");
+}

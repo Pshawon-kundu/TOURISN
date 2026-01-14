@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { DestinationCard } from "@/components/destination-card";
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
@@ -184,7 +183,6 @@ export default function ExploreScreen() {
           ))}
         </View>
       </ScrollView>
-      <BottomPillNav />
     </ThemedView>
   );
 }

@@ -66,7 +66,6 @@ export const Typography = {
 export default {
   Colors,
   ColorSchemes,
-  useThemeColors,
   Spacing,
   Radii,
   Typography,

@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 
@@ -135,7 +134,6 @@ export default function AboutScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-      <BottomPillNav />
     </ThemedView>
   );
 }

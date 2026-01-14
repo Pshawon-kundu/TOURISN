@@ -22,6 +22,7 @@ export default function StaysScreen() {
   const [selectedType, setSelectedType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const colors = useThemeColors();
 
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -240,19 +241,40 @@ export default function StaysScreen() {
               <Ionicons name="bed" size={16} color={colors.primary} />
             </View>
           </View>
-          <TouchableOpacity
-            style={[
-              styles.favButton,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="heart-outline"
-              size={24}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                {
+                  backgroundColor: showDashboard
+                    ? colors.primary
+                    : colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              activeOpacity={0.7}
+              onPress={() => setShowDashboard(!showDashboard)}
+            >
+              <Ionicons
+                name={showDashboard ? "list-outline" : "analytics-outline"}
+                size={20}
+                color={showDashboard ? "white" : colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.favButton,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="heart-outline"
+                size={24}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -367,6 +389,17 @@ export default function StaysScreen() {
               colors={[colors.primary]}
               tintColor={colors.primary}
             />
+          }
+          ListHeaderComponent={() =>
+            showDashboard ? (
+              <RealTimeStaysDashboard
+                showHeader={false}
+                maxItems={5}
+                onBookingPress={(bookingId) => {
+                  console.log("Booking pressed:", bookingId);
+                }}
+              />
+            ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -707,5 +740,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.5)",
     marginTop: Spacing.xs,
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  toggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

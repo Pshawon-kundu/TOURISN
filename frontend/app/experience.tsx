@@ -1,4 +1,3 @@
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { Ionicons } from "@expo/vector-icons";
@@ -367,7 +366,6 @@ export default function ExperienceScreen() {
 
         <View style={{ height: 120 }} />
       </ScrollView>
-      <BottomPillNav />
     </ThemedView>
   );
 }

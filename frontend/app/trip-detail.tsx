@@ -139,7 +139,7 @@ export default function TripDetailScreen() {
         itemName: params.name ?? tripName,
         itemImage: image,
         pricePerUnit: pricePerDay.toString(),
-        bookingType: tripType,
+        bookingType: "stay", // FIXED: Always use "stay" for accommodation bookings
       },
     });
   };

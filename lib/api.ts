@@ -1,5 +1,5 @@
 // API configuration and utilities
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = "http://localhost:5001/api";
 
 interface BookingData {
   transportType?: "car" | "bus" | "bike" | "boat";
@@ -110,9 +110,48 @@ export const getAllStayBookings = async (): Promise<any> => {
   }
 };
 
+export const processPayment = async (
+  bookingId: string,
+  paymentData: {
+    payment_method: string;
+    payment_number?: string;
+    transaction_id?: string;
+  },
+  authToken: string
+): Promise<any> => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/transport/${bookingId}/payment`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          ...paymentData,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to process payment");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error processing payment:", error);
+    throw error;
+  }
+};
+
 export default {
   createTransportBooking,
   createStayBooking,
   getAllTransportBookings,
   getAllStayBookings,
+  processPayment,
 };

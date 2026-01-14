@@ -76,26 +76,167 @@ export default function TransportHub() {
   const [selectedType, setSelectedType] = useState<TransportType | null>(null);
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Booking details
+  const [travelerName, setTravelerName] = useState("John Doe");
+  const [phone, setPhone] = useState("01521562022");
+  const [email, setEmail] = useState("john@example.com");
+  const [travelDate, setTravelDate] = useState("");
+  const [passengers, setPassengers] = useState(1);
+
+  // Payment details
+  const [paymentMethod, setPaymentMethod] = useState<string>("bkash");
+  const [paymentNumber, setPaymentNumber] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleBook = (type: TransportType) => {
     setSelectedType(type);
-    router.push({
-      pathname: "/booking",
-      params: {
-        type: "transport",
-        transportType: type,
-      },
-    });
+    setShowBookingModal(true);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!travelDate) {
+      Alert.alert("Missing Date", "Please select travel date");
+      return;
+    }
+
+    if (!fromLocation || !toLocation) {
+      Alert.alert("Missing Locations", "Please set from and to locations");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const basePrice = 1450; // Default price
+      const serviceFee = 50;
+      const totalAmount = basePrice * passengers + serviceFee;
+
+      const bookingData = {
+        transportType: selectedType,
+        from: fromLocation,
+        to: toLocation,
+        travelerName,
+        phone,
+        email,
+        travelDate: new Date(travelDate).toISOString(),
+        baseFare: basePrice,
+        taxes: Math.round(totalAmount * 0.08),
+        serviceFee,
+        discount: Math.round(totalAmount * 0.03),
+        totalAmount,
+        paymentMethod: "pending",
+        userId: "guest_user",
+      };
+
+      const result = await createTransportBooking(bookingData);
+
+      setBookingId(result.data?.transport_booking?.id || result.data?.id);
+      setShowBookingModal(false);
+      setShowPaymentModal(true);
+    } catch (error) {
+      Alert.alert(
+        "Booking Failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!paymentNumber || paymentNumber.replace(/\s/g, "").length < 11) {
+      Alert.alert("Invalid Payment", "Please enter valid payment number");
+      return;
+    }
+    if (!password) {
+      Alert.alert("Missing Password", "Please enter your PIN");
+      return;
+    }
+
+    if (!bookingId) {
+      Alert.alert("Error", "Booking ID not found");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const paymentData = {
+        payment_method: paymentMethod,
+        payment_number: paymentNumber.replace(/\s/g, ""),
+        transaction_id: `TXN-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+      };
+
+      const response = await fetch(
+        `http://localhost:5001/api/transport/${bookingId}/payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(paymentData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Payment failed");
+      }
+
+      // Close payment modal and show success
+      setShowPaymentModal(false);
+      setShowSuccessModal(true);
+
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        setFromLocation("");
+        setToLocation("");
+        setSelectedType(null);
+        setTravelerName("John Doe");
+        setPhone("01521562022");
+        setEmail("john@example.com");
+        setTravelDate("");
+        setPassengers(1);
+        setPaymentNumber("");
+        setPassword("");
+      }, 3000);
+    } catch (error) {
+      Alert.alert(
+        "Payment Failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackPress = () => {
+    if (showSuccessModal) {
+      setShowSuccessModal(false);
+    } else if (showPaymentModal) {
+      setShowPaymentModal(false);
+    } else if (showBookingModal) {
+      setShowBookingModal(false);
+    } else {
+      router.back();
+    }
   };
 
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Transport Hub</Text>
@@ -288,6 +429,267 @@ export default function TransportHub() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Booking Modal */}
+      <Modal
+        visible={showBookingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.bookingModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Book Transport</Text>
+              <TouchableOpacity
+                onPress={() => setShowBookingModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.sectionTitle}>Trip Details</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>From</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fromLocation}
+                  onChangeText={setFromLocation}
+                  placeholder="Enter departure location"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>To</Text>
+                <TextInput
+                  style={styles.input}
+                  value={toLocation}
+                  onChangeText={setToLocation}
+                  placeholder="Enter destination"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Travel Date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={travelDate}
+                  onChangeText={setTravelDate}
+                  placeholder="YYYY-MM-DD"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Passengers</Text>
+                <TextInput
+                  style={styles.input}
+                  value={passengers.toString()}
+                  onChangeText={(text) => setPassengers(parseInt(text) || 1)}
+                  keyboardType="numeric"
+                  placeholder="Number of passengers"
+                />
+              </View>
+
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={travelerName}
+                  onChangeText={setTravelerName}
+                  placeholder="Enter your full name"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone</Text>
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  placeholder="Enter phone number"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  placeholder="Enter email address"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  isLoading && styles.buttonDisabled,
+                ]}
+                onPress={handleConfirmBooking}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.paymentModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Payment</Text>
+              <TouchableOpacity
+                onPress={() => setShowPaymentModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+
+              <View style={styles.paymentMethods}>
+                {["bkash", "nagad", "rocket", "card"].map((method) => (
+                  <TouchableOpacity
+                    key={method}
+                    style={[
+                      styles.paymentMethod,
+                      paymentMethod === method && styles.paymentMethodActive,
+                    ]}
+                    onPress={() => setPaymentMethod(method)}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentMethodText,
+                        paymentMethod === method &&
+                          styles.paymentMethodTextActive,
+                      ]}
+                    >
+                      {method.charAt(0).toUpperCase() + method.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  {paymentMethod === "card" ? "Card Number" : "Mobile Number"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={paymentNumber}
+                  onChangeText={setPaymentNumber}
+                  keyboardType={
+                    paymentMethod === "card" ? "numeric" : "phone-pad"
+                  }
+                  placeholder={
+                    paymentMethod === "card"
+                      ? "Enter card number"
+                      : "Enter mobile number"
+                  }
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  {paymentMethod === "card" ? "CVV" : "PIN"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  keyboardType="numeric"
+                  placeholder={
+                    paymentMethod === "card" ? "Enter CVV" : "Enter PIN"
+                  }
+                />
+              </View>
+
+              <View style={styles.priceSummary}>
+                <Text style={styles.priceSummaryTitle}>Price Summary</Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Base Fare</Text>
+                  <Text style={styles.priceValue}>৳ 1,450</Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Service Fee</Text>
+                  <Text style={styles.priceValue}>৳ 50</Text>
+                </View>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Tax</Text>
+                  <Text style={styles.priceValue}>৳ 120</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceTotalLabel}>Total</Text>
+                  <Text style={styles.priceTotalValue}>৳ 1,620</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  isLoading && styles.buttonDisabled,
+                ]}
+                onPress={handlePayment}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Pay Now</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successOverlay}>
+          <View style={styles.successContent}>
+            <Ionicons
+              name="checkmark-circle"
+              size={100}
+              color={Colors.success || "#10B981"}
+            />
+            <Text style={styles.successTitle}>Thank You!</Text>
+            <Text style={styles.successMessage}>
+              Your payment has been processed successfully.
+            </Text>
+            <Text style={styles.successSubMessage}>
+              Your transport booking is confirmed!
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -552,5 +954,179 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: "500",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  bookingModalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
+    maxHeight: "80%",
+    paddingBottom: Spacing.xl,
+  },
+  paymentModalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
+    maxHeight: "90%",
+    paddingBottom: Spacing.xl,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.background,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  closeButton: {
+    padding: Spacing.sm,
+  },
+  modalBody: {
+    padding: Spacing.lg,
+  },
+  inputGroup: {
+    marginBottom: Spacing.lg,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.background,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    fontSize: 16,
+    backgroundColor: Colors.background,
+    color: Colors.textPrimary,
+  },
+  confirmButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.lg,
+    borderRadius: Radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.lg,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  confirmButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  paymentMethods: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  paymentMethod: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Colors.background,
+    backgroundColor: Colors.background,
+  },
+  paymentMethodActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + "20",
+  },
+  paymentMethodText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  paymentMethodTextActive: {
+    color: Colors.primary,
+  },
+  priceSummary: {
+    backgroundColor: Colors.background,
+    borderRadius: Radii.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  priceSummaryTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  priceValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  priceTotalLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  priceTotalValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.background,
+    marginVertical: Spacing.sm,
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successContent: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.xl,
+    padding: Spacing.xl,
+    alignItems: "center",
+    width: "80%",
+    maxWidth: 300,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Colors.textPrimary,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginBottom: Spacing.xs,
+  },
+  successSubMessage: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: "center",
   },
 });

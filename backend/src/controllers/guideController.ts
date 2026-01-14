@@ -43,14 +43,56 @@ export const createGuide = async (
       age,
       expertiseArea,
       perHourRate,
+      selectedExpertiseCategories,
+      coverageAreas,
     } = req.body;
 
     // Validation
-    if (!nidNumber || !nidImageUrl || !age || !expertiseArea || !perHourRate) {
+    if (
+      !nidNumber ||
+      !nidImageUrl ||
+      !age ||
+      !expertiseArea ||
+      perHourRate === undefined ||
+      !selectedExpertiseCategories ||
+      !coverageAreas ||
+      !phone ||
+      !email
+    ) {
       res.status(400).json({
         success: false,
         error:
-          "NID Number, NID Image, Age, Expertise Area, and Per Hour Rate are required",
+          "All required fields must be provided: NID Number, NID Image, Age, Expertise Area, Per Hour Rate, Expertise Categories, Coverage Areas, Phone, and Email",
+      });
+      return;
+    }
+
+    // Validate arrays
+    if (
+      !Array.isArray(selectedExpertiseCategories) ||
+      selectedExpertiseCategories.length === 0
+    ) {
+      res.status(400).json({
+        success: false,
+        error: "At least one expertise category must be selected",
+      });
+      return;
+    }
+
+    if (!Array.isArray(coverageAreas) || coverageAreas.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: "At least one coverage area must be selected",
+      });
+      return;
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        error: "Please provide a valid email address",
       });
       return;
     }
@@ -103,20 +145,60 @@ export const createGuide = async (
       return;
     }
 
-    // Insert into Supabase
+    // Insert into Supabase with all guide details
     const { data: guide, error } = await supabase
       .from("guides")
       .insert([
         {
           user_id: req.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          profile_image_url: profileImage,
+          bio:
+            bio ||
+            `Experienced guide specializing in ${
+              expertiseArea || "various areas"
+            }`,
+          specialties: Array.isArray(specialties)
+            ? specialties
+            : specialties
+            ? [specialties]
+            : [expertiseArea || "Tourism"],
+          languages: Array.isArray(languages)
+            ? languages
+            : languages
+            ? [languages]
+            : ["Bengali", "English"],
+          years_of_experience: yearsOfExperience || 1,
+          certifications: Array.isArray(certifications)
+            ? certifications
+            : certifications
+            ? [certifications]
+            : [],
           nid_number: nidNumber,
           nid_image_url: nidImageUrl,
           age,
           expertise_area: expertiseArea,
           per_hour_rate: perHourRate,
+          expertise_categories: selectedExpertiseCategories,
+          coverage_areas: coverageAreas,
+          is_verified: false,
+          status: "pending", // Set as pending initially
+          rating: 4.5, // Default rating for new guides
+          total_reviews: 0,
+          is_available: true,
+          location:
+            coverageAreas && coverageAreas.length > 0
+              ? coverageAreas.join(", ")
+              : `${expertiseArea || "Bangladesh"}`,
         },
       ])
-      .select();
+      .select(
+        `*,
+         user:users!guides_user_id_fkey(id, first_name, last_name, email, phone, profile_image_url)`
+      );
 
     if (error) {
       console.error("Supabase guide creation error:", error);
@@ -124,11 +206,22 @@ export const createGuide = async (
       return;
     }
 
-    console.log("✅ Guide profile created:", guide?.[0]?.id);
+    console.log("✅ Guide profile created successfully:", guide?.[0]?.id);
     res.status(201).json({
       success: true,
-      message: "Guide profile created successfully",
-      data: guide?.[0],
+      message:
+        "Guide registration completed successfully! Your profile is now available in the guides section.",
+      data: {
+        guide: guide?.[0],
+        statusMessage:
+          "Your guide profile has been created and is pending verification. You can start receiving chat messages from travelers immediately!",
+        nextSteps: [
+          "Complete your profile with additional photos",
+          "Wait for NID verification (usually within 24 hours)",
+          "Start responding to traveler inquiries",
+          "Build your rating through great service",
+        ],
+      },
     });
   } catch (error) {
     console.error("Create guide error:", error);
@@ -206,12 +299,22 @@ export const getAllGuides = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { page = 1, limit = 10, isVerified } = req.query;
+    const { page = 1, limit = 10, isVerified, category } = req.query;
 
-    let query = supabase.from("guides").select("*", { count: "exact" });
+    let query = supabase.from("guides").select(
+      `
+      *,
+      user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)
+    `,
+      { count: "exact" }
+    );
 
     if (isVerified === "true") {
       query = query.eq("is_verified", true);
+    }
+
+    if (category && category !== "All") {
+      query = query.ilike("expertise_area", `%${category}%`);
     }
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -222,6 +325,7 @@ export const getAllGuides = async (
       count,
     } = await query
       .order("rating", { ascending: false })
+      .order("created_at", { ascending: false }) // Show newest first
       .range(skip, skip + Number(limit) - 1);
 
     if (error) {
@@ -230,9 +334,47 @@ export const getAllGuides = async (
       return;
     }
 
+    // Format guides data for frontend
+    const formattedGuides = (guides || []).map((guide: any) => ({
+      id: guide.id,
+      name: `${guide.user?.first_name || guide.first_name || ""} ${
+        guide.user?.last_name || guide.last_name || ""
+      }`.trim(),
+      city: guide.location || guide.expertise_area || "Bangladesh",
+      rating: guide.rating || 4.5,
+      reviews: guide.total_reviews || 0,
+      price: `৳${guide.per_hour_rate}/hour`,
+      specialty: Array.isArray(guide.specialties)
+        ? guide.specialties.join(", ")
+        : guide.expertise_area || "Tourism Guide",
+      languages: Array.isArray(guide.languages)
+        ? guide.languages.join(", ")
+        : "Bengali, English",
+      badge: guide.is_verified
+        ? "Verified"
+        : guide.status === "pending"
+        ? "New Guide"
+        : guide.status,
+      category: guide.expertise_area || "City",
+      photo:
+        guide.user?.avatar_url ||
+        guide.profile_image_url ||
+        `https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop`,
+      isVerified: guide.is_verified,
+      status: guide.status,
+      yearsExperience: guide.years_of_experience || 1,
+      bio: guide.bio || `Experienced guide in ${guide.expertise_area}`,
+      isAvailable: guide.is_available,
+      perHourRate: guide.per_hour_rate,
+      expertiseCategories: guide.expertise_categories || [],
+      coverageAreas: guide.coverage_areas || [],
+      phone: guide.user?.phone || guide.phone,
+      email: guide.user?.email || guide.email,
+    }));
+
     res.status(200).json({
       success: true,
-      data: guides || [],
+      data: formattedGuides,
       pagination: {
         page: Number(page),
         limit: Number(limit),

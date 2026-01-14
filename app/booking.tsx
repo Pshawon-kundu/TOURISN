@@ -83,6 +83,27 @@ export default function BookingScreen() {
   };
 
   const handleConfirm = async () => {
+    // Move to payment step instead of confirming immediately
+    if (step === "details") {
+      setStep("payment");
+      return;
+    }
+
+    // Validate payment information
+    if (!cardNumber || cardNumber.length < 10) {
+      Alert.alert("Invalid Card", "Please enter a valid card number", [
+        { text: "OK" },
+      ]);
+      return;
+    }
+
+    if (!password) {
+      Alert.alert("Missing Password", "Please enter your card password", [
+        { text: "OK" },
+      ]);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -128,9 +149,13 @@ export default function BookingScreen() {
       }
 
       console.log("Booking created successfully:", result);
-      setBookingId(
-        result.data?.firebaseId || `TRV${Math.floor(Math.random() * 10000)}`
-      );
+      const createdBookingId =
+        result.data?.transport_booking?.id ||
+        result.data?.booking?.id ||
+        `TRV${Math.floor(Math.random() * 10000)}`;
+      setBookingId(createdBookingId);
+
+      // Show success popup
       setShowThankYou(true);
     } catch (error) {
       console.error("Booking error:", error);
@@ -152,10 +177,6 @@ export default function BookingScreen() {
   };
 
   const handleNext = () => {
-    if (step === "details") {
-      setStep("payment");
-      return;
-    }
     handleConfirm();
   };
 
@@ -405,17 +426,64 @@ export default function BookingScreen() {
         ) : null}
 
         {step === "payment" ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Payment method</Text>
-            <PaymentCard
-              cardNumber={cardNumber}
-              password={password}
-              onCardNumberChange={setCardNumber}
-              onPasswordChange={setPassword}
-              expDate="01/24"
-              cvv="454"
-            />
-          </View>
+          <>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Payment method</Text>
+              <PaymentCard
+                cardNumber={cardNumber}
+                password={password}
+                onCardNumberChange={setCardNumber}
+                onPasswordChange={setPassword}
+                expDate="01/24"
+                cvv="454"
+              />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Order Summary</Text>
+              {bookingType === "stay" && (
+                <View style={styles.priceNote}>
+                  <Ionicons
+                    name="information-circle"
+                    size={16}
+                    color={Colors.primary}
+                  />
+                  <Text style={styles.priceNoteText}>
+                    {personCount} {personCount === 1 ? "person" : "people"} •{" "}
+                    {quality?.label} room
+                  </Text>
+                </View>
+              )}
+              {bookingType === "transport" && (
+                <View style={styles.priceNote}>
+                  <Ionicons
+                    name="information-circle"
+                    size={16}
+                    color={Colors.primary}
+                  />
+                  <Text style={styles.priceNoteText}>
+                    {fromDistrict} → {toDistrict} • {transportType || "Car"}
+                  </Text>
+                </View>
+              )}
+              <PriceRow
+                label="Base fare"
+                value={`TK ${calculatedPrice.toLocaleString()}`}
+              />
+              <PriceRow
+                label="Taxes & fees"
+                value={`TK ${taxes.toLocaleString()}`}
+              />
+              <PriceRow label="Service fee" value={`TK ${serviceFee}`} />
+              <PriceRow label="Discount" value={`-TK ${discount}`} accent />
+              <View style={styles.divider} />
+              <PriceRow
+                label="Total"
+                value={`TK ${totalAmount.toLocaleString()}`}
+                bold
+              />
+            </View>
+          </>
         ) : null}
 
         <TouchableOpacity

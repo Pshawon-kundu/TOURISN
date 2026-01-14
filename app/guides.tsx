@@ -1,11 +1,11 @@
-import { BottomPillNav } from "@/components/bottom-pill-nav";
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -22,102 +22,128 @@ const guideCategories = [
   "City",
   "Culture",
   "Food",
+  "Adventure",
 ] as const;
 
-const guides = [
-  {
-    id: "g1",
-    name: "Arif Rahman",
-    city: "Dhaka & Old Town",
-    rating: 4.9,
-    reviews: 210,
-    price: "৳1,200/day",
-    specialty: "Heritage walks, food trails",
-    languages: "Bangla, English",
-    badge: "Top pick",
-    category: "City" as const,
-    photo:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g2",
-    name: "Mina Akter",
-    city: "Sylhet tea gardens",
-    rating: 4.8,
-    reviews: 180,
-    price: "৳1,100/day",
-    specialty: "Tea estates, waterfalls",
-    languages: "Bangla, English",
-    badge: "Nature",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g3",
-    name: "Rana Chowdhury",
-    city: "Cox's Bazar coastline",
-    rating: 4.7,
-    reviews: 260,
-    price: "৳1,500/day",
-    specialty: "Surf, seafood, sunsets",
-    languages: "Bangla, English",
-    badge: "Beach",
-    category: "Beach" as const,
-    photo:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g4",
-    name: "Farzana Yasmin",
-    city: "Bandarban hills",
-    rating: 4.9,
-    reviews: 190,
-    price: "৳1,800/day",
-    specialty: "Hill treks, tribal culture",
-    languages: "Bangla, English, Hindi",
-    badge: "Adventure",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g5",
-    name: "Nadia Karim",
-    city: "Sajek & Rangamati",
-    rating: 4.6,
-    reviews: 150,
-    price: "৳1,600/day",
-    specialty: "Sunrise points, lake cruises",
-    languages: "Bangla, English",
-    badge: "Scenic",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&auto=format&fit=crop",
-  },
-];
+interface Guide {
+  id: string;
+  name: string;
+  city: string;
+  rating: number;
+  reviews: number;
+  price: string;
+  specialty: string;
+  languages: string;
+  badge: string;
+  category: string;
+  photo: string;
+  isVerified: boolean;
+  status: string;
+  yearsExperience: number;
+  bio: string;
+  isAvailable: boolean;
+  perHourRate: number;
+  expertiseCategories: string[];
+  coverageAreas: string[];
+  phone: string;
+  email: string;
+}
 
 export default function GuidesScreen() {
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] =
-    useState<(typeof guideCategories)[number]>("All");
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchGuides = async (refresh = false) => {
+    try {
+      if (refresh) setRefreshing(true);
+      else setLoading(true);
+
+      const baseUrl = "http://localhost:5001"; // Adjust to your backend URL
+      const response = await fetch(`${baseUrl}/api/guides`);
+      const data = await response.json();
+
+      if (data.success) {
+        setGuides(data.data);
+      } else {
+        console.warn("Failed to fetch guides:", data.error);
+        Alert.alert("Error", "Failed to load guides. Please try again.");
+      }
+    } catch (error) {
+      console.error("Guide fetch error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to connect to server. Please check your connection."
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGuides();
+  }, []);
+
+  const onRefresh = () => {
+    fetchGuides(true);
+  };
 
   const filteredGuides = useMemo(() => {
-    const term = search.toLowerCase();
+    const term = searchQuery.toLowerCase();
     return guides.filter((guide) => {
       const matchesCategory =
-        activeCategory === "All" || guide.category === activeCategory;
+        activeCategory === "All" ||
+        guide.category.toLowerCase() === activeCategory.toLowerCase() ||
+        guide.specialty?.toLowerCase().includes(activeCategory.toLowerCase());
+
       const matchesSearch =
+        term === "" ||
         guide.name.toLowerCase().includes(term) ||
-        guide.city.toLowerCase().includes(term);
+        guide.city.toLowerCase().includes(term) ||
+        guide.specialty.toLowerCase().includes(term);
+
       return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, search]);
+  }, [activeCategory, searchQuery, guides]);
+
+  const handleChatWithGuide = (guide: Guide) => {
+    router.push({
+      pathname: "/chat-room",
+      params: {
+        guideId: guide.id,
+        guideName: guide.name,
+      },
+    });
+  };
+
+  if (loading) {
+    return (
+      <ThemedView style={styles.container}>
+        <Header title="Local Guides" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading guides...</Text>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
       <Header title="Local Guides" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+          />
+        }
+      >
         <View style={styles.hero}>
           <View style={{ flex: 1, gap: 6 }}>
             <Text style={styles.heroKicker}>Verified locals</Text>
@@ -147,8 +173,8 @@ export default function GuidesScreen() {
               style={styles.searchInput}
               placeholder="Search city, guide, or specialty"
               placeholderTextColor="#9CA3AF"
-              value={search}
-              onChangeText={setSearch}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
           <ScrollView
@@ -176,42 +202,125 @@ export default function GuidesScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Top rated</Text>
-          <TouchableOpacity onPress={() => router.push("/guides")}>
-            <Text style={styles.sectionLink}>View all</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>
+            {filteredGuides.length > 0
+              ? `${filteredGuides.length} Guides Available`
+              : "Top rated"}
+          </Text>
+          {filteredGuides.length > 10 && (
+            <TouchableOpacity onPress={() => router.push("/guides")}>
+              <Text style={styles.sectionLink}>View all</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.guideList}>
-          {filteredGuides.map((guide) => (
-            <TouchableOpacity
-              key={guide.id}
-              style={styles.guideCard}
-              onPress={() => router.push(`/guide/${guide.id}`)}
-              activeOpacity={0.9}
-            >
-              <Image source={{ uri: guide.photo }} style={styles.guidePhoto} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.guideName}>{guide.name}</Text>
-                  <Text style={styles.badge}>{guide.badge}</Text>
-                </View>
-                <Text style={styles.guideCity}>{guide.city}</Text>
-                <Text style={styles.guideMeta}>{guide.specialty}</Text>
-                <Text style={styles.guideMeta}>{guide.languages}</Text>
-                <View style={styles.cardFooter}>
-                  <View style={styles.ratingRow}>
-                    <MaterialIcons name="star" size={16} color="#F59E0B" />
-                    <Text style={styles.ratingText}>
-                      {guide.rating} ({guide.reviews})
-                    </Text>
+        {filteredGuides.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialIcons name="search-off" size={48} color="#6B7280" />
+            <Text style={styles.emptyTitle}>No guides found</Text>
+            <Text style={styles.emptySubtitle}>
+              Try adjusting your search or category filter
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.guideList}>
+            {filteredGuides.map((guide) => (
+              <TouchableOpacity
+                key={guide.id}
+                style={styles.guideCard}
+                onPress={() => router.push(`/guide/${guide.id}`)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: guide.photo }}
+                  style={styles.guidePhoto}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.guideName}>{guide.name}</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        guide.isVerified
+                          ? styles.badgeVerified
+                          : guide.badge === "New Guide"
+                          ? styles.badgeNew
+                          : styles.badgeDefault,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          guide.isVerified
+                            ? styles.badgeTextVerified
+                            : guide.badge === "New Guide"
+                            ? styles.badgeTextNew
+                            : styles.badgeTextDefault,
+                        ]}
+                      >
+                        {guide.badge}
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={styles.price}>{guide.price}</Text>
+                  <Text style={styles.guideCity}>{guide.city}</Text>
+                  <Text style={styles.guideMeta}>{guide.specialty}</Text>
+                  <Text style={styles.guideMeta}>{guide.languages}</Text>
+                  <View style={styles.cardFooter}>
+                    <View style={styles.ratingRow}>
+                      <MaterialIcons name="star" size={16} color="#F59E0B" />
+                      <Text style={styles.ratingText}>
+                        {guide.rating} ({guide.reviews})
+                      </Text>
+                      <MaterialIcons
+                        name={
+                          guide.isAvailable
+                            ? "radio-button-checked"
+                            : "radio-button-unchecked"
+                        }
+                        size={12}
+                        color={guide.isAvailable ? "#10B981" : "#6B7280"}
+                        style={{ marginLeft: 8 }}
+                      />
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: guide.isAvailable ? "#10B981" : "#6B7280" },
+                        ]}
+                      >
+                        {guide.isAvailable ? "Available" : "Busy"}
+                      </Text>
+                    </View>
+                    <Text style={styles.price}>{guide.price}</Text>
+                  </View>
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={styles.chatButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleChatWithGuide(guide);
+                      }}
+                    >
+                      <MaterialIcons name="chat" size={16} color="#FFFFFF" />
+                      <Text style={styles.chatButtonText}>Chat Now</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.bookButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push({
+                          pathname: "/booking",
+                          params: { guideId: guide.id },
+                        });
+                      }}
+                    >
+                      <Text style={styles.bookButtonText}>Book</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View style={styles.featureGrid}>
           <View style={styles.featureCard}>
@@ -266,7 +375,6 @@ export default function GuidesScreen() {
 
         <View style={{ height: 120 }} />
       </ScrollView>
-      <BottomPillNav />
     </ThemedView>
   );
 }
@@ -416,13 +524,33 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   badge: {
-    backgroundColor: "#E0F2FE",
-    color: "#0EA5E9",
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: Radii.full,
     fontSize: 12,
     fontWeight: "700",
+  },
+  badgeDefault: {
+    backgroundColor: "#E0F2FE",
+  },
+  badgeVerified: {
+    backgroundColor: "#D1FAE5",
+  },
+  badgeNew: {
+    backgroundColor: "#FEF3C7",
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  badgeTextDefault: {
+    color: "#0EA5E9",
+  },
+  badgeTextVerified: {
+    color: "#10B981",
+  },
+  badgeTextNew: {
+    color: "#F59E0B",
   },
   guideCity: {
     color: Colors.textSecondary,
@@ -506,5 +634,70 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     color: "#FFF",
     fontWeight: "800",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: Spacing.xl * 2,
+    gap: Spacing.md,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: Spacing.lg,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  chatButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.md,
+    gap: 6,
+    flex: 1,
+  },
+  chatButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  bookButton: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.md,
+    flex: 1,
+    alignItems: "center",
+  },
+  bookButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
   },
 });

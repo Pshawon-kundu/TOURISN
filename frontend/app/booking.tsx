@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/action-button";
+
 import { Header } from "@/components/header";
 import { PaymentCard } from "@/components/payment-card";
 import { ThemedView } from "@/components/themed-view";
@@ -162,7 +163,7 @@ export default function BookingScreen() {
     try {
       await apiClient.request({
         method: "POST",
-        endpoint: "/bookings",
+        endpoint: "/stays",
         body: {
           booking_type: "stay",
           item_id: bookingData.experienceId || "",
