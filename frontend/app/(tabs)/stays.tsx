@@ -98,11 +98,18 @@ export default function StaysScreen() {
         ],
       }}
     >
-      <View style={styles.card}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         <Image source={{ uri: item.image }} style={styles.cardImage} />
 
         {/* Type Badge */}
-        <View style={styles.typeBadge}>
+        <View
+          style={[styles.typeBadge, { backgroundColor: "rgba(0,0,0,0.6)" }]}
+        >
           <Text style={styles.typeBadgeText}>{item.type.toUpperCase()}</Text>
         </View>
 
@@ -115,34 +122,65 @@ export default function StaysScreen() {
 
         {/* Content */}
         <View style={styles.cardContent}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text
+            style={[styles.name, { color: colors.textPrimary }]}
+            numberOfLines={1}
+          >
             {item.name}
           </Text>
 
           <View style={styles.locationRow}>
             <Ionicons name="location" size={14} color={colors.textSecondary} />
-            <Text style={styles.location}>{item.location}</Text>
+            <Text style={[styles.location, { color: colors.textSecondary }]}>
+              {item.location}
+            </Text>
           </View>
 
           {/* Capacity & Rate Row */}
           <View style={styles.infoRow}>
-            <View style={styles.infoPill}>
+            <View
+              style={[
+                styles.infoPill,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
               <View style={styles.infoLabelRow}>
                 <Ionicons
                   name="people"
                   size={14}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.infoLabel}>Capacity</Text>
+                <Text
+                  style={[styles.infoLabel, { color: colors.textSecondary }]}
+                >
+                  Capacity
+                </Text>
               </View>
-              <Text style={styles.infoValue}>{item.capacity} people</Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                {item.capacity} people
+              </Text>
             </View>
-            <View style={styles.infoPill}>
+            <View
+              style={[
+                styles.infoPill,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
               <View style={styles.infoLabelRow}>
                 <Ionicons name="cash" size={14} color={colors.textSecondary} />
-                <Text style={styles.infoLabel}>Per Day</Text>
+                <Text
+                  style={[styles.infoLabel, { color: colors.textSecondary }]}
+                >
+                  Per Day
+                </Text>
               </View>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {item.currency} {item.ratePerDay.toLocaleString()}
               </Text>
             </View>
@@ -151,13 +189,34 @@ export default function StaysScreen() {
           {/* Amenities */}
           <View style={styles.amenitiesContainer}>
             {item.amenities.slice(0, 3).map((amenity: string, idx: number) => (
-              <View key={idx} style={styles.amenityTag}>
-                <Text style={styles.amenityText}>{amenity}</Text>
+              <View
+                key={idx}
+                style={[
+                  styles.amenityTag,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.primary + "40",
+                  },
+                ]}
+              >
+                <Text style={[styles.amenityText, { color: colors.primary }]}>
+                  {amenity}
+                </Text>
               </View>
             ))}
             {item.amenities.length > 3 && (
-              <View style={styles.amenityTag}>
-                <Text style={styles.amenityText}>
+              <View
+                style={[
+                  styles.amenityTag,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.amenityText, { color: colors.textSecondary }]}
+                >
                   +{item.amenities.length - 3}
                 </Text>
               </View>
@@ -165,13 +224,19 @@ export default function StaysScreen() {
           </View>
 
           {/* Description */}
-          <Text style={styles.description} numberOfLines={2}>
+          <Text
+            style={[styles.description, { color: colors.textSecondary }]}
+            numberOfLines={2}
+          >
             {item.description}
           </Text>
 
           {/* Book Button */}
           <TouchableOpacity
-            style={styles.bookButton}
+            style={[
+              styles.bookButton,
+              { backgroundColor: colors.primary, shadowColor: colors.primary },
+            ]}
             onPress={() => {
               // Navigate to trip detail page with stay information
               router.push({
@@ -230,7 +295,7 @@ export default function StaysScreen() {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              Find Your Stay
+              Booking
             </Text>
             <View style={styles.headerSubtitleRow}>
               <Text
@@ -292,7 +357,7 @@ export default function StaysScreen() {
           />
           <TextInput
             style={[styles.searchInput, { color: colors.textPrimary }]}
-            placeholder="Search stays, locations..."
+            placeholder="Search places..."
             placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -405,7 +470,7 @@ export default function StaysScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="bed-outline" size={64} color={colors.textMuted} />
               <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
-                No stays found
+                No places found
               </Text>
               <Text
                 style={[styles.emptySubtext, { color: colors.textSecondary }]}
@@ -554,15 +619,13 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: Spacing.lg,
     borderRadius: Radii.xl,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
   cardImage: {

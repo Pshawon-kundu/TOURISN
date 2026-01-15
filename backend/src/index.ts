@@ -1,12 +1,16 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { Express } from "express";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import chatRoutes from "./routes/chatRoutes";
+import districtRoutes from "./routes/districtRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
+import foodRoutes from "./routes/foodRoutes";
 import guideRoutes from "./routes/guideRoutes";
 import nidVerificationRoutes from "./routes/nidVerificationRoutes";
 import profileRoutes from "./routes/profileRoutes";
@@ -14,6 +18,10 @@ import reviewRoutes from "./routes/reviewRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
 import stayRoutes from "./routes/stayRoutes";
 import transportRoutes from "./routes/transportRoutes";
+import {
+  cleanupRealtimeService,
+  initializeRealtimeService,
+} from "./services/realtimeService";
 
 dotenv.config();
 
@@ -39,6 +47,8 @@ const corsOptions = {
     "http://127.0.0.1:8082",
     "http://localhost:8084",
     "http://127.0.0.1:8084",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
     "http://192.168.0.196:8081",
     "http://192.168.0.196:8084",
     "exp://192.168.0.196:8081",
@@ -75,6 +85,8 @@ app.use("/api/transport", transportRoutes);
 app.use("/api/stays", stayRoutes);
 app.use("/api/nid", nidVerificationRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/districts", districtRoutes);
+app.use("/api/food", foodRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -92,14 +104,46 @@ const initializeAndStartServer = async () => {
     console.log("✅ Database initialized");
 
     console.log(`📡 Starting Express server on port ${port}...`);
-    const server = app.listen(port, "0.0.0.0", () => {
+
+    // Create HTTP server
+    const httpServer = createServer(app);
+
+    // Initialize Socket.IO
+    const io = new SocketIOServer(httpServer, {
+      cors: {
+        origin: [
+          "http://localhost:4173",
+          "http://127.0.0.1:4173",
+          "http://localhost:3000",
+          "http://localhost:8081",
+        ],
+        methods: ["GET", "POST"],
+        credentials: true,
+      },
+    });
+
+    // Initialize real-time service with Socket.IO
+    initializeRealtimeService(io);
+
+    httpServer.listen(port, "0.0.0.0", () => {
       console.log(`✅ Server is now listening on http://localhost:${port}`);
       console.log(`✅ Server is also available at http://127.0.0.1:${port}`);
       console.log(`✅ API available at http://localhost:${port}/api`);
+      console.log(`🔌 Socket.IO server is ready for real-time connections`);
     });
 
-    server.on("error", (error: any) => {
+    httpServer.on("error", (error: any) => {
       console.error("❌ Server error:", error);
+    });
+
+    // Cleanup on shutdown
+    process.on("SIGTERM", () => {
+      console.log("🛑 SIGTERM received, cleaning up...");
+      cleanupRealtimeService();
+      httpServer.close(() => {
+        console.log("👋 Server shut down gracefully");
+        process.exit(0);
+      });
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);

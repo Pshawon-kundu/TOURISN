@@ -173,7 +173,15 @@ export default function ExploreScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.exploreButton}>
+        <TouchableOpacity
+          style={styles.exploreButton}
+          onPress={() => {
+            router.push({
+              pathname: "/district-detail" as any,
+              params: { id: item.id },
+            });
+          }}
+        >
           <Text style={styles.exploreButtonText}>Explore District</Text>
           <Ionicons name="arrow-forward" size={16} color="#fff" />
         </TouchableOpacity>
@@ -553,8 +561,8 @@ const styles = StyleSheet.create({
   },
 
   filterChipActive: {
-    backgroundColor: "#667eea",
-    borderColor: "#667eea",
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
 
   filterChipText: {
@@ -581,7 +589,12 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(0,0,0,0.05)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   statNumber: {
@@ -609,12 +622,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(0,0,0,0.05)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
 
   cardImage: {
@@ -630,7 +643,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(102, 126, 234, 0.95)",
+    backgroundColor: "rgba(37, 99, 235, 0.95)",
     paddingHorizontal: Spacing.sm + 4,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radii.md,
@@ -736,7 +749,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.xs,
-    backgroundColor: "#667eea",
+    backgroundColor: "#2563EB",
     paddingVertical: Spacing.md,
     borderRadius: Radii.lg,
     marginTop: Spacing.sm,

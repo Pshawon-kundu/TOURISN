@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { firebaseAuth } from "../config/firebase";
 import { supabase } from "../config/supabase";
+import { emitUserLogin, emitUserSignup } from "../services/realtimeService";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -120,6 +121,17 @@ export const signup = async (
       console.log("✅ User profile stored in Supabase:");
       console.log("   Response:", data);
 
+      // Emit real-time event for admin dashboard
+      if (data && data[0]) {
+        await emitUserSignup({
+          id: data[0].id,
+          email: data[0].email,
+          role: data[0].role,
+          full_name: `${data[0].first_name} ${data[0].last_name}`.trim(),
+          created_at: new Date().toISOString(),
+        });
+      }
+
       // Return success - frontend will have already created Firebase account
       console.log("✅ SIGNUP COMPLETE - Sending response to client");
       res.status(201).json({
@@ -210,16 +222,52 @@ export const login = async (
       return;
     }
 
-    if (!userData || userData.length === 0) {
-      console.error("❌ User not found in Supabase:", { email });
-      res.status(401).json({
-        success: false,
-        error: `Invalid email or password`,
-      });
-      return;
-    }
+    let user = userData && userData.length > 0 ? userData[0] : null;
 
-    const user = userData[0];
+    // ✅ Auto-create user profile if it doesn't exist (for Firebase-authenticated users)
+    if (!user) {
+      console.log("⚠️  User not found in Supabase, creating profile...", {
+        email,
+      });
+
+      const nameFromEmail = email.split("@")[0];
+      const newUserData = {
+        id: uuidv4(),
+        email,
+        role: "traveler",
+        first_name: nameFromEmail,
+        last_name: "",
+        phone: null,
+        avatar_url: null,
+        bio: null,
+        firebase_uid: null,
+      };
+
+      const { data: createdUser, error: createError } = await supabase
+        .from("users")
+        .insert([newUserData])
+        .select();
+
+      if (createError) {
+        console.error("❌ Failed to create user profile:", createError);
+        res.status(500).json({
+          success: false,
+          error: `Failed to create user profile: ${createError.message}`,
+        });
+        return;
+      }
+
+      console.log("✅ User profile auto-created in Supabase");
+      user = createdUser && createdUser.length > 0 ? createdUser[0] : null;
+
+      if (!user) {
+        res.status(500).json({
+          success: false,
+          error: "Failed to retrieve created user profile",
+        });
+        return;
+      }
+    }
     console.log("✅ User profile fetched from Supabase");
     console.log("   User:", {
       id: user.id,
@@ -229,6 +277,14 @@ export const login = async (
 
     // ✅ Password verification is handled by Firebase Auth on the frontend
     // If we receive a valid idToken, the user authenticated successfully
+
+    // Emit real-time event for admin dashboard
+    await emitUserLogin(user.id, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.name || `${user.first_name} ${user.last_name}`.trim(),
+    });
 
     // Return success
     console.log("✅ LOGIN COMPLETE");

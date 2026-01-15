@@ -95,7 +95,7 @@ export default function HomeScreen() {
       iconFamily: "MaterialCommunityIcons",
       icon: "map-marker-path",
       title: "Experiences",
-      route: "/explore",
+      route: "/(tabs)/experiences",
       color: "#EF4444",
     },
     {
@@ -109,25 +109,37 @@ export default function HomeScreen() {
 
   const featuredTrips = [
     {
+      id: "1", // Cox's Bazar Beach Experience ID
       title: "Cox's Bazar Beach Escape",
-      tag: "Sun & Sea",
-      price: "From ৳ 1,200",
-      image:
-        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
-    },
-    {
-      title: "Bandarban Hill Trails",
       tag: "Adventure",
-      price: "From ৳ 1,800",
+      price: "From ৳ 2,500",
       image:
-        "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800",
+        "https://images.unsplash.com/photo-1589192471364-23e0c3b3f24e?w=800&h=400&fit=crop",
+      duration: "4 hours",
+      rating: 4.9,
+      reviews: 287,
     },
     {
-      title: "Sylhet Tea Garden Escape",
+      id: "2", // Bandarban Hill Trek Experience ID
+      title: "Bandarban Hill Trek",
       tag: "Nature",
-      price: "From ৳ 1,100",
+      price: "From ৳ 3,500",
       image:
-        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=800",
+        "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=400&fit=crop",
+      duration: "Full day",
+      rating: 4.8,
+      reviews: 156,
+    },
+    {
+      id: "3", // Sundarbans Experience ID
+      title: "Sundarbans Wildlife Safari",
+      tag: "Nature",
+      price: "From ৳ 4,200",
+      image:
+        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=800&h=400&fit=crop",
+      duration: "2 days",
+      rating: 4.7,
+      reviews: 98,
     },
   ];
 
@@ -333,17 +345,31 @@ export default function HomeScreen() {
             contentContainerStyle={styles.cardsScroll}
           >
             {featuredTrips.map((trip) => (
-              <View key={trip.title} style={styles.featureCard}>
+              <TouchableOpacity
+                key={trip.title}
+                style={styles.featureCard}
+                onPress={() => router.push(`/experience-detail?id=${trip.id}`)}
+              >
                 <Image
                   source={{ uri: trip.image }}
                   style={styles.featureImage}
                 />
+                <View style={styles.featureOverlay}>
+                  <View style={styles.featureRating}>
+                    <Ionicons name="star" size={12} color="#FFF" />
+                    <Text style={styles.ratingText}>{trip.rating}</Text>
+                    <Text style={styles.reviewsText}>({trip.reviews})</Text>
+                  </View>
+                </View>
                 <View style={styles.featureContent}>
                   <Text style={styles.featureTag}>{trip.tag}</Text>
                   <Text style={styles.featureTitle}>{trip.title}</Text>
-                  <Text style={styles.featurePrice}>{trip.price}</Text>
+                  <View style={styles.tripMeta}>
+                    <Text style={styles.featureDuration}>{trip.duration}</Text>
+                    <Text style={styles.featurePrice}>{trip.price}</Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
@@ -425,7 +451,7 @@ export default function HomeScreen() {
               {/* Main Menu */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="🏠"
+                  icon="home-outline"
                   title="Home"
                   onPress={() => {
                     setMenuVisible(false);
@@ -433,7 +459,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🎒"
+                  icon="sparkles-outline"
                   title="Experience"
                   onPress={() => {
                     setMenuVisible(false);
@@ -441,7 +467,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="💼"
+                  icon="briefcase-outline"
                   title="Business"
                   onPress={() => {
                     setMenuVisible(false);
@@ -449,7 +475,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="👥"
+                  icon="information-circle-outline"
                   title="About us"
                   onPress={() => {
                     setMenuVisible(false);
@@ -463,7 +489,7 @@ export default function HomeScreen() {
               {/* Services Section */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="🚗"
+                  icon="car-outline"
                   title="Transport"
                   onPress={() => {
                     setMenuVisible(false);
@@ -471,7 +497,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🏨"
+                  icon="bed-outline"
                   title="Hotel"
                   onPress={() => {
                     setMenuVisible(false);
@@ -479,7 +505,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🍽️"
+                  icon="restaurant-outline"
                   title="Food"
                   onPress={() => {
                     setMenuVisible(false);
@@ -487,7 +513,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🗺️"
+                  icon="people-outline"
                   title="Guide"
                   onPress={() => {
                     setMenuVisible(false);
@@ -501,7 +527,7 @@ export default function HomeScreen() {
               {/* Account Section */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="👤"
+                  icon="person-outline"
                   title="Profile"
                   onPress={() => {
                     setMenuVisible(false);
@@ -509,14 +535,14 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🔔"
+                  icon="notifications-outline"
                   title="Notifications"
                   onPress={() => {
                     setMenuVisible(false);
                   }}
                 />
                 <DrawerItem
-                  icon="💬"
+                  icon="chatbubble-ellipses-outline"
                   title="Messages"
                   onPress={() => {
                     setMenuVisible(false);
@@ -524,7 +550,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🚪"
+                  icon="log-out-outline"
                   title={signingOut ? "Signing out..." : "Log Out"}
                   onPress={() => {
                     setMenuVisible(false);
@@ -549,26 +575,13 @@ function DrawerItem({
   title: string;
   onPress: () => void;
 }) {
-  const EMOJI_TO_IONICON: Record<string, string> = {
-    "🎒": "bag",
-    "💼": "briefcase",
-    "👥": "people",
-    "🚗": "car",
-    "🏨": "bed",
-    "🍽️": "restaurant",
-    "🗺️": "map",
-    "👤": "person",
-    "🔔": "notifications",
-    "💬": "chatbubbles",
-    "🚪": "log-out",
-  };
   return (
     <TouchableOpacity style={drawerItemStyles.container} onPress={onPress}>
       <Ionicons
-        name={(EMOJI_TO_IONICON[icon] ?? "ellipse-outline") as any}
-        size={24}
+        name={icon as any}
+        size={22}
         color={Colors.textPrimary}
-        style={{ marginRight: Spacing.lg, width: 30 }}
+        style={drawerItemStyles.icon}
       />
       <Text style={drawerItemStyles.title}>{title}</Text>
     </TouchableOpacity>
@@ -618,9 +631,8 @@ const drawerItemStyles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   icon: {
-    fontSize: 24,
     marginRight: Spacing.lg,
-    width: 30,
+    width: 24,
   },
   title: {
     fontSize: 16,
@@ -812,25 +824,72 @@ const styles = StyleSheet.create({
   },
   featureImage: {
     width: "100%",
-    height: 130,
+    height: 140,
+    position: "relative",
+  },
+  featureOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    zIndex: 1,
+  },
+  featureRating: {
+    position: "absolute",
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: Radii.sm,
+    gap: 3,
+  },
+  ratingText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  reviewsText: {
+    color: "#E0E0E0",
+    fontSize: 10,
+    fontWeight: "500",
   },
   featureContent: {
     padding: Spacing.md,
-    gap: 4,
+    gap: 6,
   },
   featureTag: {
     fontSize: 12,
     color: Colors.primary,
     fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   featureTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: Colors.textPrimary,
+    lineHeight: 20,
+  },
+  tripMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  featureDuration: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "500",
   },
   featurePrice: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontWeight: "700",
   },
   guideCard: {
     flexDirection: "row",

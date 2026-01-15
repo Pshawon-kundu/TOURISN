@@ -136,7 +136,6 @@ export default function ExperienceDetailScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
       >
         {/* Image */}
         <Image source={{ uri: experience.image }} style={styles.image} />
@@ -170,54 +169,6 @@ export default function ExperienceDetailScreen() {
           </View>
         </View>
 
-        {/* Separator */}
-        <View style={styles.separator} />
-
-        {/* Difficulty & Season */}
-        <View style={styles.detailsSection}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Difficulty Level</Text>
-            <View
-              style={[
-                styles.difficultyBadge,
-                {
-                  borderColor: getDifficultyColor(experience.difficulty),
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.difficultyText,
-                  { color: getDifficultyColor(experience.difficulty) },
-                ]}
-              >
-                {experience.difficulty.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Best Season</Text>
-            <Text style={styles.detailValue}>
-              {experience.bestSeason.join(", ")}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Physical Requirement</Text>
-            <Text style={styles.detailValue}>
-              {experience.physicalRequirement}
-            </Text>
-          </View>
-
-          {experience.minAge && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Minimum Age</Text>
-              <Text style={styles.detailValue}>{experience.minAge}+ years</Text>
-            </View>
-          )}
-        </View>
-
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About This Experience</Text>
@@ -234,30 +185,6 @@ export default function ExperienceDetailScreen() {
             </View>
           ))}
         </View>
-
-        {/* Included */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What&apos;s Included</Text>
-          {experience.included.map((item, idx) => (
-            <View key={idx} style={styles.listItem}>
-              <Ionicons name="checkmark" size={16} color="#10B981" />
-              <Text style={styles.listText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Not Included */}
-        {experience.notIncluded.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Not Included</Text>
-            {experience.notIncluded.map((item, idx) => (
-              <View key={idx} style={styles.listItem}>
-                <Ionicons name="close" size={16} color="#EF4444" />
-                <Text style={styles.listText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        )}
 
         {/* Guide Info */}
         <View style={styles.section}>
@@ -282,17 +209,6 @@ export default function ExperienceDetailScreen() {
                 </Text>
               </View>
             </View>
-          </View>
-        </View>
-
-        {/* Separator */}
-        <View style={styles.separator} />
-
-        {/* Cancellation Policy */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cancellation Policy</Text>
-          <View style={styles.policyBox}>
-            <Text style={styles.policyText}>{experience.cancellation}</Text>
           </View>
         </View>
 
@@ -358,105 +274,80 @@ export default function ExperienceDetailScreen() {
 
       {/* Booking Footer */}
       <View style={styles.footerContainer}>
-        {/* Pricing Summary Row */}
-        <View style={styles.pricingSummary}>
-          <View style={styles.priceBreakdown}>
-            <Text style={styles.basePrice}>
-              ৳{experience.price.toLocaleString()} × {quantity} person
-              {quantity > 1 ? "s" : ""}
-            </Text>
-            {getPricingMultiplier(selectedTime) !== 1 && (
-              <View style={styles.pricingAdjustment}>
-                <Text style={styles.adjustmentText}>
-                  {getPricingMultiplier(selectedTime) > 1
-                    ? "Peak time +25%"
-                    : "Off-peak -10%"}
-                </Text>
-                <Text style={styles.adjustmentAmount}>
-                  {getPricingMultiplier(selectedTime) > 1 ? "+" : ""}৳
-                  {(
-                    calculateDynamicPrice() -
-                    experience.price * quantity
-                  ).toLocaleString()}
-                </Text>
-              </View>
-            )}
+        <View style={styles.topRow}>
+          <View style={styles.quantitySection}>
+            <Text style={styles.addPeopleLabel}>Add People</Text>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() => quantity > 1 && setQuantity(quantity - 1)}
+            >
+              <Text style={styles.quantityButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.quantityValue}>{quantity}</Text>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() =>
+                quantity < experience.maxParticipants &&
+                setQuantity(quantity + 1)
+              }
+            >
+              <Text style={styles.quantityButtonText}>+</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.totalSection}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalPrice}>
-              ৳{calculateDynamicPrice().toLocaleString()}
-            </Text>
-          </View>
-        </View>
 
-        {/* Action Buttons Row */}
-        <View style={styles.actionRow}>
-          <View style={styles.quantityControls}>
-            <Text style={styles.quantityLabel}>People</Text>
-            <View style={styles.quantityButtons}>
-              <TouchableOpacity
+          <View style={styles.priceSection}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.totalPrice}>
+                ৳{calculateDynamicPrice().toLocaleString()}
+              </Text>
+              <View
                 style={[
-                  styles.quantityBtn,
-                  quantity <= 1 && styles.quantityBtnDisabled,
+                  styles.priceBadge,
+                  {
+                    backgroundColor:
+                      getPricingMultiplier(selectedTime) > 1
+                        ? "#FEE2E2"
+                        : getPricingMultiplier(selectedTime) < 1
+                        ? "#DBEAFE"
+                        : "transparent",
+                  },
                 ]}
-                onPress={() => quantity > 1 && setQuantity(quantity - 1)}
-                disabled={quantity <= 1}
               >
-                <Ionicons
-                  name="remove"
-                  size={16}
-                  color={quantity <= 1 ? "#9CA3AF" : "#374151"}
-                />
-              </TouchableOpacity>
-              <View style={styles.quantityDisplay}>
-                <Text style={styles.quantityNumber}>{quantity}</Text>
+                <Text
+                  style={[
+                    styles.priceBadgeText,
+                    {
+                      color:
+                        getPricingMultiplier(selectedTime) > 1
+                          ? "#DC2626"
+                          : getPricingMultiplier(selectedTime) < 1
+                          ? "#0284C7"
+                          : "#10B981",
+                    },
+                  ]}
+                >
+                  {getPricingMultiplier(selectedTime) > 1
+                    ? "Peak"
+                    : getPricingMultiplier(selectedTime) < 1
+                    ? "Off-peak"
+                    : "Normal"}
+                </Text>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.quantityBtn,
-                  quantity >= experience.maxParticipants &&
-                    styles.quantityBtnDisabled,
-                ]}
-                onPress={() =>
-                  quantity < experience.maxParticipants &&
-                  setQuantity(quantity + 1)
-                }
-                disabled={quantity >= experience.maxParticipants}
-              >
-                <Ionicons
-                  name="add"
-                  size={16}
-                  color={
-                    quantity >= experience.maxParticipants
-                      ? "#9CA3AF"
-                      : "#374151"
-                  }
-                />
-              </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.bookNowButton}
-            onPress={handleBookNow}
-          >
-            <Text style={styles.bookNowText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          <TouchableOpacity style={styles.bookButton} onPress={handleBookNow}>
+            <Text style={styles.bookButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Message Guide Button */}
         <TouchableOpacity
-          style={styles.messageGuideButton}
+          style={styles.messageButton}
           onPress={handleMessageGuide}
         >
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={18}
-            color="#2563EB"
-          />
-          <Text style={styles.messageGuideText}>Ask Guide a Question</Text>
+          <Ionicons name="chatbubble-ellipses" size={20} color="#2563EB" />
+          <Text style={styles.messageButtonText}>Message Guide</Text>
         </TouchableOpacity>
       </View>
 
@@ -614,7 +505,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-
   headerBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -625,13 +515,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.08)",
     paddingTop: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
   },
-
   headerBackButton: {
     width: 44,
     height: 44,
@@ -640,7 +524,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
-
   headerTitle: {
     fontSize: 16,
     fontWeight: "700",
@@ -649,31 +532,25 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
     maxWidth: 200,
   },
-
   headerSpacer: {
     width: 44,
   },
-
   scroll: {
     flex: 1,
   },
-
   content: {
-    paddingBottom: 200,
+    paddingBottom: Spacing.xxl * 3,
   },
-
   image: {
     width: "100%",
     height: 250,
     backgroundColor: "#E5E7EB",
   },
-
   titleSection: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
   },
-
   title: {
     fontSize: 24,
     fontWeight: "800",
@@ -681,31 +558,26 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     lineHeight: 32,
   },
-
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
   },
-
   rating: {
     fontSize: 16,
     fontWeight: "700",
     color: "#667eea",
   },
-
   reviews: {
     fontSize: 13,
     color: Colors.textSecondary,
   },
-
   infoBoxes: {
     flexDirection: "row",
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
-
   infoBox: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -716,110 +588,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0, 0, 0, 0.05)",
   },
-
-  infoIcon: {
-    fontSize: 24,
-    marginBottom: Spacing.xs,
-  },
-
   infoBoxLabel: {
     fontSize: 11,
     color: Colors.textSecondary,
     marginBottom: 2,
   },
-
   infoBoxValue: {
     fontSize: 12,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
-
-  detailsSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.lg,
-    borderRadius: Radii.md,
-    padding: Spacing.lg,
-  },
-
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
-  },
-
-  detailLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-  },
-
-  detailValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    textAlign: "right",
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-
-  difficultyBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderRadius: Radii.sm,
-    borderWidth: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-  },
-
-  difficultyText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
   section: {
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
-
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
-    letterSpacing: -0.5,
+    marginBottom: Spacing.md,
   },
-
   description: {
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 22,
   },
-
   listItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: Spacing.md,
     marginBottom: Spacing.md,
   },
-
-  listIcon: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#10B981",
-    marginTop: 2,
-  },
-
   listText: {
     fontSize: 14,
     color: Colors.textSecondary,
     flex: 1,
     lineHeight: 20,
   },
-
   guideCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -830,226 +635,140 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0, 0, 0, 0.05)",
   },
-
   guideAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
     backgroundColor: "#E5E7EB",
   },
-
   guideDetails: {
     flex: 1,
   },
-
   guideName: {
     fontSize: 14,
     fontWeight: "700",
     color: Colors.textPrimary,
     marginBottom: 4,
   },
-
   guideLanguages: {
     fontSize: 12,
     color: Colors.textSecondary,
     marginBottom: 4,
   },
-
   guideExperience: {
     fontSize: 12,
     color: Colors.textSecondary,
   },
-
-  policyBox: {
-    backgroundColor: "rgba(102, 126, 234, 0.08)",
-    padding: Spacing.lg,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(102, 126, 234, 0.15)",
-  },
-
-  policyText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-
   footerContainer: {
-    backgroundColor: "#FFFFFF",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    paddingBottom: 35,
+    paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
+    gap: Spacing.sm,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
   },
-
-  // Pricing Summary
-  pricingSummary: {
+  quantitySection: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-
-  priceBreakdown: {
+  addPeopleLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginRight: Spacing.xs,
+  },
+  quantityButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  quantityButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  quantityValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    minWidth: 30,
+    textAlign: "center",
+  },
+  priceSection: {
     flex: 1,
   },
-
-  basePrice: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 4,
-  },
-
-  pricingAdjustment: {
+  priceRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: Spacing.sm,
   },
-
-  adjustmentText: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "600",
-  },
-
-  adjustmentAmount: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "700",
-  },
-
-  totalSection: {
-    alignItems: "flex-end",
-  },
-
   totalLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 2,
+    fontSize: 11,
+    color: Colors.textSecondary,
   },
-
   totalPrice: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#1F2937",
+    color: "#2563EB",
+    marginTop: 2,
   },
-
-  // Action Row
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.lg,
-  },
-
-  quantityControls: {
-    alignItems: "center",
-    gap: 8,
-  },
-
-  quantityLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-
-  quantityButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 8,
-    padding: 2,
-  },
-
-  quantityBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: "#FFFFFF",
+  priceBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radii.sm,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
-
-  quantityBtnDisabled: {
-    backgroundColor: "#F9FAFB",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-
-  quantityDisplay: {
-    width: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  quantityNumber: {
-    fontSize: 16,
+  priceBadgeText: {
+    fontSize: 10,
     fontWeight: "700",
-    color: "#1F2937",
   },
-
-  bookNowButton: {
-    flex: 1,
+  bookButton: {
     backgroundColor: "#2563EB",
-    paddingVertical: 14,
     paddingHorizontal: Spacing.lg,
-    borderRadius: 12,
-    flexDirection: "row",
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
+  },
+  bookButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  messageButton: {
+    backgroundColor: "#fff",
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
     alignItems: "center",
+    flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    borderWidth: 2,
+    borderColor: "#2563EB",
   },
-
-  bookNowText: {
+  messageButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  messageGuideButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  messageGuideText: {
-    fontSize: 14,
-    fontWeight: "600",
     color: "#2563EB",
   },
-
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-
   modalContent: {
     backgroundColor: "#fff",
     borderRadius: Radii.lg,
@@ -1057,7 +776,6 @@ const styles = StyleSheet.create({
     width: "85%",
     alignItems: "center",
   },
-
   checkmarkCircle: {
     width: 80,
     height: 80,
@@ -1067,14 +785,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.lg,
   },
-
   thankYouTitle: {
     fontSize: 24,
     fontWeight: "700",
     color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
-
   thankYouMessage: {
     fontSize: 15,
     color: Colors.textSecondary,
@@ -1082,27 +798,23 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: Spacing.xl,
   },
-
   okButton: {
     backgroundColor: "#2563EB",
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxl * 2,
     borderRadius: Radii.md,
   },
-
   okButtonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
   },
-
   errorText: {
     fontSize: 16,
     color: Colors.textPrimary,
     textAlign: "center",
     marginTop: 100,
   },
-
   // Date & Time Selection Styles
   currentTimeBox: {
     flexDirection: "row",
@@ -1116,19 +828,16 @@ const styles = StyleSheet.create({
     borderColor: "rgba(37, 99, 235, 0.2)",
     marginBottom: Spacing.md,
   },
-
   currentTimeLabel: {
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
-
   currentTimeValue: {
     fontSize: 16,
     fontWeight: "800",
     color: "#2563EB",
   },
-
   dateTimeBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1141,30 +850,25 @@ const styles = StyleSheet.create({
     borderColor: "rgba(37, 99, 235, 0.2)",
     marginBottom: Spacing.md,
   },
-
   dateTimeContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
     flex: 1,
   },
-
   dateTimeTextContainer: {
     flex: 1,
   },
-
   dateTimeLabel: {
     fontSize: 12,
     color: Colors.textSecondary,
     marginBottom: 4,
   },
-
   dateTimeValue: {
     fontSize: 15,
     fontWeight: "700",
     color: "#2563EB",
   },
-
   pricingInfoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1177,31 +881,26 @@ const styles = StyleSheet.create({
     borderColor: "rgba(245, 158, 11, 0.2)",
     marginTop: Spacing.md,
   },
-
   pricingInfoContent: {
     flex: 1,
   },
-
   pricingInfoLabel: {
     fontSize: 13,
     fontWeight: "700",
     color: "#92400E",
     marginBottom: 2,
   },
-
   pricingInfoText: {
     fontSize: 12,
     color: "#78350F",
     lineHeight: 18,
   },
-
   // Picker Modals
   pickerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
-
   pickerContent: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: Radii.lg,
@@ -1209,7 +908,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     maxHeight: "80%",
   },
-
   pickerHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1219,23 +917,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
-
   pickerTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
-
   dateGrid: {
     flex: 1,
   },
-
   dateGridContent: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
   },
-
   dateOption: {
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
@@ -1246,39 +940,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.md,
   },
-
   dateOptionSelected: {
     backgroundColor: "#2563EB",
   },
-
   dateOptionDay: {
     fontSize: 14,
     fontWeight: "600",
     color: Colors.textSecondary,
     width: 50,
   },
-
   dateOptionDate: {
     fontSize: 18,
     fontWeight: "700",
     color: Colors.textPrimary,
     width: 40,
   },
-
   dateOptionMonth: {
     fontSize: 13,
     fontWeight: "600",
     color: Colors.textSecondary,
   },
-
   dateOptionTextSelected: {
     color: "#fff",
   },
-
   timeGrid: {
     flex: 1,
   },
-
   timeGridContent: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -1286,7 +973,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: Spacing.sm,
   },
-
   timeOption: {
     width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3,
     paddingVertical: Spacing.md,
@@ -1295,24 +981,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   timeOptionSelected: {
     backgroundColor: "#2563EB",
   },
-
   timeOptionText: {
     fontSize: 14,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
-
   timeOptionTextSelected: {
     color: "#fff",
-  },
-
-  separator: {
-    height: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    marginVertical: Spacing.md,
   },
 });

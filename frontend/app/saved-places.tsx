@@ -13,7 +13,8 @@ import {
 } from "react-native";
 
 import { ThemedView } from "@/components/themed-view";
-import { Colors, Radii, Spacing } from "@/constants/design";
+import { Colors, ColorSchemes, Radii, Spacing } from "@/constants/design";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { APIClient } from "@/lib/api";
 
 const apiClient = new APIClient();
@@ -31,6 +32,8 @@ interface SavedPlace {
 export default function SavedPlacesScreen() {
   const [loading, setLoading] = useState(true);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const colorScheme = useColorScheme() ?? "light";
+  const colors = ColorSchemes[colorScheme];
 
   useEffect(() => {
     loadSavedPlaces();
@@ -92,21 +95,30 @@ export default function SavedPlacesScreen() {
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Saved Places</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+          Saved Places
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading saved places...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading saved places...
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
@@ -115,14 +127,21 @@ export default function SavedPlacesScreen() {
               <Ionicons
                 name="bookmark-outline"
                 size={64}
-                color={Colors.textMuted}
+                color={colors.textMuted}
               />
-              <Text style={styles.emptyText}>No saved places yet</Text>
-              <Text style={styles.emptySubtext}>
+              <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
+                No saved places yet
+              </Text>
+              <Text
+                style={[styles.emptySubtext, { color: colors.textSecondary }]}
+              >
                 Start exploring and save your favorite places
               </Text>
               <TouchableOpacity
-                style={styles.exploreButton}
+                style={[
+                  styles.exploreButton,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={() => router.push("/(tabs)")}
               >
                 <Text style={styles.exploreButtonText}>Explore Now</Text>
@@ -130,12 +149,18 @@ export default function SavedPlacesScreen() {
             </View>
           ) : (
             <>
-              <Text style={styles.countText}>
+              <Text style={[styles.countText, { color: colors.textPrimary }]}>
                 {savedPlaces.length} place{savedPlaces.length !== 1 ? "s" : ""}{" "}
                 saved
               </Text>
               {savedPlaces.map((place) => (
-                <View key={place.id} style={styles.placeCard}>
+                <View
+                  key={place.id}
+                  style={[
+                    styles.placeCard,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
                   <View style={styles.placeImageContainer}>
                     {place.place_image ? (
                       <Image
@@ -143,42 +168,79 @@ export default function SavedPlacesScreen() {
                         style={styles.placeImage}
                       />
                     ) : (
-                      <View style={styles.placeholderImage}>
+                      <View
+                        style={[
+                          styles.placeholderImage,
+                          {
+                            backgroundColor:
+                              colorScheme === "dark" ? "#334155" : "#F3F4F6",
+                          },
+                        ]}
+                      >
                         <Ionicons
                           name={getTypeIcon(place.place_type) as any}
                           size={32}
-                          color={Colors.textMuted}
+                          color={colors.textMuted}
                         />
                       </View>
                     )}
                   </View>
                   <View style={styles.placeInfo}>
                     <View style={styles.placeHeader}>
-                      <View style={styles.typeBadge}>
+                      <View
+                        style={[
+                          styles.typeBadge,
+                          {
+                            backgroundColor:
+                              colorScheme === "dark"
+                                ? "rgba(59, 130, 246, 0.1)"
+                                : "#EFF6FF",
+                          },
+                        ]}
+                      >
                         <Ionicons
                           name={getTypeIcon(place.place_type) as any}
                           size={12}
-                          color={Colors.primary}
+                          color={colors.primary}
                         />
-                        <Text style={styles.typeBadgeText}>
+                        <Text
+                          style={[
+                            styles.typeBadgeText,
+                            { color: colors.primary },
+                          ]}
+                        >
                           {place.place_type}
                         </Text>
                       </View>
-                      <Text style={styles.placeName}>{place.place_name}</Text>
+                      <Text
+                        style={[
+                          styles.placeName,
+                          { color: colors.textPrimary },
+                        ]}
+                      >
+                        {place.place_name}
+                      </Text>
                     </View>
                     {place.place_location && (
                       <View style={styles.locationRow}>
                         <Ionicons
                           name="location"
                           size={14}
-                          color={Colors.textSecondary}
+                          color={colors.textSecondary}
                         />
-                        <Text style={styles.locationText}>
+                        <Text
+                          style={[
+                            styles.locationText,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
                           {place.place_location}
                         </Text>
                       </View>
                     )}
-                    <Text style={styles.savedDate}>
+                    <Text
+                      style={[styles.savedDate, { color: colors.textMuted }]}
+                    >
                       Saved {new Date(place.created_at).toLocaleDateString()}
                     </Text>
                   </View>
@@ -186,7 +248,11 @@ export default function SavedPlacesScreen() {
                     style={styles.removeButton}
                     onPress={() => handleRemove(place.id)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color={colors.error}
+                    />
                   </TouchableOpacity>
                 </View>
               ))}

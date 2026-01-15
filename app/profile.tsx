@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -21,12 +22,27 @@ export default function ProfileScreen() {
   const userEmail = user?.email || "ahanaf_233@gmail.com";
 
   const handleLogout = async () => {
-    try {
-      await signOutUser();
-      router.replace("/welcome");
-    } catch (err) {
-      console.warn("Logout failed", err);
-    }
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOutUser();
+          } catch (err) {
+            console.warn("Logout failed", err);
+            Alert.alert("Error", "Failed to logout. Please try again.");
+          } finally {
+            router.replace("/signup");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSettings = () => {
+    router.push("/settings");
   };
 
   return (
@@ -127,23 +143,6 @@ export default function ProfileScreen() {
                 />
               </View>
               <Text style={styles.menuText}>Previous Trips</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/profile")}
-          >
-            <View style={styles.menuLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="settings-outline"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </View>
-              <Text style={styles.menuText}>Settings</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>

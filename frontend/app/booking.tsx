@@ -52,6 +52,17 @@ export default function BookingScreen() {
     "from" | "to"
   >("from");
 
+  // Date range states
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [checkInDate, setCheckInDate] = useState(today);
+  const [checkOutDate, setCheckOutDate] = useState(tomorrow);
+  const [showDatePicker, setShowDatePicker] = useState<
+    "checkin" | "checkout" | null
+  >(null);
+
   const [personCount, setPersonCount] = useState(2);
   const [selectedQuality, setSelectedQuality] = useState("standard");
 
@@ -79,13 +90,22 @@ export default function BookingScreen() {
     setScrollPosition(newPosition);
   };
 
-  // Price calculations
+  // Calculate number of nights
+  const numberOfNights = Math.max(
+    1,
+    Math.ceil(
+      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+  );
+
+  // Price calculations with nights multiplier
   const basePrice = 1450;
-  const calculatedPrice = calculateStayPrice(
+  const pricePerNight = calculateStayPrice(
     basePrice,
     personCount,
     selectedQuality
   );
+  const calculatedPrice = pricePerNight * numberOfNights;
   const taxes = Math.round(calculatedPrice * 0.08);
   const serviceFee = 25;
   const discount = Math.round(calculatedPrice * 0.03);
@@ -96,6 +116,20 @@ export default function BookingScreen() {
   const filteredDistricts = bangladeshDistricts.filter((district) =>
     district.toLowerCase().includes(districtSearchQuery.toLowerCase())
   );
+
+  // Helper function to generate date options (60 days)
+  const generateDateOptions = () => {
+    const dates = [];
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 1);
+
+    for (let i = 0; i < 60; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
 
   const handleDistrictSelect = (district: string) => {
     if (selectingDistrictFor === "from") {
@@ -206,7 +240,7 @@ export default function BookingScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Header title="Confirm Trip" />
+      <Header title="Booking" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.stepper}>
           <StepPill label="Details" active={step === "details"} index={1} />
@@ -272,18 +306,143 @@ export default function BookingScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Date Selection */}
+          <View style={{ gap: Spacing.md }}>
+            <View style={styles.dateSelectionRow}>
+              <TouchableOpacity
+                style={styles.dateBox}
+                onPress={() => setShowDatePicker("checkin")}
+              >
+                <View style={styles.dateHeader}>
+                  <Ionicons name="calendar" size={16} color={Colors.primary} />
+                  <Text style={styles.dateLabel}>Check-in</Text>
+                </View>
+                <Text style={styles.dateValue}>
+                  {checkInDate.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.nightsBadge}>
+                <Text style={styles.nightsCount}>{numberOfNights}</Text>
+                <Text style={styles.nightsLabel}>
+                  {numberOfNights === 1 ? "night" : "nights"}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.dateBox}
+                onPress={() => setShowDatePicker("checkout")}
+              >
+                <View style={styles.dateHeader}>
+                  <Ionicons name="calendar" size={16} color={Colors.primary} />
+                  <Text style={styles.dateLabel}>Check-out</Text>
+                </View>
+                <Text style={styles.dateValue}>
+                  {checkOutDate.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Date Picker Modal */}
+            <Modal
+              visible={showDatePicker !== null}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowDatePicker(null)}
+            >
+              <View style={styles.datePickerOverlay}>
+                <View style={styles.datePickerContent}>
+                  <View style={styles.datePickerHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(null)}>
+                      <Ionicons name="close" size={28} color={Colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.datePickerTitle}>
+                      {showDatePicker === "checkin"
+                        ? "Check-in Date"
+                        : "Check-out Date"}
+                    </Text>
+                    <View style={{ width: 28 }} />
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={styles.calendarGrid}>
+                      {generateDateOptions().map((date, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[
+                            styles.calendarDate,
+                            (showDatePicker === "checkin"
+                              ? date.toDateString() ===
+                                checkInDate.toDateString()
+                              : date.toDateString() ===
+                                checkOutDate.toDateString()) &&
+                              styles.calendarDateSelected,
+                          ]}
+                          onPress={() => {
+                            if (showDatePicker === "checkin") {
+                              setCheckInDate(date);
+                            } else {
+                              if (date >= checkInDate) {
+                                setCheckOutDate(date);
+                              }
+                            }
+                            setShowDatePicker(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.calendarDateText,
+                              (showDatePicker === "checkin"
+                                ? date.toDateString() ===
+                                  checkInDate.toDateString()
+                                : date.toDateString() ===
+                                  checkOutDate.toDateString()) &&
+                                styles.calendarDateTextSelected,
+                            ]}
+                          >
+                            {date.getDate()}
+                          </Text>
+                          <Text style={styles.calendarDateMonth}>
+                            {date.toLocaleDateString("en-US", {
+                              month: "short",
+                            })}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+          </View>
+
           <View style={styles.tripInfo}>
             <View style={styles.tripInfoItem}>
               <Ionicons
-                name="calendar"
+                name="time-outline"
                 size={16}
                 color={Colors.textSecondary}
               />
-              <Text style={styles.tripInfoText}>2 Days · 1 Night</Text>
+              <Text style={styles.tripInfoText}>
+                {numberOfNights} {numberOfNights === 1 ? "Night" : "Nights"}
+              </Text>
             </View>
             <View style={styles.tripInfoItem}>
-              <Ionicons name="time" size={16} color={Colors.textSecondary} />
-              <Text style={styles.tripInfoText}>Check-in: Today</Text>
+              <Ionicons name="cash" size={16} color={Colors.primary} />
+              <Text
+                style={[
+                  styles.tripInfoText,
+                  { color: Colors.primary, fontWeight: "700" },
+                ]}
+              >
+                {pricePerNight.toLocaleString()} TK/night
+              </Text>
             </View>
           </View>
         </View>
@@ -808,15 +967,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: Radii.lg,
+    borderRadius: Radii.xl,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(0,0,0,0.05)",
     gap: Spacing.md,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   sectionTitle: {
@@ -831,11 +990,11 @@ const styles = StyleSheet.create({
   },
   districtBox: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     borderRadius: Radii.md,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(0,0,0,0.08)",
     gap: 4,
   },
   districtHeader: {
@@ -885,15 +1044,125 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
+  dateSelectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  dateBox: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
+    gap: 4,
+  },
+  dateHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+  },
+  dateValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginVertical: 2,
+  },
+  nightsBadge: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    minWidth: 60,
+  },
+  nightsCount: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  nightsLabel: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  datePickerContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
+    maxHeight: "85%",
+    paddingBottom: Spacing.xl,
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  calendarDate: {
+    width: "30%",
+    aspectRatio: 1,
+    borderRadius: Radii.lg,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  calendarDateSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  calendarDateText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  calendarDateTextSelected: {
+    color: "#fff",
+  },
+  calendarDateMonth: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
   customizeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "rgba(59, 130, 246, 0.08)",
+    backgroundColor: "rgba(37, 99, 235, 0.04)",
     borderRadius: Radii.md,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.15)",
+    borderColor: "rgba(37, 99, 235, 0.1)",
   },
   customizeLabel: {
     flexDirection: "row",
@@ -904,7 +1173,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(59, 130, 246, 0.15)",
+    backgroundColor: "rgba(37, 99, 235, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },

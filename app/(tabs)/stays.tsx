@@ -184,7 +184,7 @@ export default function StaysScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerTitle}>Find Your Stay</Text>
+            <Text style={styles.headerTitle}>Booking</Text>
             <Text style={styles.headerSubtitle}>
               64 Districts • Hotels • Resorts • More
             </Text>
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
-    backgroundColor: "rgba(59, 130, 246, 0.08)",
+    backgroundColor: "#ffffff",
   },
 
   headerTop: {
@@ -732,13 +732,13 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(0, 0, 0, 0.05)",
     overflow: "hidden",
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
 
   cardImage: {

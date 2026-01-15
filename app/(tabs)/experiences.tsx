@@ -124,14 +124,18 @@ export default function ExperiencesScreen() {
                 "https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?w=800&q=80",
             }}
             style={styles.image}
-            defaultSource={require("@/assets/images/icon.png")}
           />
 
           {/* Category Badge */}
-          <View style={[styles.badge, { backgroundColor: item.category }]}>
-            <Text style={styles.badgeIcon}>
-              {experienceCategories.find((c) => c.id === item.category)?.icon}
-            </Text>
+          <View style={[styles.badge, { backgroundColor: Colors.primary }]}>
+            <Ionicons
+              name={
+                experienceCategories.find((c) => c.id === item.category)
+                  ?.icon as any
+              }
+              size={14}
+              color="#fff"
+            />
             <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
           </View>
 
@@ -195,17 +199,6 @@ export default function ExperiencesScreen() {
               </View>
               <Text style={styles.infoValue}>{item.groupSize}</Text>
             </View>
-            <View style={styles.infoPill}>
-              <View style={styles.infoLabelRow}>
-                <Ionicons
-                  name="location"
-                  size={14}
-                  color={Colors.textSecondary}
-                />
-                <Text style={styles.infoLabel}>Region</Text>
-              </View>
-              <Text style={styles.infoValue}>{item.region}</Text>
-            </View>
           </View>
 
           {/* Guide Info */}
@@ -217,7 +210,6 @@ export default function ExperiencesScreen() {
                   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80",
               }}
               style={styles.avatar}
-              defaultSource={require("@/assets/images/icon.png")}
             />
             <View style={styles.guideInfo}>
               <Text style={styles.guideName}>{item.guide.name}</Text>
@@ -251,9 +243,7 @@ export default function ExperiencesScreen() {
           <View style={styles.footer}>
             <View>
               <Text style={styles.priceLabel}>From</Text>
-              <Text style={styles.price}>
-                {item.price.toLocaleString()} {item.currency}
-              </Text>
+              <Text style={styles.price}>৳{item.price.toLocaleString()}</Text>
             </View>
             <TouchableOpacity style={styles.bookButton}>
               <View
@@ -297,14 +287,9 @@ export default function ExperiencesScreen() {
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Experiences</Text>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <Text style={styles.headerSubtitle}>
-                Create unforgettable memories
-              </Text>
-              {/* Removed sparkles icon for cleaner look */}
-            </View>
+            <Text style={styles.headerSubtitle}>
+              Create unforgettable memories
+            </Text>
           </View>
         </View>
       </Animated.View>
@@ -461,29 +446,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9FAFB",
   },
-
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.lg,
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: Radii.xl,
-    borderBottomRightRadius: Radii.xl,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    paddingBottom: Spacing.lg,
     backgroundColor: "transparent",
   },
-
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
   },
-
   backButton: {
     width: 40,
     height: 40,
@@ -499,11 +472,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-
   headerTextContainer: {
     flex: 1,
   },
-
   headerTitle: {
     fontSize: 32,
     fontWeight: "900",
@@ -511,23 +482,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: -0.5,
   },
-
   headerSubtitle: {
     fontSize: 14,
     color: "#6B7280",
     fontWeight: "500",
   },
-
   filterScroll: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
-
   filterContent: {
     gap: Spacing.sm,
     paddingRight: Spacing.lg,
   },
-
   filterPill: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -544,7 +511,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-
   filterPillActive: {
     backgroundColor: "#2563EB",
     borderColor: "#2563EB",
@@ -554,24 +520,20 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-
   filterLabel: {
     fontSize: 14,
     fontWeight: "700",
     color: "#6B7280",
   },
-
   filterLabelActive: {
     color: "#FFFFFF",
   },
-
   sortBar: {
     flexDirection: "row",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
-
   sortOption: {
     flex: 1,
     paddingHorizontal: Spacing.md,
@@ -587,7 +549,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-
   sortOptionActive: {
     backgroundColor: "#2563EB",
     borderColor: "#2563EB",
@@ -597,22 +558,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-
   sortText: {
     fontSize: 13,
     fontWeight: "700",
     color: "#6B7280",
   },
-
   sortTextActive: {
     color: "#FFFFFF",
   },
-
   listContent: {
     paddingTop: Spacing.sm,
     paddingBottom: 100,
+    paddingHorizontal: Spacing.lg,
   },
-
   card: {
     marginBottom: Spacing.lg,
     borderRadius: Radii.xl,
@@ -626,20 +584,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-
   imageContainer: {
     width: "100%",
     height: 220,
     position: "relative",
     backgroundColor: "#F3F4F6",
   },
-
   image: {
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
-
   badge: {
     position: "absolute",
     top: Spacing.md,
@@ -650,20 +605,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#667eea",
     opacity: 0.95,
   },
-
-  badgeIcon: {
-    fontSize: 14,
-  },
-
   badgeText: {
     fontSize: 10,
     fontWeight: "700",
     color: "#fff",
   },
-
   ratingBadge: {
     position: "absolute",
     top: Spacing.md,
@@ -676,18 +624,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
-
   ratingText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#fff",
   },
-
   reviewsText: {
     fontSize: 10,
     color: "#E5E7EB",
   },
-
   difficultyBadge: {
     position: "absolute",
     bottom: Spacing.md,
@@ -698,16 +643,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
-
   difficultyText: {
     fontSize: 10,
     fontWeight: "700",
   },
-
   content: {
     padding: Spacing.lg,
   },
-
   name: {
     fontSize: 20,
     fontWeight: "800",
@@ -716,33 +658,28 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     letterSpacing: -0.3,
   },
-
   location: {
     fontSize: 14,
     color: "#6B7280",
     marginBottom: Spacing.md,
   },
-
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: Spacing.md,
   },
-
   description: {
     fontSize: 13,
     color: "#6B7280",
     lineHeight: 20,
     marginBottom: Spacing.md,
   },
-
   infoRow: {
     flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
-
   infoPill: {
     flex: 1,
     backgroundColor: "#F9FAFB",
@@ -753,26 +690,22 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.05)",
     alignItems: "center",
   },
-
   infoLabel: {
     fontSize: 12,
     color: "#6B7280",
   },
-
   infoLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: 4,
   },
-
   infoValue: {
     fontSize: 13,
     fontWeight: "800",
     color: "#1F2937",
     marginTop: 2,
   },
-
   guideSection: {
     flexDirection: "row",
     alignItems: "center",
@@ -783,37 +716,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
-
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "#F3F4F6",
   },
-
   guideInfo: {
     flex: 1,
   },
-
   guideName: {
     fontSize: 14,
     fontWeight: "700",
     color: "#1F2937",
   },
-
   guideDetails: {
     fontSize: 12,
     color: "#6B7280",
     marginTop: 2,
   },
-
   highlightsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
     marginVertical: Spacing.md,
   },
-
   highlightTag: {
     backgroundColor: "rgba(37, 99, 235, 0.08)",
     paddingHorizontal: Spacing.md,
@@ -822,13 +749,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(37, 99, 235, 0.2)",
   },
-
   highlightText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#2563EB",
   },
-
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -837,20 +762,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
   },
-
   priceLabel: {
     fontSize: 12,
     color: "#6B7280",
     fontWeight: "500",
   },
-
   price: {
     fontSize: 18,
     fontWeight: "800",
     color: "#2563EB",
     marginTop: 2,
   },
-
   bookButton: {
     backgroundColor: "#2563EB",
     paddingHorizontal: Spacing.lg,
@@ -862,31 +784,22 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-
   bookButtonText: {
     fontSize: 15,
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: 0.3,
   },
-
   emptyState: {
     paddingVertical: Spacing.xxl * 2,
     alignItems: "center",
   },
-
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: Spacing.md,
-  },
-
   emptyText: {
     fontSize: 18,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: Spacing.sm,
   },
-
   emptySubtext: {
     fontSize: 14,
     color: "#6B7280",

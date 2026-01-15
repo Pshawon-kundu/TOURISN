@@ -189,9 +189,10 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await signOutUser();
-            router.replace("/welcome");
+            router.replace("/login");
           } catch (err) {
             console.warn("Logout failed", err);
+            Alert.alert("Error", "Failed to logout. Please try again.");
           }
         },
       },

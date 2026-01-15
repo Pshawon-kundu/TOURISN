@@ -22,12 +22,15 @@ import {
   transportPricing,
   transportTypes,
 } from "@/constants/transportData";
+import { api } from "@/lib/api";
 
 export default function TransportHub() {
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [showFromSuggestions, setShowFromSuggestions] = useState(false);
   const [showToSuggestions, setShowToSuggestions] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTransport, setSelectedTransport] = useState<string | null>(
     null
   );
@@ -80,6 +83,9 @@ export default function TransportHub() {
       return;
     }
     setSelectedTransport(null);
+    setShowFromSuggestions(false);
+    setShowToSuggestions(false);
+    setShowCalendar(false);
   };
 
   const handleBookNow = (transportType: string) => {
@@ -135,31 +141,8 @@ export default function TransportHub() {
         payment_status: "pending",
       };
 
-      console.log("📤 Sending booking request:", {
-        userEmail,
-        bookingData,
-        url: "http://192.168.0.196:5001/api/transport",
-      });
+      const result = await api.createTransportBooking(bookingData);
 
-      const response = await fetch("http://192.168.0.196:5001/api/transport", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Email": userEmail,
-        },
-        body: JSON.stringify(bookingData),
-      });
-
-      console.log("📥 Response status:", response.status);
-
-      const result = await response.json();
-      console.log("📥 Response data:", result);
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create booking");
-      }
-
-      // Store booking ID for payment processing
       setBookingId(result.data?.booking_id || result.data?.id);
 
       // Close booking modal and show payment modal
@@ -171,7 +154,7 @@ export default function TransportHub() {
         error instanceof Error ? error.message : "Unknown error occurred";
       Alert.alert(
         "Booking Failed",
-        `Failed to create booking: ${errorMessage}\n\nPlease check:\n- Backend is running on http://192.168.0.196:5001\n- You are logged in\n- Network connection is working`
+        `Failed to create booking: ${errorMessage}\n\nPlease check:\n- Backend is running on port 5001\n- You are logged in\n- Network connection is working`
       );
     } finally {
       setIsLoading(false);
@@ -215,23 +198,11 @@ export default function TransportHub() {
           .substr(2, 9)}`,
       };
 
-      const response = await fetch(
-        `http://192.168.0.196:5001/api/transport/${bookingId}/payment`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-User-Email": userEmail,
-          },
-          body: JSON.stringify(paymentData),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Payment failed");
-      }
+      await api.request({
+        method: "POST",
+        endpoint: `/transport/${bookingId}/payment`,
+        body: paymentData,
+      });
 
       // Close payment modal and show success
       setShowPaymentModal(false);
@@ -250,7 +221,7 @@ export default function TransportHub() {
         setSelectedTransport(null);
         setTravelDate("");
         setPassengers(1);
-        router.replace("/(tabs)");
+        router.replace("/");
       }, 3000);
     } catch (error) {
       console.error("Payment error:", error);
@@ -271,8 +242,128 @@ export default function TransportHub() {
     } else if (showBookingModal) {
       setShowBookingModal(false);
     } else {
-      router.back();
+      router.replace("/");
     }
+  };
+
+  const renderCalendar = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const currentMonth = selectedDate.getMonth();
+    const currentYear = selectedDate.getFullYear();
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    const goToPrevMonth = () => {
+      const prev = new Date(currentYear, currentMonth - 1, 1);
+      setSelectedDate(prev);
+    };
+
+    const goToNextMonth = () => {
+      const next = new Date(currentYear, currentMonth + 1, 1);
+      setSelectedDate(next);
+    };
+
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const selectDate = (day: number) => {
+      const selected = new Date(currentYear, currentMonth, day);
+      selected.setHours(0, 0, 0, 0);
+      if (selected >= today) {
+        setSelectedDate(selected);
+        setTravelDate(formatLocalDate(selected));
+        setShowCalendar(false);
+      }
+    };
+
+    const days: React.ReactNode[] = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYear, currentMonth, day);
+      date.setHours(0, 0, 0, 0);
+
+      const isToday = date.getTime() === today.getTime();
+      const isSelected = travelDate && formatLocalDate(date) === travelDate;
+      const isPast = date < today;
+
+      days.push(
+        <TouchableOpacity
+          key={day}
+          style={[
+            styles.calendarDay,
+            isToday && styles.calendarToday,
+            isSelected && styles.calendarSelected,
+            isPast && styles.calendarPast,
+          ]}
+          onPress={() => !isPast && selectDate(day)}
+          disabled={isPast}
+        >
+          <Text
+            style={[
+              styles.calendarDayText,
+              isToday && styles.calendarTodayText,
+              isSelected && styles.calendarSelectedText,
+              isPast && styles.calendarPastText,
+            ]}
+          >
+            {day}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View style={styles.calendar}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={goToPrevMonth}>
+            <Ionicons name="chevron-back" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.calendarHeaderText}>
+            {monthNames[currentMonth]} {currentYear}
+          </Text>
+          <TouchableOpacity onPress={goToNextMonth}>
+            <Ionicons name="chevron-forward" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.calendarDayNames}>
+          {dayNames.map((name) => (
+            <View key={name} style={styles.calendarDayName}>
+              <Text style={styles.calendarDayNameText}>{name}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.calendarGrid}>{days}</View>
+      </View>
+    );
   };
 
   const renderSuggestion = (
@@ -396,6 +487,48 @@ export default function TransportHub() {
             </View>
           )}
 
+          {/* Date Selection */}
+          <TouchableOpacity
+            style={styles.dateSelector}
+            onPress={() => setShowCalendar(!showCalendar)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="calendar"
+              size={20}
+              color={Colors.primary}
+              style={{ marginRight: Spacing.md }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dateSelectorLabel}>Travel Date</Text>
+              <Text style={styles.dateSelectorText}>
+                {travelDate
+                  ? new Date(travelDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : `Select date (Today: ${new Date().toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      }
+                    )})`}
+              </Text>
+            </View>
+            <Ionicons
+              name={showCalendar ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={Colors.primary}
+            />
+          </TouchableOpacity>
+
+          {showCalendar && (
+            <View style={styles.calendarContainer}>{renderCalendar()}</View>
+          )}
+
           <TouchableOpacity
             style={styles.searchButton}
             onPress={handleSearchRoutes}
@@ -509,12 +642,40 @@ export default function TransportHub() {
               {/* Travel Date */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Travel Date</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="YYYY-MM-DD"
-                  value={travelDate}
-                  onChangeText={setTravelDate}
-                />
+                <TouchableOpacity
+                  style={styles.dateSelector}
+                  onPress={() => setShowCalendar(!showCalendar)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="calendar"
+                    size={20}
+                    color={Colors.primary}
+                    style={{ marginRight: Spacing.md }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dateSelectorLabel}>Selected Date</Text>
+                    <Text style={styles.dateSelectorText}>
+                      {travelDate
+                        ? new Date(travelDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                          })
+                        : "Select your travel date"}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showCalendar ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color={Colors.primary}
+                  />
+                </TouchableOpacity>
+                {showCalendar && (
+                  <View style={styles.calendarContainer}>
+                    {renderCalendar()}
+                  </View>
+                )}
               </View>
 
               {/* Passengers */}
@@ -1033,6 +1194,100 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: "#E0E0E0",
+  },
+  dateSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.medium,
+    padding: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  dateSelectorLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  dateSelectorText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  calendarContainer: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.medium,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  calendar: {
+    width: "100%",
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  calendarHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  calendarDayNames: {
+    flexDirection: "row",
+    marginBottom: Spacing.sm,
+  },
+  calendarDayName: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+  },
+  calendarDayNameText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  calendarDay: {
+    width: "14.28%",
+    aspectRatio: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xs,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  calendarToday: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: Radii.small,
+  },
+  calendarTodayText: {
+    color: Colors.primary,
+    fontWeight: "700",
+  },
+  calendarSelected: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.small,
+  },
+  calendarSelectedText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  calendarPast: {
+    opacity: 0.3,
+  },
+  calendarPastText: {
+    color: Colors.textSecondary,
   },
   counterContainer: {
     flexDirection: "row",

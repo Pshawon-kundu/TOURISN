@@ -3,11 +3,9 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/design";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
-  Appearance,
-  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -17,29 +15,10 @@ import {
 } from "react-native";
 
 export default function SettingsScreen() {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(
-    Appearance.getColorScheme() === "dark"
-  );
+  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
-
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setDarkModeEnabled(colorScheme === "dark");
-    });
-    return () => subscription.remove();
-  }, []);
-
-  const toggleDarkMode = (value: boolean) => {
-    setDarkModeEnabled(value);
-    if (Platform.OS !== "web") {
-      Appearance.setColorScheme(value ? "dark" : "light");
-    }
-    Alert.alert(
-      "Dark Mode",
-      value ? "Dark mode enabled" : "Light mode enabled"
-    );
-  };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -48,7 +27,6 @@ export default function SettingsScreen() {
         text: "Logout",
         style: "destructive",
         onPress: () => {
-          // Clear user data and navigate to login
           router.replace("/login");
         },
       },
@@ -65,7 +43,6 @@ export default function SettingsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            // Handle account deletion
             Alert.alert("Account Deleted", "Your account has been deleted.");
           },
         },
@@ -80,6 +57,24 @@ export default function SettingsScreen() {
         {/* Preferences Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="notifications" size={24} color={Colors.primary} />
+              <View style={styles.settingText}>
+                <Text style={styles.settingTitle}>Push Notifications</Text>
+                <Text style={styles.settingDescription}>
+                  Receive booking updates and offers
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: "#D1D5DB", true: Colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
 
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
@@ -111,7 +106,7 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={darkModeEnabled}
-              onValueChange={toggleDarkMode}
+              onValueChange={setDarkModeEnabled}
               trackColor={{ false: "#D1D5DB", true: Colors.primary }}
               thumbColor="#FFFFFF"
             />
@@ -247,7 +242,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={() => Alert.alert("About", "Tourisn App v1.0.0")}
+            onPress={() => Alert.alert("About", "Tourism App v1.0.0")}
           >
             <View style={styles.settingLeft}>
               <Ionicons
@@ -305,11 +300,6 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Tourisn Bangladesh</Text>
-          <Text style={styles.footerSubtext}>Version 1.0.0</Text>
-        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -365,19 +355,5 @@ const styles = StyleSheet.create({
   settingDescription: {
     fontSize: 13,
     color: "#6B7280",
-  },
-  footer: {
-    alignItems: "center",
-    paddingVertical: Spacing.xl * 2,
-  },
-  footerText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  footerSubtext: {
-    fontSize: 12,
-    color: "#9CA3AF",
   },
 });

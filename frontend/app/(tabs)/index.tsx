@@ -53,7 +53,7 @@ export default function HomeScreen() {
       title: "Discover Cox's Bazar",
       subtitle: "World's longest natural sea beach awaits you.",
       image:
-        "https://images.unsplash.com/photo-1589192471364-23e0c3b3f24e?w=800",
+        "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=800",
     },
     {
       title: "Explore Sundarbans",
@@ -217,25 +217,37 @@ export default function HomeScreen() {
 
   const featuredTrips = [
     {
+      id: "1", // Cox's Bazar Beach Experience ID
       title: "Cox's Bazar Beach Escape",
       tag: "Sun & Sea",
-      price: "From ৳ 1,200",
+      price: "From ৳ 2,500",
       image:
         "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
+      duration: "4 hours",
+      rating: 4.9,
+      reviews: 287,
     },
     {
+      id: "2", // Bandarban Hill Trek Experience ID
       title: "Bandarban Hill Trails",
       tag: "Adventure",
-      price: "From ৳ 1,800",
+      price: "From ৳ 3,500",
       image:
         "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800",
+      duration: "Full day",
+      rating: 4.8,
+      reviews: 412,
     },
     {
+      id: "3", // Sylhet Tea Garden Experience ID
       title: "Sylhet Tea Garden Escape",
       tag: "Nature",
-      price: "From ৳ 1,100",
+      price: "From ৳ 2,000",
       image:
-        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=800",
+        "https://images.unsplash.com/photo-1563789031959-4c02bcb41319?w=800",
+      duration: "5 hours",
+      rating: 4.7,
+      reviews: 356,
     },
   ];
 
@@ -516,17 +528,31 @@ export default function HomeScreen() {
             contentContainerStyle={styles.cardsScroll}
           >
             {featuredTrips.map((trip) => (
-              <View key={trip.title} style={styles.featureCard}>
+              <TouchableOpacity
+                key={trip.title}
+                style={styles.featureCard}
+                onPress={() => router.push(`/experience-detail?id=${trip.id}`)}
+              >
                 <Image
                   source={{ uri: trip.image }}
                   style={styles.featureImage}
                 />
+                <View style={styles.featureOverlay}>
+                  <View style={styles.featureRating}>
+                    <Ionicons name="star" size={12} color="#FFF" />
+                    <Text style={styles.ratingText}>{trip.rating}</Text>
+                    <Text style={styles.reviewsText}>({trip.reviews})</Text>
+                  </View>
+                </View>
                 <View style={styles.featureContent}>
                   <Text style={styles.featureTag}>{trip.tag}</Text>
                   <Text style={styles.featureTitle}>{trip.title}</Text>
-                  <Text style={styles.featurePrice}>{trip.price}</Text>
+                  <View style={styles.tripMeta}>
+                    <Text style={styles.featureDuration}>{trip.duration}</Text>
+                    <Text style={styles.featurePrice}>{trip.price}</Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
@@ -630,7 +656,7 @@ export default function HomeScreen() {
               {/* Main Menu */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="🏠"
+                  icon="home-outline"
                   title="Home"
                   onPress={() => {
                     setMenuVisible(false);
@@ -638,7 +664,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🎒"
+                  icon="sparkles-outline"
                   title="Experience"
                   onPress={() => {
                     setMenuVisible(false);
@@ -646,7 +672,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="💼"
+                  icon="briefcase-outline"
                   title="Business"
                   onPress={() => {
                     setMenuVisible(false);
@@ -654,7 +680,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="👥"
+                  icon="information-circle-outline"
                   title="About us"
                   onPress={() => {
                     setMenuVisible(false);
@@ -668,7 +694,7 @@ export default function HomeScreen() {
               {/* Services Section */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="🚗"
+                  icon="car-outline"
                   title="Transport"
                   onPress={() => {
                     setMenuVisible(false);
@@ -676,7 +702,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🏨"
+                  icon="bed-outline"
                   title="Hotel"
                   onPress={() => {
                     setMenuVisible(false);
@@ -684,7 +710,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🍽️"
+                  icon="restaurant-outline"
                   title="Food"
                   onPress={() => {
                     setMenuVisible(false);
@@ -692,7 +718,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🗺️"
+                  icon="people-outline"
                   title="Guide"
                   onPress={() => {
                     setMenuVisible(false);
@@ -706,7 +732,7 @@ export default function HomeScreen() {
               {/* Account Section */}
               <View style={styles.menuSection}>
                 <DrawerItem
-                  icon="👤"
+                  icon="person-outline"
                   title="Profile"
                   onPress={() => {
                     setMenuVisible(false);
@@ -714,14 +740,14 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🔔"
+                  icon="notifications-outline"
                   title="Notifications"
                   onPress={() => {
                     setMenuVisible(false);
                   }}
                 />
                 <DrawerItem
-                  icon="💬"
+                  icon="chatbubble-ellipses-outline"
                   title="Messages"
                   onPress={() => {
                     setMenuVisible(false);
@@ -729,7 +755,7 @@ export default function HomeScreen() {
                   }}
                 />
                 <DrawerItem
-                  icon="🚪"
+                  icon="log-out-outline"
                   title={signingOut ? "Signing out..." : "Log Out"}
                   onPress={() => {
                     setMenuVisible(false);
@@ -756,7 +782,12 @@ function DrawerItem({
 }) {
   return (
     <TouchableOpacity style={drawerItemStyles.container} onPress={onPress}>
-      <Text style={drawerItemStyles.icon}>{icon}</Text>
+      <Ionicons
+        name={icon as any}
+        size={22}
+        color={Colors.textPrimary}
+        style={drawerItemStyles.icon}
+      />
       <Text style={drawerItemStyles.title}>{title}</Text>
     </TouchableOpacity>
   );
@@ -805,9 +836,8 @@ const drawerItemStyles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   icon: {
-    fontSize: 24,
     marginRight: Spacing.lg,
-    width: 30,
+    width: 24,
   },
   title: {
     fontSize: 16,
@@ -1040,6 +1070,31 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 130,
   },
+  featureOverlay: {
+    position: "absolute",
+    top: Spacing.sm,
+    right: Spacing.sm,
+    zIndex: 1,
+  },
+  featureRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radii.sm,
+    gap: 4,
+  },
+  ratingText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  reviewsText: {
+    color: "#FFF",
+    fontSize: 11,
+    opacity: 0.9,
+  },
   featureContent: {
     padding: Spacing.md,
     gap: 4,
@@ -1054,9 +1109,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.textPrimary,
   },
+  tripMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  featureDuration: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+  },
   featurePrice: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: Colors.primary,
+    fontWeight: "700",
   },
   guideCard: {
     flexDirection: "row",

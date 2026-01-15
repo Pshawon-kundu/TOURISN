@@ -305,18 +305,44 @@ const foodItems: FoodItem[] = [
 ];
 
 export default function FoodGuide() {
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] =
     useState<(typeof foodCategories)[number]>("All");
 
+  useEffect(() => {
+    fetchFoodItems();
+  }, [activeCategory]);
+
+  const fetchFoodItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params: any = {};
+
+      if (activeCategory !== "All") {
+        params.category = activeCategory;
+      }
+
+      const data = await getAllFoodItems(params);
+      setFoodItems(data.items || data);
+    } catch (err) {
+      console.error("Failed to fetch food items:", err);
+      setError("Failed to load food items. Please try again.");
+      setFoodItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredFoods = foodItems.filter((food) => {
     const matchesSearch =
       food.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      food.nameLocal.includes(searchQuery) ||
+      food.nameLocal?.includes(searchQuery) ||
       food.region.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      activeCategory === "All" || food.category === activeCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const renderSpiceLevel = (level: number) => {
@@ -423,68 +449,83 @@ export default function FoodGuide() {
         </ScrollView>
 
         {/* Food Items Grid */}
-        <View style={styles.foodGrid}>
-          {filteredFoods.map((food) => (
-            <View key={food.id} style={styles.foodCard}>
-              <Image source={{ uri: food.image }} style={styles.foodImage} />
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#F97316" />
+            <Text style={styles.loadingText}>Loading food items...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="alert-circle" size={48} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchFoodItems}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredFoods.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="restaurant-outline" size={48} color="#9CA3AF" />
+            <Text style={styles.emptyText}>No food items found</Text>
+            <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+          </View>
+        ) : (
+          <View style={styles.foodGrid}>
+            {filteredFoods.map((food) => (
+              <View key={food.id} style={styles.foodCard}>
+                <Image source={{ uri: food.image }} style={styles.foodImage} />
 
-              {/* Badges */}
-              <View style={styles.badgeContainer}>
-                {food.isVeg && (
-                  <View style={[styles.badge, styles.badgeVeg]}>
-                    <MaterialCommunityIcons
-                      name="leaf"
-                      size={12}
-                      color="#10B981"
-                    />
+                {/* Badges */}
+                <View style={styles.badgeContainer}>
+                  {food.isVeg && (
+                    <View style={[styles.badge, styles.badgeVeg]}>
+                      <MaterialCommunityIcons
+                        name="leaf"
+                        size={12}
+                        color="#10B981"
+                      />
+                    </View>
+                  )}
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={12} color="#FCD34D" />
+                    <Text style={styles.ratingText}>{food.rating}</Text>
                   </View>
-                )}
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={12} color="#FCD34D" />
-                  <Text style={styles.ratingText}>{food.rating}</Text>
+                </View>
+
+                <View style={styles.foodInfo}>
+                  <Text style={styles.foodName}>{food.name}</Text>
+                  <Text style={styles.foodNameLocal}>{food.nameLocal}</Text>
+
+                  <View style={styles.foodMeta}>
+                    <Ionicons name="location" size={14} color="#6B7280" />
+                    <Text style={styles.foodRegion}>{food.region}</Text>
+                  </View>
+
+                  <Text style={styles.foodDescription} numberOfLines={2}>
+                    {food.description}
+                  </Text>
+
+                  <View style={styles.foodFooter}>
+                    <View>
+                      <Text style={styles.foodPrice}>{food.price}</Text>
+                      <Text style={styles.priceLabel}>per serving</Text>
+                    </View>
+                    {food.spiceLevel > 0 && renderSpiceLevel(food.spiceLevel)}
+                  </View>
+
+                  <TouchableOpacity style={styles.orderButton}>
+                    <Text style={styles.orderButtonText}>Find Restaurants</Text>
+                    <Ionicons name="arrow-forward" size={16} color="white" />
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.foodInfo}>
-                <Text style={styles.foodName}>{food.name}</Text>
-                <Text style={styles.foodNameLocal}>{food.nameLocal}</Text>
-
-                <View style={styles.foodMeta}>
-                  <Ionicons name="location" size={14} color="#6B7280" />
-                  <Text style={styles.foodRegion}>{food.region}</Text>
-                </View>
-
-                <Text style={styles.foodDescription} numberOfLines={2}>
-                  {food.description}
-                </Text>
-
-                <View style={styles.foodFooter}>
-                  <View>
-                    <Text style={styles.foodPrice}>{food.price}</Text>
-                    <Text style={styles.priceLabel}>per serving</Text>
-                  </View>
-                  {food.spiceLevel > 0 && renderSpiceLevel(food.spiceLevel)}
-                </View>
-
-                <TouchableOpacity style={styles.orderButton}>
-                  <Text style={styles.orderButtonText}>Find Restaurants</Text>
-                  <Ionicons name="arrow-forward" size={16} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* No Results */}
-        {filteredFoods.length === 0 && (
-          <View style={styles.noResults}>
-            <Ionicons name="restaurant-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.noResultsText}>No dishes found</Text>
-            <Text style={styles.noResultsSubtext}>
-              Try a different search or category
-            </Text>
+            ))}
           </View>
         )}
+
+        {/* Info Section - Removed duplicate "No Results" */}
 
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
@@ -717,6 +758,46 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   noResultsSubtext: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 8,
+  },
+  centerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#EF4444",
+    marginTop: 16,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#F97316",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 16,
+  },
+  emptySubtext: {
     fontSize: 14,
     color: "#9CA3AF",
     marginTop: 8,

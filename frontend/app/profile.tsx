@@ -170,13 +170,27 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await signOutUser();
-            router.replace("/welcome");
           } catch (err) {
             console.warn("Logout failed", err);
+            Alert.alert("Error", "Failed to logout. Please try again.");
+          } finally {
+            router.replace("/signup");
           }
         },
       },
     ]);
+  };
+
+  const handleSavedPlaces = () => {
+    router.push("/saved-places");
+  };
+
+  const handleFavorites = () => {
+    router.push("/favorites");
+  };
+
+  const handleSettings = () => {
+    router.push("/settings");
   };
 
   const userName = userProfile
@@ -412,19 +426,28 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.actionsCard}>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleSavedPlaces}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons name="bookmark" size={20} color={Colors.primary} />
                 </View>
                 <Text style={styles.actionText}>Saved Places</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleFavorites}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons name="heart" size={20} color="#EF4444" />
                 </View>
                 <Text style={styles.actionText}>Favorites</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleSettings}
+              >
                 <View style={styles.actionIconContainer}>
                   <Ionicons
                     name="settings"

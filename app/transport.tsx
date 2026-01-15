@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import {
 
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { createTransportBooking } from "@/lib/api";
 
 type TransportType = "car" | "bus" | "bike" | "boat";
 
@@ -81,12 +84,14 @@ export default function TransportHub() {
   const [isLoading, setIsLoading] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // Booking details
   const [travelerName, setTravelerName] = useState("John Doe");
   const [phone, setPhone] = useState("01521562022");
   const [email, setEmail] = useState("john@example.com");
   const [travelDate, setTravelDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [passengers, setPassengers] = useState(1);
 
   // Payment details
@@ -228,8 +233,150 @@ export default function TransportHub() {
     } else if (showBookingModal) {
       setShowBookingModal(false);
     } else {
-      router.back();
+      router.replace("/");
     }
+  };
+
+  const handleSearchRoutes = () => {
+    if (!fromLocation || !toLocation) {
+      Alert.alert("Missing Locations", "Please set from and to locations");
+      return;
+    }
+    if (fromLocation === toLocation) {
+      Alert.alert("Invalid Route", "From and To locations cannot be the same");
+      return;
+    }
+    setSelectedType(null);
+    setShowCalendar(false);
+  };
+
+  const renderCalendar = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const currentMonth = selectedDate.getMonth();
+    const currentYear = selectedDate.getFullYear();
+
+    // Get first day of month and total days
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    // Handle month navigation
+    const goToPrevMonth = () => {
+      const prev = new Date(currentYear, currentMonth - 1, 1);
+      setSelectedDate(prev);
+    };
+
+    const goToNextMonth = () => {
+      const next = new Date(currentYear, currentMonth + 1, 1);
+      setSelectedDate(next);
+    };
+
+    // Handle date selection
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const selectDate = (day: number) => {
+      const selected = new Date(currentYear, currentMonth, day);
+      selected.setHours(0, 0, 0, 0);
+      if (selected >= today) {
+        setSelectedDate(selected);
+        setTravelDate(formatLocalDate(selected));
+        setShowCalendar(false);
+      }
+    };
+
+    // Build calendar days array
+    const days: React.ReactNode[] = [];
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYear, currentMonth, day);
+      date.setHours(0, 0, 0, 0);
+
+      const isToday = date.getTime() === today.getTime();
+      const isSelected = travelDate && formatLocalDate(date) === travelDate;
+      const isPast = date < today;
+
+      days.push(
+        <TouchableOpacity
+          key={day}
+          style={[
+            styles.calendarDay,
+            isToday && styles.calendarToday,
+            isSelected && styles.calendarSelected,
+            isPast && styles.calendarPast,
+          ]}
+          onPress={() => !isPast && selectDate(day)}
+          disabled={isPast}
+        >
+          <Text
+            style={[
+              styles.calendarDayText,
+              isToday && styles.calendarTodayText,
+              isSelected && styles.calendarSelectedText,
+              isPast && styles.calendarPastText,
+            ]}
+          >
+            {day}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View style={styles.calendar}>
+        {/* Calendar Header */}
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={goToPrevMonth}>
+            <Ionicons name="chevron-back" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.calendarHeaderText}>
+            {monthNames[currentMonth]} {currentYear}
+          </Text>
+          <TouchableOpacity onPress={goToNextMonth}>
+            <Ionicons name="chevron-forward" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Day Names Header */}
+        <View style={styles.calendarDayNames}>
+          {dayNames.map((name) => (
+            <View key={name} style={styles.calendarDayName}>
+              <Text style={styles.calendarDayNameText}>{name}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Calendar Grid */}
+        <View style={styles.calendarGrid}>{days}</View>
+      </View>
+    );
   };
 
   return (
@@ -293,7 +440,47 @@ export default function TransportHub() {
               />
             </View>
           </View>
-          <TouchableOpacity style={styles.searchButton}>
+
+          {/* Date Selection Button */}
+          <TouchableOpacity
+            style={styles.dateSelector}
+            onPress={() => setShowCalendar(!showCalendar)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="calendar"
+              size={20}
+              color={Colors.primary}
+              style={{ marginRight: Spacing.md }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dateSelectorLabel}>Travel Date</Text>
+              <Text style={styles.dateSelectorText}>
+                {travelDate
+                  ? new Date(travelDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })
+                  : "Select your travel date"}
+              </Text>
+            </View>
+            <Ionicons
+              name={showCalendar ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={Colors.primary}
+            />
+          </TouchableOpacity>
+
+          {/* Calendar View */}
+          {showCalendar && (
+            <View style={styles.calendarContainer}>{renderCalendar()}</View>
+          )}
+
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleSearchRoutes}
+          >
             <Text style={styles.searchButtonText}>Search Routes</Text>
           </TouchableOpacity>
         </View>
@@ -1128,5 +1315,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textMuted,
     textAlign: "center",
+  },
+  dateSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    marginHorizontal: 0,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  dateSelectorLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  dateSelectorText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: Colors.textPrimary,
+  },
+  calendarContainer: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.background,
+  },
+  calendar: {
+    width: "100%",
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  calendarHeaderText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  calendarDayNames: {
+    flexDirection: "row",
+    marginBottom: Spacing.sm,
+  },
+  calendarDayName: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+  },
+  calendarDayNameText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  calendarDay: {
+    width: "14.28%",
+    aspectRatio: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xs,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  calendarToday: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: Radii.sm,
+  },
+  calendarTodayText: {
+    color: Colors.primary,
+    fontWeight: "700",
+  },
+  calendarSelected: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.sm,
+  },
+  calendarSelectedText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  calendarPast: {
+    opacity: 0.3,
+  },
+  calendarPastText: {
+    color: Colors.textMuted,
   },
 });

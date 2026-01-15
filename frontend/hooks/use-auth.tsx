@@ -83,10 +83,11 @@ export function useRequireAuth() {
       top === "login" ||
       top === "signup" ||
       top === "user-signup" ||
-      top === "guide-registration";
+      top === "guide-registration" ||
+      top === "guide-signup-new";
 
     if (!user && !isPublic) {
-      router.replace("/welcome");
+      router.replace("/login");
     }
   }, [loading, user, segments, router]);
 }

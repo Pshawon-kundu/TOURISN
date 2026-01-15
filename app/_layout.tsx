@@ -32,11 +32,22 @@ function RootNavigation() {
         <Stack.Screen name="guides" options={{ headerShown: false }} />
         <Stack.Screen name="guide/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="booking" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="transport"
+          options={{
+            headerShown: false,
+            animationEnabled: true,
+          }}
+        />
         <Stack.Screen name="about" options={{ headerShown: false }} />
         <Stack.Screen name="experience" options={{ headerShown: false }} />
         <Stack.Screen name="hired-confirm" options={{ headerShown: false }} />
         <Stack.Screen
           name="guide-registration"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="experience-detail"
           options={{ headerShown: false }}
         />
         <Stack.Screen

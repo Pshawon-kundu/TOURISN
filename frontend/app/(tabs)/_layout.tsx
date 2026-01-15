@@ -1,45 +1,57 @@
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
+import { ColorSchemes } from "@/constants/design";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? "light";
+  const colors = ColorSchemes[colorScheme];
+  // Force light theme for the footer as requested
+  const footerBg = "#ffffff";
+  const footerBorder = "#E2E8F0";
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#6366F1",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: ColorSchemes.light.primary,
+        tabBarInactiveTintColor: "#64748B", // Slate 500
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarBackground: () =>
+          Platform.OS === "ios" ? (
+            <BlurView
+              intensity={95}
+              style={StyleSheet.absoluteFill}
+              tint="light"
+            />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: footerBg,
+              }}
+            />
+          ),
         tabBarStyle: {
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: "#FFFFFF",
+          elevation: 0,
+          backgroundColor: Platform.OS === "ios" ? "transparent" : footerBg,
+          height: Platform.OS === "ios" ? 85 : 65,
           borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
-          paddingBottom: 10,
+          borderTopColor: footerBorder,
+          shadowOpacity: 0, // Remove shadow
+          paddingBottom: Platform.OS === "ios" ? 25 : 10,
           paddingTop: 10,
-          height: 65,
-          elevation: 8,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          marginTop: 2,
-        },
-        tabBarIconStyle: {
-          marginTop: 2,
-        },
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
@@ -47,11 +59,21 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
-              size={24}
-              color={color}
-            />
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={26}
+                color={color}
+              />
+              {focused && (
+                <View
+                  style={[
+                    styles.activeDot,
+                    { backgroundColor: ColorSchemes.light.primary },
+                  ]}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -60,11 +82,21 @@ export default function TabLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "search" : "search-outline"}
-              size={24}
-              color={color}
-            />
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "search" : "search-outline"}
+                size={26}
+                color={color}
+              />
+              {focused && (
+                <View
+                  style={[
+                    styles.activeDot,
+                    { backgroundColor: ColorSchemes.light.primary },
+                  ]}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -73,11 +105,21 @@ export default function TabLayout() {
         options={{
           title: "Experience",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "compass" : "compass-outline"}
-              size={24}
-              color={color}
-            />
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "compass" : "compass-outline"}
+                size={26}
+                color={color}
+              />
+              {focused && (
+                <View
+                  style={[
+                    styles.activeDot,
+                    { backgroundColor: ColorSchemes.light.primary },
+                  ]}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -86,11 +128,21 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person" : "person-outline"}
-              size={24}
-              color={color}
-            />
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={26}
+                color={color}
+              />
+              {focused && (
+                <View
+                  style={[
+                    styles.activeDot,
+                    { backgroundColor: ColorSchemes.light.primary },
+                  ]}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -103,3 +155,18 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    top: Platform.OS === "ios" ? 10 : 0,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#2563EB",
+    marginTop: 4,
+  },
+});

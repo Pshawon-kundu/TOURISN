@@ -38,10 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stays"
         options={{
-          title: "Stays",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="building.fill" color={color} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
