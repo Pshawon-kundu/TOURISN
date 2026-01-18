@@ -9,6 +9,7 @@ import {
   Animated,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
   const { user } = useAuth();
   const displayName = user?.displayName || user?.email || "Traveler";
   const userEmail = user?.email || "";
@@ -33,21 +35,127 @@ export default function HomeScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const featuredScrollRef = useRef<ScrollView>(null);
+  const heroTextSlide = useRef(new Animated.Value(0)).current;
+  const heroImageScale = useRef(new Animated.Value(1)).current;
+  const heroImageSlide = useRef(new Animated.Value(0)).current;
+  const heroCardScale = useRef(new Animated.Value(1)).current;
+
+  // Places for hero card rotation
+  const heroPlaces = [
+    {
+      title: "Plan your next escape",
+      subtitle: "Stays, guides, rides, and food in one place.",
+      image:
+        "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800",
+    },
+    {
+      title: "Discover Cox's Bazar",
+      subtitle: "World's longest natural sea beach awaits you.",
+      image:
+        "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=800",
+    },
+    {
+      title: "Explore Sundarbans",
+      subtitle: "The largest mangrove forest in the world.",
+      image:
+        "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800",
+    },
+    {
+      title: "Visit Sylhet Tea Gardens",
+      subtitle: "Stunning tea estates and natural beauty.",
+      image:
+        "https://images.unsplash.com/photo-1563789031959-4c02bcb41319?w=800",
+    },
+    {
+      title: "Adventure in Bandarban",
+      subtitle: "Hills, waterfalls, and tribal culture.",
+      image:
+        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
+    },
+  ];
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
         tension: 20,
         friction: 7,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
+
+    // Sophisticated carousel animation for hero section
+    const interval = setInterval(() => {
+      Animated.parallel([
+        // Slide and fade out text
+        Animated.timing(heroTextSlide, {
+          toValue: -50,
+          duration: 400,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+        // Slide image to the left
+        Animated.timing(heroImageSlide, {
+          toValue: -100,
+          duration: 500,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+        // Scale down image slightly
+        Animated.timing(heroImageScale, {
+          toValue: 0.9,
+          duration: 400,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+        // Pulse card
+        Animated.sequence([
+          Animated.timing(heroCardScale, {
+            toValue: 0.98,
+            duration: 200,
+            useNativeDriver: Platform.OS !== "web",
+          }),
+          Animated.timing(heroCardScale, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: Platform.OS !== "web",
+          }),
+        ]),
+      ]).start(() => {
+        // Change content
+        setCurrentPlaceIndex((prev) => (prev + 1) % heroPlaces.length);
+
+        // Slide and fade in new content
+        heroTextSlide.setValue(50);
+        heroImageSlide.setValue(100);
+
+        Animated.parallel([
+          Animated.spring(heroTextSlide, {
+            toValue: 0,
+            tension: 50,
+            friction: 8,
+            useNativeDriver: Platform.OS !== "web",
+          }),
+          Animated.spring(heroImageSlide, {
+            toValue: 0,
+            tension: 40,
+            friction: 8,
+            useNativeDriver: Platform.OS !== "web",
+          }),
+          Animated.spring(heroImageScale, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: Platform.OS !== "web",
+          }),
+        ]).start();
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = async () => {
@@ -95,7 +203,7 @@ export default function HomeScreen() {
       iconFamily: "MaterialCommunityIcons",
       icon: "map-marker-path",
       title: "Experiences",
-      route: "/(tabs)/experiences",
+      route: "/explore",
       color: "#EF4444",
     },
     {
@@ -111,39 +219,39 @@ export default function HomeScreen() {
     {
       id: "1", // Cox's Bazar Beach Experience ID
       title: "Cox's Bazar Beach Escape",
-      tag: "Adventure",
+      tag: "Sun & Sea",
       price: "From ৳ 2,500",
       image:
-        "https://images.unsplash.com/photo-1589192471364-23e0c3b3f24e?w=800&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
       duration: "4 hours",
       rating: 4.9,
       reviews: 287,
     },
     {
       id: "2", // Bandarban Hill Trek Experience ID
-      title: "Bandarban Hill Trek",
-      tag: "Nature",
+      title: "Bandarban Hill Trails",
+      tag: "Adventure",
       price: "From ৳ 3,500",
       image:
-        "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800",
       duration: "Full day",
       rating: 4.8,
-      reviews: 156,
+      reviews: 412,
     },
     {
-      id: "3", // Sundarbans Experience ID
-      title: "Sundarbans Wildlife Safari",
+      id: "3", // Sylhet Tea Garden Experience ID
+      title: "Sylhet Tea Garden Escape",
       tag: "Nature",
-      price: "From ৳ 4,200",
+      price: "From ৳ 2,000",
       image:
-        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=800&h=400&fit=crop",
-      duration: "2 days",
+        "https://images.unsplash.com/photo-1563789031959-4c02bcb41319?w=800",
+      duration: "5 hours",
       rating: 4.7,
-      reviews: 98,
+      reviews: 356,
     },
   ];
 
-  const popularGuides = [
+  const topGuides = [
     {
       name: "Rakibul Islam",
       city: "Chittagong",
@@ -192,13 +300,29 @@ export default function HomeScreen() {
         <Animated.View
           style={[
             styles.heroCard,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: heroCardScale }],
+            },
           ]}
         >
-          <View style={styles.heroTextBlock}>
-            <Text style={styles.heroTitle}>Plan your next escape</Text>
+          <Animated.View
+            style={[
+              styles.heroTextBlock,
+              {
+                opacity: heroTextSlide.interpolate({
+                  inputRange: [-50, 0, 50],
+                  outputRange: [0, 1, 0],
+                }),
+                transform: [{ translateX: heroTextSlide }],
+              },
+            ]}
+          >
+            <Text style={styles.heroTitle}>
+              {heroPlaces[currentPlaceIndex].title}
+            </Text>
             <Text style={styles.heroSubtitle}>
-              Stays, guides, rides, and food in one place.
+              {heroPlaces[currentPlaceIndex].subtitle}
             </Text>
             <TouchableOpacity
               style={styles.heroCta}
@@ -206,13 +330,37 @@ export default function HomeScreen() {
             >
               <Text style={styles.heroCtaText}>Explore now</Text>
             </TouchableOpacity>
-          </View>
-          <Image
+          </Animated.View>
+          <Animated.Image
             source={{
-              uri: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800",
+              uri: heroPlaces[currentPlaceIndex].image,
             }}
-            style={styles.heroImage}
+            style={[
+              styles.heroImage,
+              {
+                opacity: heroImageSlide.interpolate({
+                  inputRange: [-100, 0, 100],
+                  outputRange: [0, 1, 0],
+                }),
+                transform: [
+                  { translateX: heroImageSlide },
+                  { scale: heroImageScale },
+                ],
+              },
+            ]}
           />
+          {/* Progress Indicators */}
+          <View style={styles.heroIndicators}>
+            {heroPlaces.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.indicator,
+                  index === currentPlaceIndex && styles.indicatorActive,
+                ]}
+              />
+            ))}
+          </View>
         </Animated.View>
 
         {/* Search Bar */}
@@ -286,6 +434,17 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.quickLabel}>Chat</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push("/guide-registration")}
+            >
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#DBEAFE" }]}
+              >
+                <Ionicons name="person-add" size={24} color="#0284C7" />
+              </View>
+              <Text style={styles.quickLabel}>Become Guide</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -338,8 +497,32 @@ export default function HomeScreen() {
 
         {/* Featured Trips */}
         <View style={styles.sectionSpacing}>
-          <Text style={styles.sectionTitle}>Featured trips</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Featured trips</Text>
+            <View style={styles.navigationButtons}>
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => {
+                  featuredScrollRef.current?.scrollTo({
+                    x: 0,
+                    animated: true,
+                  });
+                }}
+              >
+                <Ionicons name="chevron-back" size={20} color="#667eea" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => {
+                  featuredScrollRef.current?.scrollToEnd({ animated: true });
+                }}
+              >
+                <Ionicons name="chevron-forward" size={20} color="#667eea" />
+              </TouchableOpacity>
+            </View>
+          </View>
           <ScrollView
+            ref={featuredScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cardsScroll}
@@ -400,6 +583,28 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           ))}
+        </View>
+
+        {/* Chat Section - Prominent CTA */}
+        <View style={styles.chatSection}>
+          <View style={styles.chatHeader}>
+            <View style={styles.chatIconWrapper}>
+              <Ionicons name="chatbubbles" size={32} color="#EC4899" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.chatTitle}>Need help planning?</Text>
+              <Text style={styles.chatSubtitle}>
+                Chat with our travel experts and local guides
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => router.push("/chat")}
+          >
+            <Ionicons name="chatbubbles-outline" size={18} color="#FFF" />
+            <Text style={styles.chatButtonText}>Start Chat</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Promo CTA */}
@@ -738,6 +943,26 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     marginLeft: Spacing.md,
   },
+  heroIndicators: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  indicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  },
+  indicatorActive: {
+    width: 20,
+    backgroundColor: "#fff",
+  },
   searchWrapper: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
@@ -764,11 +989,30 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
     paddingHorizontal: Spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.md,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
+  },
+  navigationButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  navButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
   },
   actionsScroll: {
     gap: Spacing.md,
@@ -824,71 +1068,61 @@ const styles = StyleSheet.create({
   },
   featureImage: {
     width: "100%",
-    height: 140,
-    position: "relative",
+    height: 130,
   },
   featureOverlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    top: Spacing.sm,
+    right: Spacing.sm,
     zIndex: 1,
   },
   featureRating: {
-    position: "absolute",
-    top: Spacing.sm,
-    right: Spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.7)",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: Radii.sm,
-    gap: 3,
+    gap: 4,
   },
   ratingText: {
     color: "#FFF",
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
   },
   reviewsText: {
-    color: "#E0E0E0",
-    fontSize: 10,
-    fontWeight: "500",
+    color: "#FFF",
+    fontSize: 11,
+    opacity: 0.9,
   },
   featureContent: {
     padding: Spacing.md,
-    gap: 6,
+    gap: 4,
   },
   featureTag: {
     fontSize: 12,
     color: Colors.primary,
     fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   featureTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: Colors.textPrimary,
-    lineHeight: 20,
   },
   tripMeta: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 4,
   },
   featureDuration: {
     fontSize: 12,
     color: Colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   featurePrice: {
-    fontSize: 14,
-    color: Colors.textPrimary,
+    fontSize: 13,
+    color: Colors.primary,
     fontWeight: "700",
   },
   guideCard: {
@@ -938,6 +1172,71 @@ const styles = StyleSheet.create({
   guideActionText: {
     color: "#FFF",
     fontWeight: "700",
+  },
+  chatSection: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xl,
+    backgroundColor: "#FCE7F3",
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: "#FBCFE8",
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  chatIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#831843",
+    marginBottom: 4,
+  },
+  chatSubtitle: {
+    fontSize: 13,
+    color: "#9D174D",
+    fontWeight: "500",
+  },
+  chatButton: {
+    backgroundColor: "#EC4899",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.full,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#EC4899",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  chatButtonText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   promoCard: {
     marginHorizontal: Spacing.lg,

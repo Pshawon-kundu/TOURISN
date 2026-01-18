@@ -15,6 +15,9 @@
     "frontend": "cd frontend && npm start",
     "backend": "cd backend && npm run dev",
     "dev": "concurrently \"npm:frontend\" \"npm:backend\"",
+    "build:admin": "cd admin-web && npm install && npm run build",
+    "build:backend": "cd backend && npm install && npm run build",
+    "build:all": "npm run build:admin && mkdir -p dist && cp -r admin-web/dist/* dist/",
     "install-all": "npm install && npm install --workspace=frontend && npm install --workspace=backend",
     "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend"
   },

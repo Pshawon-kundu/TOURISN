@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
+import adminRoutes from "./routes/admin";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import chatRoutes from "./routes/chatRoutes";
@@ -60,6 +61,24 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Security Headers
+app.use((req, res, next) => {
+  // Prevent XSS attacks
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
+  );
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+  );
+  next();
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
@@ -74,6 +93,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // Register all routes
+app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/chat", chatRoutes);

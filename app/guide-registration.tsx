@@ -13,6 +13,8 @@ import {
 
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { registerGuide } from "@/lib/api";
 
 const expertiseCategories = [
   "Historical Sites & Heritage",
@@ -95,6 +97,7 @@ const bangladeshDistricts = [
 ];
 
 export default function GuideRegistrationScreen() {
+  const { user } = useAuth();
   const [step, setStep] = useState<"details" | "nid" | "expertise">("details");
   const [fullName, setFullName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -109,14 +112,100 @@ export default function GuideRegistrationScreen() {
     useState<string[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [nidWarning, setNidWarning] = useState("");
 
-  const handleNIDVerification = () => {
-    if (nidNumber.length < 10) {
-      Alert.alert("Invalid NID", "NID Number must be at least 10 digits");
+  const checkNIDPattern = (nid: string) => {
+    if (!nid) {
+      setNidWarning("");
       return;
     }
-    // Simulate NID verification
-    Alert.alert("Success", "NID verified successfully!");
+
+    // Check for fake patterns
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/,
+      /^1111111111$/,
+      /^0000000000$/,
+      /^9999999999$/,
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+      /^(123456|654321)/,
+    ];
+
+    for (const pattern of fakePatterns) {
+      if (pattern.test(nid)) {
+        setNidWarning(
+          "⚠️ This appears to be a fake NID. Please use your real NID card number.",
+        );
+        setNidVerified(false);
+        return;
+      }
+    }
+
+    // Check valid format
+    const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
+    if (nid.length >= 10 && !nidPattern.test(nid)) {
+      setNidWarning("Invalid format. Must be 10, 13, or 17 digits.");
+    } else {
+      setNidWarning("");
+    }
+  };
+
+  const handleNIDChange = (text: string) => {
+    setNidNumber(text);
+    setNidVerified(false);
+    checkNIDPattern(text);
+  };
+
+  const handleNIDVerification = () => {
+    // Validate NID format first
+    if (!nidNumber.trim()) {
+      Alert.alert("Required", "Please enter your NID number");
+      return;
+    }
+
+    // Check for fake NID patterns immediately on frontend
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/,
+      /^1111111111$/,
+      /^0000000000$/,
+      /^9999999999$/,
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+      /^(123456|654321)/,
+    ];
+
+    for (const pattern of fakePatterns) {
+      if (pattern.test(nidNumber.trim())) {
+        Alert.alert(
+          "⚠️ Invalid NID",
+          "This appears to be a test or fake NID number. Please enter your actual NID from your official card.",
+          [{ text: "OK" }],
+        );
+        setNidVerified(false);
+        return;
+      }
+    }
+
+    // Validate Bangladesh NID format (10, 13, or 17 digits)
+    const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
+    if (!nidPattern.test(nidNumber.trim())) {
+      Alert.alert(
+        "Invalid NID Format",
+        "Bangladesh NID must be exactly 10, 13, or 17 digits",
+      );
+      return;
+    }
+
+    // If passes frontend validation, show success
+    // In production, this should call the backend API
+    Alert.alert(
+      "✅ NID Format Valid",
+      "Your NID format is valid. It will be verified by our team during review.",
+      [{ text: "OK" }],
+    );
     setNidVerified(true);
   };
 
@@ -149,9 +238,22 @@ export default function GuideRegistrationScreen() {
   };
 
   const handleSubmit = async () => {
+    console.log("🚀 Starting guide registration submission...");
+    console.log("Form data:", {
+      fullName,
+      dateOfBirth,
+      phone,
+      email,
+      nidNumber,
+      expertiseCount: selectedExpertiseCategories.length,
+      coverageCount: coverageAreas.length,
+      perHourRate,
+      yearsExperience,
+    });
+
     // Enhanced validation
     if (!fullName.trim()) {
-      Alert.alert("Required", "Please enter your full name");
+      Alert.alert("Required Field", "Please enter your full name");
       return;
     }
 
@@ -176,12 +278,18 @@ export default function GuideRegistrationScreen() {
     }
 
     if (selectedExpertiseCategories.length === 0) {
-      Alert.alert("Required", "Please select at least one area of expertise");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
+      );
       return;
     }
 
     if (coverageAreas.length === 0) {
-      Alert.alert("Required", "Please select at least one coverage area");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one coverage area (district) where you can provide services",
+      );
       return;
     }
 
@@ -190,7 +298,10 @@ export default function GuideRegistrationScreen() {
       isNaN(Number(perHourRate)) ||
       Number(perHourRate) <= 0
     ) {
-      Alert.alert("Required", "Please enter a valid hourly rate");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and enter your per hour rate in BDT",
+      );
       return;
     }
 
@@ -203,7 +314,7 @@ export default function GuideRegistrationScreen() {
     if (!phone.match(/^\+880\d{9,10}$/)) {
       Alert.alert(
         "Validation Error",
-        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)"
+        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
       );
       return;
     }
@@ -222,89 +333,84 @@ export default function GuideRegistrationScreen() {
       const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
       const today = new Date();
       const calculatedAge = Math.floor(
-        (today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+        (today.getTime() - birthDate.getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000),
       );
 
       if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
         Alert.alert(
           "Validation Error",
-          "Please enter a valid date of birth. You must be between 18 and 120 years old."
+          "Please enter a valid date of birth. You must be between 18 and 120 years old.",
         );
         setIsSubmitting(false);
         return;
       }
 
-      // Create guide profile data
+      // Format date of birth for database (YYYY-MM-DD)
+      const formattedDOB = dateOfBirth.split("/").reverse().join("-");
+
+      // Create guide profile data for Backend API
       const guideData = {
         firstName: fullName.split(" ")[0] || fullName,
         lastName: fullName.split(" ").slice(1).join(" ") || "",
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         phone: phone.trim(),
         nidNumber: nidNumber.trim(),
-        nidImageUrl: "https://example.com/nid-placeholder.jpg", // This would be uploaded in a real app
+        nidImageUrl: "pending_upload", // Placeholder for backend validation
         age: calculatedAge,
-        expertiseArea: selectedExpertiseCategories[0] || "Tourism", // Use first selected category as main expertise
+        dateOfBirth: formattedDOB,
+        expertiseArea: selectedExpertiseCategories[0] || "Tourism",
+        specialties: selectedExpertiseCategories,
         selectedExpertiseCategories: selectedExpertiseCategories,
         coverageAreas: coverageAreas,
         perHourRate: parseFloat(perHourRate),
+        yearsOfExperience: parseInt(yearsExperience) || 1,
         bio:
           experience ||
           `Experienced guide specializing in ${selectedExpertiseCategories.join(
-            ", "
+            ", ",
           )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
             coverageAreas.length > 3 ? " and more areas" : ""
           }.`,
-        specialties: selectedExpertiseCategories,
-        languages: ["Bengali", "English"], // Default languages, can be made configurable
-        yearsOfExperience: parseInt(yearsExperience) || 1,
+        languages: ["Bengali", "English"],
         certifications: [],
-        dateOfBirth: dateOfBirth,
       };
 
-      const response = await fetch(
-        "http://localhost:5001/api/guides/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Add authorization header when user auth is implemented
-            // 'Authorization': `Bearer ${userToken}`
-          },
-          body: JSON.stringify(guideData),
-        }
-      );
+      console.log("📤 Submitting guide data to Backend API...", guideData);
 
-      const result = await response.json();
-
-      if (result.success) {
-        // Show thank you popup
-        Alert.alert(
-          "🎉 Thank You for Registering!",
-          `Welcome to our tourism community, ${fullName}! Your guide profile has been created successfully and will be reviewed within 24 hours. You can now be found in the guides section and receive chat messages from travelers.\\n\\nWhat's next?\\n• Complete your profile with photos\\n• Wait for verification\\n• Start connecting with travelers`,
-          [
-            {
-              text: "View My Profile",
-              onPress: () => router.push("/profile"),
-              style: "default",
-            },
-            {
-              text: "Explore Guides",
-              onPress: () => router.push("/guides"),
-              style: "cancel",
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Registration Failed",
-          result.error || "Please try again later."
-        );
+      if (!user) {
+        throw new Error("You must be logged in to register as a guide.");
       }
-    } catch (error) {
-      console.error("Guide registration error:", error);
+
+      const token = await user.getIdToken();
+
+      // Call Backend API instead of direct Supabase insert
+      const data = await registerGuide(guideData, token);
+
+      console.log("✅ Guide registered successfully via API:", data);
+
+      // Show thank you popup
+      Alert.alert(
+        "🎉 Thank You for Registering!",
+        `Welcome to our tourism community, ${fullName}!\n\nYour guide profile has been created successfully and will be reviewed within 24 hours.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
+        [
+          {
+            text: "Go to Home",
+            onPress: () => router.replace("/"),
+            style: "default",
+          },
+          {
+            text: "View Guides",
+            onPress: () => router.push("/guides"),
+            style: "cancel",
+          },
+        ],
+      );
+    } catch (error: any) {
+      console.error("❌ Guide registration error:", error);
       Alert.alert(
         "Network Error",
-        "Please check your internet connection and try again."
+        error.message || "Please check your internet connection and try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -313,7 +419,7 @@ export default function GuideRegistrationScreen() {
 
   const handleBack = () => {
     if (step === "details") {
-      router.push("/(tabs)/");
+      router.back();
     } else if (step === "nid") {
       setStep("details");
     } else {
@@ -441,17 +547,21 @@ export default function GuideRegistrationScreen() {
             <View style={styles.fieldWrapper}>
               <Label icon="shield-checkmark" label="NID Number" required />
               <TextInput
-                style={styles.input}
+                style={[styles.input, nidWarning ? styles.inputError : null]}
                 placeholder="Enter your NID number"
                 placeholderTextColor="#999"
                 value={nidNumber}
-                onChangeText={setNidNumber}
+                onChangeText={handleNIDChange}
                 keyboardType="numeric"
                 maxLength={17}
               />
-              <Text style={styles.helperText}>
-                Bangladesh NID format: typically 10-17 digits
-              </Text>
+              {nidWarning ? (
+                <Text style={styles.errorText}>{nidWarning}</Text>
+              ) : (
+                <Text style={styles.helperText}>
+                  Bangladesh NID format: typically 10-17 digits
+                </Text>
+              )}
             </View>
 
             {/* Verification Status */}
@@ -470,8 +580,13 @@ export default function GuideRegistrationScreen() {
             {/* Verify Button */}
             {!nidVerified && (
               <TouchableOpacity
-                style={styles.verifyButton}
+                style={[
+                  styles.verifyButton,
+                  (nidWarning || !nidNumber.trim()) &&
+                    styles.verifyButtonDisabled,
+                ]}
                 onPress={handleNIDVerification}
+                disabled={!!nidWarning || !nidNumber.trim()}
               >
                 <Ionicons name="shield-checkmark" size={20} color="#FFF" />
                 <Text style={styles.verifyButtonText}>Verify NID</Text>
@@ -524,8 +639,8 @@ export default function GuideRegistrationScreen() {
                       if (selectedExpertiseCategories.includes(category)) {
                         setSelectedExpertiseCategories(
                           selectedExpertiseCategories.filter(
-                            (cat) => cat !== category
-                          )
+                            (cat) => cat !== category,
+                          ),
                         );
                       } else {
                         setSelectedExpertiseCategories([
@@ -589,7 +704,7 @@ export default function GuideRegistrationScreen() {
                       onPress={() => {
                         if (coverageAreas.includes(district)) {
                           setCoverageAreas(
-                            coverageAreas.filter((area) => area !== district)
+                            coverageAreas.filter((area) => area !== district),
                           );
                         } else {
                           setCoverageAreas([...coverageAreas, district]);
@@ -933,6 +1048,10 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 14,
   },
+  inputError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
   inputMultiline: {
     minHeight: 100,
     textAlignVertical: "top",
@@ -940,6 +1059,11 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    fontWeight: "600",
   },
   infoBox: {
     flexDirection: "row",
@@ -1001,6 +1125,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     gap: 8,
     marginTop: Spacing.sm,
+  },
+  verifyButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
   },
   verifyButtonText: {
     color: "#FFF",

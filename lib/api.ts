@@ -29,7 +29,7 @@ interface BookingData {
 }
 
 export const createTransportBooking = async (
-  bookingData: BookingData
+  bookingData: BookingData,
 ): Promise<any> => {
   try {
     const response = await fetch(`${API_BASE_URL}/transport`, {
@@ -54,7 +54,7 @@ export const createTransportBooking = async (
 };
 
 export const createStayBooking = async (
-  bookingData: BookingData
+  bookingData: BookingData,
 ): Promise<any> => {
   try {
     const response = await fetch(`${API_BASE_URL}/stays`, {
@@ -117,7 +117,7 @@ export const processPayment = async (
     payment_number?: string;
     transaction_id?: string;
   },
-  authToken: string
+  authToken: string,
 ): Promise<any> => {
   try {
     const response = await fetch(
@@ -132,7 +132,7 @@ export const processPayment = async (
           booking_id: bookingId,
           ...paymentData,
         }),
-      }
+      },
     );
 
     const data = await response.json();
@@ -291,7 +291,7 @@ export const getExperienceById = async (id: string): Promise<any> => {
 };
 
 export const createExperienceBooking = async (
-  bookingData: BookingData
+  bookingData: BookingData,
 ): Promise<any> => {
   try {
     const response = await fetch(`${API_BASE_URL}/bookings/experience`, {
@@ -351,7 +351,7 @@ export const getDistrictById = async (id: string): Promise<any> => {
 export const searchDistricts = async (query: string): Promise<any> => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/districts/search?q=${encodeURIComponent(query)}`
+      `${API_BASE_URL}/districts/search?q=${encodeURIComponent(query)}`,
     );
     const data = await response.json();
 
@@ -362,6 +362,34 @@ export const searchDistricts = async (query: string): Promise<any> => {
     return data;
   } catch (error) {
     console.error("Error searching districts:", error);
+    throw error;
+  }
+};
+
+// Guide API Functions
+export const registerGuide = async (
+  guideData: any,
+  authToken: string,
+): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/guides/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(guideData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to register guide");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error registering guide:", error);
     throw error;
   }
 };

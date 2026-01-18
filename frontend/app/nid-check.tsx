@@ -62,11 +62,68 @@ export default function NidCheck() {
   };
 
   const validateNID = (nid: string): boolean => {
+    // Remove any spaces or dashes
+    const cleanedNID = nid.replace(/[\s-]/g, "");
+
+    // Check basic format
     const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
-    if (!nidPattern.test(nid)) {
-      setNidError("NID must be 10, 13, or 17 digits");
+    if (!nidPattern.test(cleanedNID)) {
+      setNidError("NID must be exactly 10, 13, or 17 digits");
       return false;
     }
+
+    // Additional validation for Bangladesh NID patterns
+    if (cleanedNID.length === 13) {
+      const birthYear = parseInt(cleanedNID.substring(0, 4));
+      const currentYear = new Date().getFullYear();
+      if (birthYear < 1900 || birthYear > currentYear) {
+        setNidError("Invalid birth year in NID number");
+        return false;
+      }
+    }
+
+    if (cleanedNID.length === 17) {
+      const birthYear = parseInt(cleanedNID.substring(0, 4));
+      const currentYear = new Date().getFullYear();
+      if (birthYear < 1900 || birthYear > currentYear) {
+        setNidError("Invalid birth year in Smart NID number");
+        return false;
+      }
+    }
+
+    // Check for common invalid patterns
+    if (/^(0+|1+|2+|3+|4+|5+|6+|7+|8+|9+)$/.test(cleanedNID)) {
+      setNidError("NID cannot be all the same digits");
+      return false;
+    }
+
+    if (/^(123456|654321|111111|000000)/.test(cleanedNID)) {
+      setNidError("Invalid NID pattern detected");
+      return false;
+    }
+
+    // Enhanced fake pattern detection
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/, // The specific fake NID being used
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+    ];
+
+    for (const pattern of fakePatterns) {
+      if (pattern.test(cleanedNID)) {
+        setNidError(
+          "🚨 This appears to be a test/fake NID number. Please enter your actual NID."
+        );
+        Alert.alert(
+          "🚨 Fake NID Detected",
+          "The NID number you entered appears to be fake or a test number. Please enter your actual National ID number from your NID card.\n\nUsing fake information may result in account suspension.",
+          [{ text: "OK", style: "default" }]
+        );
+        return false;
+      }
+    }
+
     setNidError("");
     return true;
   };
@@ -79,10 +136,47 @@ export default function NidCheck() {
     }
 
     const birthDate = new Date(dob);
-    const age = new Date().getFullYear() - birthDate.getFullYear();
-    if (age < 18 || age > 100) {
-      setDobError("Age must be between 18 and 100");
+    const currentDate = new Date();
+
+    // Check if it's a valid date
+    if (isNaN(birthDate.getTime())) {
+      setDobError("Invalid date");
       return false;
+    }
+
+    // Check if date is not in the future
+    if (birthDate > currentDate) {
+      setDobError("Date of birth cannot be in the future");
+      return false;
+    }
+
+    // Calculate age more accurately
+    let age = currentDate.getFullYear() - birthDate.getFullYear();
+    const monthDiff = currentDate.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && currentDate.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+
+    if (age < 18) {
+      setDobError("You must be at least 18 years old");
+      return false;
+    }
+
+    if (age > 120) {
+      setDobError("Invalid age - please check your date of birth");
+      return false;
+    }
+
+    // Cross-validate with NID if it's 13 or 17 digits
+    if (nidNumber.length >= 13) {
+      const nidBirthYear = parseInt(nidNumber.substring(0, 4));
+      if (Math.abs(nidBirthYear - birthDate.getFullYear()) > 1) {
+        setDobError("Date of birth doesn't match the year in your NID");
+        return false;
+      }
     }
 
     setDobError("");
@@ -117,6 +211,55 @@ export default function NidCheck() {
       console.error("Image picker error:", error);
       Alert.alert("Error", "Failed to pick image");
     }
+  };
+
+  const validateImage = (imageUri: string): boolean => {
+    if (!imageUri) {
+      Alert.alert(
+        "Image Required",
+        "Please upload or capture your NID card image. This is mandatory for verification."
+      );
+      return false;
+    }
+
+    // Check if it's a base64 image
+    if (!imageUri.startsWith("data:image/")) {
+      Alert.alert(
+        "Invalid Image",
+        "Please select a valid image file (JPG, PNG, etc.)"
+      );
+      return false;
+    }
+
+    // Check file size (approximate from base64)
+    const base64Data = imageUri.split(",")[1];
+    if (!base64Data) {
+      Alert.alert(
+        "Invalid Image",
+        "Image data is corrupted. Please try again."
+      );
+      return false;
+    }
+
+    const fileSizeKB = (base64Data.length * 3) / 4 / 1024; // Approximate size in KB
+    if (fileSizeKB < 50) {
+      Alert.alert(
+        "Image Too Small",
+        "Image is too small. Please capture a clearer, higher resolution photo."
+      );
+      return false;
+    }
+
+    if (fileSizeKB > 15000) {
+      // 15MB limit
+      Alert.alert(
+        "Image Too Large",
+        "Image is too large. Please compress or choose a smaller image."
+      );
+      return false;
+    }
+
+    return true;
   };
 
   const takePhoto = async () => {
@@ -171,6 +314,24 @@ export default function NidCheck() {
       return;
     }
 
+    // SECURITY WARNING: Inform user about enhanced verification
+    Alert.alert(
+      "🔒 Enhanced Security Verification",
+      "For your security, we use advanced verification methods. Please ensure:\n\n• Your NID number exactly matches the card\n• The image is clear and readable\n• All information is accurate\n\nMost verifications require manual review for security.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Proceed with Verification",
+          onPress: () => performVerification(),
+        },
+      ]
+    );
+  };
+
+  const performVerification = async () => {
     try {
       setLoading(true);
 
@@ -182,18 +343,38 @@ export default function NidCheck() {
       });
 
       if (response.data.success) {
-        Alert.alert("Success", response.data.message, [
-          {
-            text: "OK",
-            onPress: () => {
-              loadVerificationStatus();
-              // Clear form
-              setNidNumber("");
-              setDateOfBirth("");
-              setSelectedImage(null);
+        // Check if it's actually verified or pending review
+        const status = response.data.data?.status || "pending_review";
+        const isVerified = status === "verified";
+        const isPending = status === "pending_review";
+
+        if (isPending) {
+          Alert.alert("⏳ Pending Review", response.data.message, [
+            {
+              text: "OK",
+              onPress: () => {
+                loadVerificationStatus();
+                // Clear form
+                setNidNumber("");
+                setDateOfBirth("");
+                setSelectedImage(null);
+              },
             },
-          },
-        ]);
+          ]);
+        } else if (isVerified) {
+          Alert.alert("✅ Verified", response.data.message, [
+            {
+              text: "OK",
+              onPress: () => {
+                loadVerificationStatus();
+                // Clear form
+                setNidNumber("");
+                setDateOfBirth("");
+                setSelectedImage(null);
+              },
+            },
+          ]);
+        }
       } else {
         Alert.alert("Verification Failed", response.data.message);
       }

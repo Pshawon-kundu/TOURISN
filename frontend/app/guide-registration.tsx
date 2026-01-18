@@ -1,12 +1,8 @@
-import { useAuth } from "@/hooks/use-auth";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
-  Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,8 +12,9 @@ import {
 } from "react-native";
 
 import { ThemedView } from "@/components/themed-view";
-import { Colors, Radii, Spacing } from "@/constants/design";
-import { signUp } from "@/lib/auth";
+import { Colors as DesignColors, Radii, Spacing } from "@/constants/design";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 const expertiseCategories = [
   "Historical Sites & Heritage",
@@ -33,7 +30,6 @@ const expertiseCategories = [
 ];
 
 const bangladeshDistricts = [
-  // Dhaka Division
   "Dhaka",
   "Faridpur",
   "Gazipur",
@@ -47,8 +43,6 @@ const bangladeshDistricts = [
   "Rajbari",
   "Shariatpur",
   "Tangail",
-
-  // Chattogram Division
   "Chattogram",
   "Bandarban",
   "Brahmanbaria",
@@ -60,8 +54,6 @@ const bangladeshDistricts = [
   "Lakshmipur",
   "Noakhali",
   "Rangamati",
-
-  // Rajshahi Division
   "Rajshahi",
   "Bogura",
   "Joypurhat",
@@ -70,8 +62,6 @@ const bangladeshDistricts = [
   "Chapainawabganj",
   "Pabna",
   "Sirajganj",
-
-  // Khulna Division
   "Khulna",
   "Bagerhat",
   "Chuadanga",
@@ -82,22 +72,16 @@ const bangladeshDistricts = [
   "Meherpur",
   "Narail",
   "Satkhira",
-
-  // Barishal Division
   "Barishal",
   "Barguna",
   "Bhola",
   "Jhalokathi",
   "Patuakhali",
   "Pirojpur",
-
-  // Sylhet Division
   "Sylhet",
   "Habiganj",
   "Moulvibazar",
   "Sunamganj",
-
-  // Rangpur Division
   "Rangpur",
   "Dinajpur",
   "Gaibandha",
@@ -106,8 +90,6 @@ const bangladeshDistricts = [
   "Nilphamari",
   "Panchagarh",
   "Thakurgaon",
-
-  // Mymensingh Division
   "Mymensingh",
   "Jamalpur",
   "Netrokona",
@@ -115,102 +97,133 @@ const bangladeshDistricts = [
 ];
 
 export default function GuideRegistrationScreen() {
-  const { user } = useAuth();
-  const [step, setStep] = useState<"auth" | "details" | "nid" | "expertise">(
-    "details"
-  );
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [step, setStep] = useState<"details" | "nid" | "expertise">("details");
   const [fullName, setFullName] = useState("");
-  const [age, setAge] = useState("");
-  const [nidNumber, setNidNumber] = useState("");
-  const [nidImage, setNidImage] = useState<string | null>(null);
-  const [nidVerified, setNidVerified] = useState(false);
-  const [expertiseArea, setExpertiseArea] = useState("");
-  const [experienceYears, setExperienceYears] = useState("");
-  const [perHourRate, setPerHourRate] = useState("");
-  const [loading, setLoading] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [nidNumber, setNidNumber] = useState("");
+  const [nidVerified, setNidVerified] = useState(false);
+  const [experience, setExperience] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("");
+  const [perHourRate, setPerHourRate] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [selectedExpertiseCategories, setSelectedExpertiseCategories] =
     useState<string[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<string[]>([]);
-  const [experience, setExperience] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [nidWarning, setNidWarning] = useState("");
 
-  useEffect(() => {
-    // If user is already logged in or not logged in, adjust initial step
-    if (!user) {
-      setStep("auth");
+  const checkNIDPattern = (nid: string) => {
+    if (!nid) {
+      setNidWarning("");
+      return;
+    }
+
+    // Check for fake patterns
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/,
+      /^1111111111$/,
+      /^0000000000$/,
+      /^9999999999$/,
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+      /^(123456|654321)/,
+    ];
+
+    for (const pattern of fakePatterns) {
+      if (pattern.test(nid)) {
+        setNidWarning(
+          "⚠️ This appears to be a fake NID. Please use your real NID card number.",
+        );
+        setNidVerified(false);
+        return;
+      }
+    }
+
+    // Check valid format
+    const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
+    if (nid.length >= 10 && !nidPattern.test(nid)) {
+      setNidWarning("Invalid format. Must be 10, 13, or 17 digits.");
     } else {
-      setStep("details");
+      setNidWarning("");
     }
-  }, [user]);
+  };
 
-  useEffect(() => {
-    // Suppress aria-hidden warning for web
-    if (typeof window !== "undefined" && Platform.OS === "web") {
-      const originalWarn = console.warn;
-      console.warn = (...args: any[]) => {
-        if (args[0]?.includes?.("aria-hidden")) return;
-        originalWarn(...args);
-      };
-      return () => {
-        console.warn = originalWarn;
-      };
+  const handleNIDChange = (text: string) => {
+    setNidNumber(text);
+    setNidVerified(false);
+    checkNIDPattern(text);
+  };
+
+  const handleNIDVerification = () => {
+    // Validate NID format first
+    if (!nidNumber.trim()) {
+      Alert.alert("Required", "Please enter your NID number");
+      return;
     }
-  }, []);
 
-  const pickNIDImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
+    // Check for fake NID patterns immediately on frontend
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/,
+      /^1111111111$/,
+      /^0000000000$/,
+      /^9999999999$/,
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+      /^(123456|654321)/,
+    ];
+
+    for (const pattern of fakePatterns) {
+      if (pattern.test(nidNumber.trim())) {
+        Alert.alert(
+          "⚠️ Invalid NID",
+          "This appears to be a test or fake NID number. Please enter your actual NID from your official card.",
+          [{ text: "OK" }],
+        );
+        setNidVerified(false);
+        return;
+      }
+    }
+
+    // Validate Bangladesh NID format (10, 13, or 17 digits)
+    const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
+    if (!nidPattern.test(nidNumber.trim())) {
       Alert.alert(
-        "Permission Required",
-        "Please allow access to your photo library"
+        "Invalid NID Format",
+        "Bangladesh NID must be exactly 10, 13, or 17 digits",
       );
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setNidImage(result.assets[0].uri);
-    }
-  };
-
-  const handleNIDVerification = () => {
-    if (nidNumber.length < 10) {
-      Alert.alert("Invalid NID", "NID Number must be at least 10 digits");
-      return;
-    }
-    if (!nidImage) {
-      Alert.alert("Required", "Please upload your NID image");
-      return;
-    }
-    // Simulate NID verification
-    Alert.alert("Success", "NID verified successfully!");
+    // If passes frontend validation, show success
+    // In production, this should call the backend API
+    Alert.alert(
+      "✅ NID Format Valid",
+      "Your NID format is valid. It will be verified by our team during review.",
+      [{ text: "OK" }],
+    );
     setNidVerified(true);
   };
 
-  const handleNext = async () => {
-    if (step === "auth") {
-      if (!email.trim() || !password.trim()) {
-        Alert.alert("Required", "Please enter email and password");
-        return;
-      }
-      setStep("details");
-    } else if (step === "details") {
+  const handleNext = () => {
+    if (step === "details") {
       if (!fullName.trim()) {
         Alert.alert("Required", "Please enter your full name");
         return;
       }
-      if (!age.trim() || isNaN(Number(age))) {
-        Alert.alert("Required", "Please enter a valid age");
+      if (!dateOfBirth.trim()) {
+        Alert.alert("Required", "Please enter your date of birth");
+        return;
+      }
+      if (!phone.trim()) {
+        Alert.alert("Required", "Please enter your phone number");
+        return;
+      }
+      if (!email.trim()) {
+        Alert.alert("Required", "Please enter your email address");
         return;
       }
       setStep("nid");
@@ -224,23 +237,22 @@ export default function GuideRegistrationScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log("🔥 SUBMIT BUTTON CLICKED!");
-    console.log("Current form data:", {
+    console.log("🚀 Starting guide registration submission...");
+    console.log("Form data:", {
       fullName,
       dateOfBirth,
       phone,
       email,
-      selectedExpertiseCategories,
-      coverageAreas,
-      perHourRate,
-      experienceYears,
-      experience,
       nidNumber,
+      expertiseCount: selectedExpertiseCategories.length,
+      coverageCount: coverageAreas.length,
+      perHourRate,
+      yearsExperience,
     });
 
     // Enhanced validation
     if (!fullName.trim()) {
-      Alert.alert("Required", "Please enter your full name");
+      Alert.alert("Required Field", "Please enter your full name");
       return;
     }
 
@@ -265,12 +277,18 @@ export default function GuideRegistrationScreen() {
     }
 
     if (selectedExpertiseCategories.length === 0) {
-      Alert.alert("Required", "Please select at least one area of expertise");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
+      );
       return;
     }
 
     if (coverageAreas.length === 0) {
-      Alert.alert("Required", "Please select at least one coverage area");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one coverage area (district) where you can provide services",
+      );
       return;
     }
 
@@ -279,11 +297,14 @@ export default function GuideRegistrationScreen() {
       isNaN(Number(perHourRate)) ||
       Number(perHourRate) <= 0
     ) {
-      Alert.alert("Required", "Please enter a valid hourly rate");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and enter your per hour rate in BDT",
+      );
       return;
     }
 
-    if (!experienceYears.trim()) {
+    if (!yearsExperience.trim()) {
       Alert.alert("Required", "Please enter your years of experience");
       return;
     }
@@ -292,7 +313,7 @@ export default function GuideRegistrationScreen() {
     if (!phone.match(/^\+880\d{9,10}$/)) {
       Alert.alert(
         "Validation Error",
-        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)"
+        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
       );
       return;
     }
@@ -304,168 +325,123 @@ export default function GuideRegistrationScreen() {
       return;
     }
 
-    console.log("✅ Validation passed, starting registration...");
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       // Calculate age from date of birth
       const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
       const today = new Date();
       const calculatedAge = Math.floor(
-        (today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+        (today.getTime() - birthDate.getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000),
       );
 
       if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
         Alert.alert(
           "Validation Error",
-          "Please enter a valid date of birth. You must be between 18 and 120 years old."
+          "Please enter a valid date of birth. You must be between 18 and 120 years old.",
         );
-        setLoading(false);
+        setIsSubmitting(false);
         return;
       }
 
-      // Parse full name into first and last name
-      const nameParts = fullName.trim().split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+      // Format date of birth for database (YYYY-MM-DD)
+      const formattedDOB = dateOfBirth.split("/").reverse().join("-");
 
-      // If user is not logged in, sign them up first
-      let userEmail = user?.email || email.trim();
-      let userPassword = password;
-
-      if (!user) {
-        if (!userEmail || !userPassword) {
-          throw new Error("Email and password are required");
-        }
-        console.log("Creating new guide user account...");
-        try {
-          await signUp(
-            userEmail,
-            userPassword,
-            firstName,
-            lastName,
-            "guide", // Role
-            phone
-          );
-          // Wait a moment for auth state to update
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-        } catch (signupError: any) {
-          throw new Error(`Account creation failed: ${signupError.message}`);
-        }
-      }
-
-      console.log("Submitting guide registration to /api/guides/register");
-
-      // Use localhost for web/emulator, or your computer's IP for physical device
-      const API_URL =
-        Platform.OS === "web"
-          ? "http://localhost:5001"
-          : "http://10.0.2.2:5001"; // 10.0.2.2 is Android emulator host, use your IP for physical device
-
-      const endpoint = `${API_URL}/api/guides/register`;
-      console.log("Calling API:", endpoint);
-
-      // Create guide profile data with enhanced fields
+      // Prepare data for API
       const guideData = {
-        firstName,
-        lastName,
-        email: userEmail,
+        firstName: fullName.split(" ")[0] || fullName,
+        lastName: fullName.split(" ").slice(1).join(" ") || "",
+        email: email.trim().toLowerCase(),
         phone: phone.trim(),
         nidNumber: nidNumber.trim(),
-        nidImageUrl: nidImage || "https://example.com/nid-placeholder.jpg",
+        nidImageUrl: "pending_upload",
         age: calculatedAge,
+        // dateOfBirth: formattedDOB, // Backend might calculate age or use it? controller uses age.
         expertiseArea: selectedExpertiseCategories[0] || "Tourism",
-        selectedExpertiseCategories: selectedExpertiseCategories,
-        coverageAreas: coverageAreas,
+        specialties: selectedExpertiseCategories,
+        selectedExpertiseCategories,
+        coverageAreas,
         perHourRate: parseFloat(perHourRate),
+        yearsOfExperience: parseInt(yearsExperience) || 1,
         bio:
           experience ||
-          `Experienced guide specializing in ${selectedExpertiseCategories.join(
-            ", "
-          )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
-            coverageAreas.length > 3 ? " and more areas" : ""
-          }.`,
-        specialties: selectedExpertiseCategories,
-        languages: ["Bengali", "English"], // Default languages
-        yearsOfExperience: parseInt(experienceYears) || 1,
+          `Experienced guide specializing in ${selectedExpertiseCategories.join(", ")}. Available in ${coverageAreas.slice(0, 3).join(", ")}`,
+        languages: ["Bengali", "English"],
         certifications: [],
-        dateOfBirth: dateOfBirth,
       };
 
-      console.log("Registration data:", guideData);
+      console.log("📤 Submitting guide data to Backend API...", guideData);
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Note: In production, you'd add the auth token here
-        },
-        body: JSON.stringify(guideData),
-      });
+      // Get auth token from Supabase session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-      const data = await response.json();
-      console.log("Backend response:", response.status, data);
-
-      if (!response.ok) {
-        const errorMsg = data.error || data.message || "Registration failed";
-        console.error("Registration failed:", errorMsg);
-        Alert.alert(
-          "Registration Failed",
-          `Error: ${errorMsg}\n\nStatus: ${response.status}`,
-          [{ text: "OK" }]
-        );
-        throw new Error(errorMsg);
+      if (!token) {
+        throw new Error("You must be logged in to register as a guide.");
       }
 
-      console.log("✅ Guide registration success:", data);
+      // Set token on API client
+      api.setToken(token);
 
-      // Show enhanced thank you popup
+      // Call Backend API
+      const data = await api.registerGuide(guideData);
+
+      console.log("✅ Guide registered successfully:", data);
+
+      /* 
+      // Insert into Supabase guides table
+      /*
+      const { data, error } = await supabase
+        .from("guides")
+        .insert([guideData])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("❌ Supabase error:", error);
+        Alert.alert(
+          "Registration Failed",
+          error.message || "Failed to save your data. Please try again."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      */
+
+      console.log("✅ Guide registered successfully:", data);
+
+      // Show thank you popup
       Alert.alert(
         "🎉 Thank You for Registering!",
-        `Welcome to our tourism community, ${fullName}! Your guide profile has been created successfully and will be reviewed within 24 hours. You can now be found in the guides section and receive chat messages from travelers.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
+        `Welcome to our tourism community, ${fullName}!\n\nYour guide profile has been created successfully and will be reviewed within 24 hours.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
         [
           {
-            text: "View My Profile",
-            onPress: () => router.push("/profile"),
+            text: "Go to Home",
+            onPress: () => router.replace("/"),
             style: "default",
           },
           {
-            text: "Explore Guides",
+            text: "View Guides",
             onPress: () => router.push("/guides"),
             style: "cancel",
           },
-        ]
+        ],
       );
-    } catch (err: any) {
-      console.error("❌ Guide registration error:", err);
-      console.error("Error details:", {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      });
-
-      let errorMessage = err?.message || "Registration failed";
-
-      // Check for network errors
-      if (
-        err.message?.includes("Network request failed") ||
-        err.message?.includes("fetch")
-      ) {
-        errorMessage = `Cannot connect to backend server.\n\nPlease check:\n1. Backend is running: npm run dev\n2. Server on port 5001\n3. Same network/WiFi\n\nError: ${err.message}`;
-      }
-
-      Alert.alert("Error", errorMessage);
+    } catch (error: any) {
+      console.error("❌ Guide registration error:", error);
+      Alert.alert(
+        "Registration Error",
+        error.message || "An unexpected error occurred. Please try again.",
+      );
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleBack = () => {
-    if (step === "auth") {
-      router.push("/(tabs)/");
-    } else if (step === "details") {
-      if (!user) setStep("auth");
-      else router.push("/(tabs)/");
+    if (step === "details") {
+      router.back();
     } else if (step === "nid") {
       setStep("details");
     } else {
@@ -478,7 +454,11 @@ export default function GuideRegistrationScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={DesignColors.textPrimary}
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Become a Local Guide</Text>
         <View style={styles.placeholder} />
@@ -486,22 +466,11 @@ export default function GuideRegistrationScreen() {
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
-        {!user && (
-          <>
-            <ProgressStep
-              number={0}
-              label="Account"
-              active={step === "auth"}
-              completed={step !== "auth"}
-            />
-            <ProgressDivider completed={step !== "auth"} />
-          </>
-        )}
         <ProgressStep
           number={1}
           label="Details"
           active={step === "details"}
-          completed={step !== "details" && step !== "auth"}
+          completed={step !== "details"}
         />
         <ProgressDivider completed={step === "nid" || step === "expertise"} />
         <ProgressStep
@@ -520,41 +489,6 @@ export default function GuideRegistrationScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Step 0: Auth (New Users) */}
-        {step === "auth" && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Create Account</Text>
-            <Text style={styles.stepDescription}>
-              Create a guide account to get started.
-            </Text>
-
-            <View style={styles.fieldWrapper}>
-              <Label icon="mail" label="Email" required />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View style={styles.fieldWrapper}>
-              <Label icon="lock-closed" label="Password" required />
-              <TextInput
-                style={styles.input}
-                placeholder="Create a password"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-          </View>
-        )}
-
         {/* Step 1: Personal Details */}
         {step === "details" && (
           <View style={styles.stepContainer}>
@@ -566,7 +500,7 @@ export default function GuideRegistrationScreen() {
 
             {/* Full Name */}
             <View style={styles.fieldWrapper}>
-              <Label icon="person" label="Name" required />
+              <Label icon="person" label="Full Name" required />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your full name"
@@ -615,19 +549,6 @@ export default function GuideRegistrationScreen() {
               />
             </View>
 
-            {/* Age (keeping for compatibility but will calculate from DOB) */}
-            <View style={styles.fieldWrapper}>
-              <Label icon="calendar" label="Age" required />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your age"
-                placeholderTextColor="#999"
-                value={age}
-                onChangeText={setAge}
-                keyboardType="numeric"
-              />
-            </View>
-
             {/* Info Box */}
             <View style={styles.infoBox}>
               <Ionicons name="information-circle" size={20} color="#0EA5E9" />
@@ -650,51 +571,23 @@ export default function GuideRegistrationScreen() {
 
             {/* NID Number Input */}
             <View style={styles.fieldWrapper}>
-              <Label icon="shield-checkmark" label="NID" required />
+              <Label icon="shield-checkmark" label="NID Number" required />
               <TextInput
-                style={styles.input}
+                style={[styles.input, nidWarning ? styles.inputError : null]}
                 placeholder="Enter your NID number"
                 placeholderTextColor="#999"
                 value={nidNumber}
-                onChangeText={setNidNumber}
+                onChangeText={handleNIDChange}
                 keyboardType="numeric"
                 maxLength={17}
               />
-              <Text style={styles.helperText}>
-                Bangladesh NID format: typically 10-17 digits
-              </Text>
-            </View>
-
-            {/* Upload NID Image */}
-            <View style={styles.fieldWrapper}>
-              <Label icon="image" label="Upload NID Image" required />
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={pickNIDImage}
-              >
-                <Ionicons
-                  name="cloud-upload-outline"
-                  size={24}
-                  color={Colors.primary}
-                />
-                <Text style={styles.uploadButtonText}>
-                  {nidImage ? "Change NID Image" : "Upload NID Image"}
+              {nidWarning ? (
+                <Text style={styles.errorText}>{nidWarning}</Text>
+              ) : (
+                <Text style={styles.helperText}>
+                  Bangladesh NID format: typically 10-17 digits
                 </Text>
-              </TouchableOpacity>
-              {nidImage && (
-                <View style={styles.imagePreview}>
-                  <Image source={{ uri: nidImage }} style={styles.nidImage} />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => setNidImage(null)}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
               )}
-              <Text style={styles.helperText}>
-                Upload a clear photo of your NID card
-              </Text>
             </View>
 
             {/* Verification Status */}
@@ -713,8 +606,13 @@ export default function GuideRegistrationScreen() {
             {/* Verify Button */}
             {!nidVerified && (
               <TouchableOpacity
-                style={styles.verifyButton}
+                style={[
+                  styles.verifyButton,
+                  (nidWarning || !nidNumber.trim()) &&
+                    styles.verifyButtonDisabled,
+                ]}
                 onPress={handleNIDVerification}
+                disabled={!!nidWarning || !nidNumber.trim()}
               >
                 <Ionicons name="shield-checkmark" size={20} color="#FFF" />
                 <Text style={styles.verifyButtonText}>Verify NID</Text>
@@ -767,8 +665,8 @@ export default function GuideRegistrationScreen() {
                       if (selectedExpertiseCategories.includes(category)) {
                         setSelectedExpertiseCategories(
                           selectedExpertiseCategories.filter(
-                            (cat) => cat !== category
-                          )
+                            (cat) => cat !== category,
+                          ),
                         );
                       } else {
                         setSelectedExpertiseCategories([
@@ -832,7 +730,7 @@ export default function GuideRegistrationScreen() {
                       onPress={() => {
                         if (coverageAreas.includes(district)) {
                           setCoverageAreas(
-                            coverageAreas.filter((area) => area !== district)
+                            coverageAreas.filter((area) => area !== district),
                           );
                         } else {
                           setCoverageAreas([...coverageAreas, district]);
@@ -868,37 +766,30 @@ export default function GuideRegistrationScreen() {
 
             {/* Per Hour Rate */}
             <View style={styles.fieldWrapper}>
-              <Label icon="cash" label="Per Hour Rate (BDT)" required />
-              <View style={styles.rateInputContainer}>
-                <Text style={styles.currencySymbol}>৳</Text>
-                <TextInput
-                  style={[styles.input, styles.rateInput]}
-                  placeholder="e.g., 500"
-                  placeholderTextColor="#999"
-                  value={perHourRate}
-                  onChangeText={setPerHourRate}
-                  keyboardType="numeric"
-                />
-              </View>
+              <Label icon="card" label="Per Hour Rate (BDT)" required />
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 500"
+                placeholderTextColor="#999"
+                value={perHourRate}
+                onChangeText={setPerHourRate}
+                keyboardType="numeric"
+              />
               <Text style={styles.helperText}>
                 Your hourly service rate in Bangladeshi Taka
               </Text>
             </View>
 
-            {/* Experience Years */}
+            {/* Years of Experience */}
             <View style={styles.fieldWrapper}>
-              <Label icon="briefcase" label="Experience Years" required />
+              <Label icon="briefcase" label="Years of Experience" required />
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 5"
+                placeholder="e.g., 5 years"
                 placeholderTextColor="#999"
-                value={experienceYears}
-                onChangeText={setExperienceYears}
-                keyboardType="numeric"
+                value={yearsExperience}
+                onChangeText={setYearsExperience}
               />
-              <Text style={styles.helperText}>
-                Total years of experience as a guide
-              </Text>
             </View>
 
             {/* Additional Experience Details */}
@@ -936,47 +827,29 @@ export default function GuideRegistrationScreen() {
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
-        {step !== "details" && step !== "auth" && (
+        {step !== "details" && (
           <TouchableOpacity style={styles.secondaryButton} onPress={handleBack}>
             <Text style={styles.secondaryButtonText}>Back</Text>
           </TouchableOpacity>
         )}
-        {step === "details" && user && (
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.secondaryButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
-        {(step === "auth" || (step === "details" && !user)) && (
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
-
         {step === "expertise" ? (
           <TouchableOpacity
-            style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
-            onPress={() => {
-              console.log("🚀 Submit button pressed!");
-              handleSubmit();
-            }}
-            disabled={loading}
+            style={[
+              styles.primaryButton,
+              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
+            ]}
+            onPress={handleSubmit}
           >
-            {!loading && <Ionicons name="checkmark" size={20} color="#FFF" />}
-            <Text style={styles.primaryButtonText}>
-              {loading ? "Submitting..." : "Submit Registration"}
-            </Text>
+            <Ionicons name="checkmark" size={20} color="#FFF" />
+            <Text style={styles.primaryButtonText}>Submit Registration</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.primaryButton, { flex: 1, marginLeft: Spacing.md }]}
+            style={[
+              styles.primaryButton,
+              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
+            ]}
             onPress={handleNext}
-            disabled={loading}
           >
             <Text style={styles.primaryButtonText}>
               {step === "nid" && nidVerified ? "Continue" : "Next"}
@@ -1056,7 +929,7 @@ function Label({
 }) {
   return (
     <View style={styles.labelContainer}>
-      <Ionicons name={icon as any} size={16} color={Colors.primary} />
+      <Ionicons name={icon as any} size={16} color={DesignColors.primary} />
       <Text style={styles.label}>
         {label}
         {required && <Text style={styles.required}> *</Text>}
@@ -1068,21 +941,21 @@ function Label({
 function BenefitItem({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={styles.benefitItem}>
-      <Ionicons name={icon as any} size={18} color={Colors.primary} />
+      <Ionicons name={icon as any} size={18} color={DesignColors.primary} />
       <Text style={styles.benefitText}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: DesignColors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: DesignColors.surface,
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
   },
@@ -1092,7 +965,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
     flex: 1,
     textAlign: "center",
   },
@@ -1105,7 +978,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: DesignColors.surface,
   },
   progressStep: {
     alignItems: "center",
@@ -1123,12 +996,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   progressStepCircleActive: {
-    borderColor: Colors.primary,
+    borderColor: DesignColors.primary,
     backgroundColor: "#EFF6FF",
   },
   progressStepCircleCompleted: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: DesignColors.primary,
+    borderColor: DesignColors.primary,
   },
   progressStepNumber: {
     fontSize: 16,
@@ -1136,7 +1009,7 @@ const styles = StyleSheet.create({
     color: "#999",
   },
   progressStepNumberActive: {
-    color: Colors.primary,
+    color: DesignColors.primary,
   },
   progressStepLabel: {
     fontSize: 12,
@@ -1145,7 +1018,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   progressStepLabelActive: {
-    color: Colors.primary,
+    color: DesignColors.primary,
     fontWeight: "700",
   },
   progressDivider: {
@@ -1155,12 +1028,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   progressDividerCompleted: {
-    backgroundColor: Colors.primary,
+    backgroundColor: DesignColors.primary,
   },
   content: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
-    paddingBottom: 100,
   },
   stepContainer: {
     gap: Spacing.lg,
@@ -1168,11 +1040,11 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
   },
   stepDescription: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: DesignColors.textSecondary,
     lineHeight: 20,
   },
   fieldWrapper: {
@@ -1186,7 +1058,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
   },
   required: {
     color: "#EF4444",
@@ -1199,8 +1071,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     backgroundColor: "#F9FAFB",
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
     fontSize: 14,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
   },
   inputMultiline: {
     minHeight: 100,
@@ -1208,7 +1084,12 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: DesignColors.textSecondary,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    fontWeight: "600",
   },
   infoBox: {
     flexDirection: "row",
@@ -1265,11 +1146,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
+    backgroundColor: DesignColors.primary,
     borderRadius: Radii.full,
     paddingVertical: Spacing.md,
     gap: 8,
     marginTop: Spacing.sm,
+  },
+  verifyButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
   },
   verifyButtonText: {
     color: "#FFF",
@@ -1280,14 +1165,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F9FF",
     borderRadius: Radii.lg,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    borderLeftColor: DesignColors.primary,
     padding: Spacing.lg,
     gap: Spacing.md,
   },
   benefitsTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
     marginBottom: 8,
   },
   benefitItem: {
@@ -1296,100 +1181,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   benefitText: {
+    flex: 1,
     fontSize: 13,
-    color: Colors.textPrimary,
+    color: DesignColors.textPrimary,
     fontWeight: "500",
-  },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 75,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    gap: Spacing.md,
-  },
-  primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: Radii.full,
-    paddingVertical: Spacing.md,
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  secondaryButton: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryButtonText: {
-    color: Colors.primary,
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  uploadButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    borderStyle: "dashed",
-    borderRadius: Radii.md,
-    paddingVertical: Spacing.lg,
-    gap: Spacing.md,
-    backgroundColor: "#F0F9FF",
-  },
-  uploadButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  imagePreview: {
-    position: "relative",
-    marginTop: Spacing.md,
-    borderRadius: Radii.md,
-    overflow: "hidden",
-  },
-  nidImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: Radii.md,
-  },
-  removeImageButton: {
-    position: "absolute",
-    top: Spacing.sm,
-    right: Spacing.sm,
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-  },
-  rateInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  currencySymbol: {
-    position: "absolute",
-    left: Spacing.md,
-    zIndex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-  },
-  rateInput: {
-    paddingLeft: 36,
   },
   checkboxGrid: {
     flexDirection: "row",
@@ -1415,7 +1210,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: DesignColors.textSecondary,
     fontWeight: "500",
   },
   checkboxTextSelected: {
@@ -1432,5 +1227,42 @@ const styles = StyleSheet.create({
   },
   districtText: {
     fontSize: 12,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    backgroundColor: DesignColors.surface,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+    gap: Spacing.md,
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: DesignColors.primary,
+    borderRadius: Radii.full,
+    paddingVertical: Spacing.md,
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  secondaryButton: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: DesignColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    color: DesignColors.primary,
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

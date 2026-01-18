@@ -1,7 +1,6 @@
 import express from "express";
 import {
   getNIDVerificationStatus,
-  updateVerificationStatus,
   verifyNID,
 } from "../controllers/nidVerificationController";
 import { authenticateToken } from "../middleware/auth";
@@ -15,10 +14,10 @@ router.post("/verify", authenticateToken, verifyNID);
 router.get("/status/:userId", authenticateToken, getNIDVerificationStatus);
 
 // Admin: Update verification status
-router.patch(
-  "/admin/:verificationId",
-  authenticateToken,
-  updateVerificationStatus
-);
+// router.patch(
+//   "/admin/:verificationId",
+//   authenticateToken,
+//   updateVerificationStatus
+// );
 
 export default router;

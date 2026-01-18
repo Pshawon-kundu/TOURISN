@@ -1,10 +1,25 @@
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 // API Configuration
-const API_BASE_URL =
-  Platform.OS === "web"
-    ? "http://localhost:5001/api"
-    : "http://10.0.2.2:5001/api"; // For Android emulator
+const getApiBaseUrl = () => {
+  if (Platform.OS === "web") return "http://localhost:5001/api";
+
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(":")[0];
+      return `http://${ip}:5001/api`;
+    }
+  }
+
+  // Fallback for Android emulator or if hostUri is missing
+  return Platform.OS === "android"
+    ? "http://10.0.2.2:5001/api"
+    : "http://localhost:5001/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class APIClient {
   private baseURL: string = API_BASE_URL;
@@ -52,7 +67,7 @@ export class APIClient {
    */
   private async doRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     try {
@@ -80,7 +95,7 @@ export class APIClient {
     } catch (error: any) {
       if (error instanceof TypeError && error.message === "Failed to fetch") {
         throw new Error(
-          `Cannot connect to server at ${this.baseURL}. Make sure the backend is running on port 5001.`
+          `Cannot connect to server at ${this.baseURL}. Make sure the backend is running on port 5001.`,
         );
       }
       throw error;
@@ -214,6 +229,10 @@ export class APIClient {
     return this.get(`/guides/${id}`);
   }
 
+  async registerGuide(data: any) {
+    return this.post("/guides/register", data);
+  }
+
   async createGuideProfile(data: any) {
     return this.post("/guides", data);
   }
@@ -225,7 +244,7 @@ export class APIClient {
   // ===== REVIEWS ENDPOINTS =====
   async getReviews(experienceId: string, page: number = 1, limit: number = 10) {
     return this.get(
-      `/reviews?experienceId=${experienceId}&page=${page}&limit=${limit}`
+      `/reviews?experienceId=${experienceId}&page=${page}&limit=${limit}`,
     );
   }
 

@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { Request, Response } from "express";
 import { supabase } from "../config/supabase";
 
@@ -9,8 +10,7 @@ interface NIDVerificationRequest {
 }
 
 /**
- * Verify Bangladesh NID using OCR and pattern matching
- * For production, integrate with Bangladesh Election Commission API or third-party NID verification service
+ * Enhanced NID verification with strict security measures
  */
 export const verifyNID = async (req: Request, res: Response) => {
   try {
@@ -47,30 +47,47 @@ export const verifyNID = async (req: Request, res: Response) => {
       });
     }
 
-    let ocrResult: any = null;
-    let imageUrl: string | null = null;
+    // CRITICAL SECURITY: Require image for verification
+    if (!nidImageBase64) {
+      return res.status(400).json({
+        success: false,
+        message: "NID image is required for verification",
+      });
+    }
 
-    // If image is provided, perform OCR verification
-    if (nidImageBase64) {
-      try {
-        // For demo purposes, simulate OCR extraction
-        // In production, use services like:
-        // - Google Cloud Vision API
-        // - AWS Textract
-        // - Azure Computer Vision
-        // - Tesseract.js for client-side
+    // Check for obviously fake NID patterns FIRST
+    const fakePatterns = [
+      /^1234567890$/,
+      /^123456789010$/, // The exact fake NID being used
+      /^1111111111$/,
+      /^0000000000$/,
+      /^9999999999$/,
+      /^123456789012[37]$/,
+      /^1234567890123$/,
+      /^(123456|654321)/, // Any NID starting with sequential patterns
+    ];
 
-        ocrResult = await performOCR(nidImageBase64, nidNumber);
+    for (const pattern of fakePatterns) {
+      if (pattern.test(nidNumber)) {
+        console.log(
+          `🚨 SECURITY ALERT: Fake NID attempt: ${nidNumber} from user: ${userId}`
+        );
 
-        // Upload image to Supabase Storage
-        imageUrl = await uploadNIDImage(userId, nidImageBase64);
-      } catch (ocrError) {
-        console.error("OCR processing error:", ocrError);
-        // Continue with verification even if OCR fails
+        // Delete any existing fake verification records
+        await supabase
+          .from("nid_verifications")
+          .delete()
+          .eq("nid_number", nidNumber);
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "⚠️ Invalid NID detected. Please enter your actual NID number from your official card.",
+        });
       }
     }
 
-    // Check if NID is already verified
+    // Check if NID is already verified by another user
     const { data: existingVerification } = await supabase
       .from("nid_verifications")
       .select("*")
@@ -85,17 +102,35 @@ export const verifyNID = async (req: Request, res: Response) => {
       });
     }
 
-    // Calculate verification score based on available data
-    const verificationScore = calculateVerificationScore(
-      nidNumber,
-      dateOfBirth,
-      ocrResult
+    // Process the image (simplified for now)
+    let imageUrl: string | null = null;
+    let verificationScore = 20; // Start with base score
+
+    try {
+      imageUrl = await uploadNIDImage(userId, nidImageBase64);
+      verificationScore += 15; // Add points for successful image upload
+    } catch (error) {
+      console.error("Image upload error:", error);
+      return res.status(400).json({
+        success: false,
+        message: "Failed to process NID image",
+      });
+    }
+
+    // Basic validation scoring
+    verificationScore += validateNIDFormat(nidNumber);
+    verificationScore += validateAge(dateOfBirth);
+
+    // ENHANCED SECURITY: Force manual review for all submissions
+    // This ensures human verification until real OCR is implemented
+    const status = "pending_review";
+    const statusReason = "Manual verification required for enhanced security";
+
+    console.log(
+      `🔒 NID verification for user ${userId}: ${verificationScore} points, requiring manual review`
     );
 
-    // Determine verification status
-    const status = verificationScore >= 70 ? "verified" : "pending_review";
-
-    // Create or update verification record
+    // Create verification record
     const { data: verification, error: verificationError } = await supabase
       .from("nid_verifications")
       .upsert({
@@ -105,52 +140,46 @@ export const verifyNID = async (req: Request, res: Response) => {
         nid_image_url: imageUrl,
         status: status,
         verification_score: verificationScore,
-        ocr_data: ocrResult,
-        verified_at: status === "verified" ? new Date().toISOString() : null,
+        verified_at: null, // Will be set when admin approves
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (verificationError) {
-      throw verificationError;
+      console.error("Database error:", verificationError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to save verification data",
+      });
     }
 
-    // Update user verification status
-    if (status === "verified") {
-      await supabase
-        .from("users")
-        .update({
-          nid_verified: true,
-          verified_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-    }
+    // Log the attempt for security monitoring
+    await logVerificationAttempt(userId, nidNumber, status, verificationScore);
 
     return res.status(200).json({
       success: true,
       message:
-        status === "verified"
-          ? "NID verified successfully"
-          : "NID submitted for manual review",
+        "🔍 NID verification submitted for manual review due to enhanced security measures. Our team will verify your documents within 24-48 hours.",
       data: {
         verificationId: verification.id,
         status: verification.status,
-        score: verificationScore,
-        requiresManualReview: status === "pending_review",
+        message: statusReason,
+        nextSteps:
+          "For security, all NID verifications require manual review. You'll receive a notification once complete.",
       },
     });
   } catch (error: any) {
     console.error("NID verification error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to verify NID",
-      error: error.message,
+      message: "Internal server error during verification",
     });
   }
 };
 
 /**
- * Get NID verification status
+ * Get NID verification status for a user
  */
 export const getNIDVerificationStatus = async (req: Request, res: Response) => {
   try {
@@ -164,67 +193,46 @@ export const getNIDVerificationStatus = async (req: Request, res: Response) => {
       .limit(1)
       .single();
 
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = not found
-      throw error;
+    if (error) {
+      return res.status(404).json({
+        success: false,
+        message: "No verification record found",
+      });
     }
 
     return res.status(200).json({
       success: true,
-      data: verification || null,
+      data: {
+        status: verification.status,
+        verificationScore: verification.verification_score,
+        submittedAt: verification.created_at,
+        verifiedAt: verification.verified_at,
+      },
     });
   } catch (error: any) {
-    console.error("Get verification status error:", error);
+    console.error("Error fetching verification status:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to get verification status",
-      error: error.message,
+      message: "Failed to fetch verification status",
     });
   }
 };
 
 /**
- * Simulate OCR extraction from NID image
- * In production, replace with actual OCR API
- */
-async function performOCR(
-  imageBase64: string,
-  expectedNID: string
-): Promise<any> {
-  // For demo purposes, simulate OCR response
-  // In production, integrate with:
-  // - Google Cloud Vision API: https://cloud.google.com/vision/docs/ocr
-  // - AWS Textract: https://aws.amazon.com/textract/
-  // - Azure Computer Vision: https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/
-
-  // Simulate processing delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Mock OCR result
-  return {
-    extractedNID: expectedNID,
-    confidence: 0.95,
-    textBlocks: [{ text: expectedNID, confidence: 0.95 }],
-    isNIDDetected: true,
-  };
-}
-
-/**
- * Upload NID image to Supabase Storage
+ * Upload NID image to Supabase storage
  */
 async function uploadNIDImage(
   userId: string,
-  imageBase64: string
+  nidImageBase64: string
 ): Promise<string> {
   try {
-    // Remove data URL prefix if present
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const base64Data = nidImageBase64.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
 
     const fileName = `${userId}_${Date.now()}.jpg`;
     const filePath = `nid-images/${fileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("verifications")
       .upload(filePath, buffer, {
         contentType: "image/jpeg",
@@ -243,102 +251,72 @@ async function uploadNIDImage(
     return urlData.publicUrl;
   } catch (error) {
     console.error("Image upload error:", error);
-    throw error;
+    throw new Error("Failed to upload NID image");
   }
 }
 
 /**
- * Calculate verification score based on available data
+ * Validate NID format and assign score
  */
-function calculateVerificationScore(
-  nidNumber: string,
-  dateOfBirth: string,
-  ocrResult: any
-): number {
-  let score = 0;
-
-  // Base score for valid NID format
+function validateNIDFormat(nidNumber: string): number {
   if (/^(\d{10}|\d{13}|\d{17})$/.test(nidNumber)) {
-    score += 30;
+    // Check for Bangladesh-specific patterns
+    if (nidNumber.length === 13 || nidNumber.length === 17) {
+      const birthYear = parseInt(nidNumber.substring(0, 4));
+      const currentYear = new Date().getFullYear();
+      if (birthYear >= 1900 && birthYear <= currentYear) {
+        return 20; // Higher score for proper format
+      }
+    }
+    return 15; // Basic format validation
   }
-
-  // Score for date of birth
-  if (dateOfBirth) {
-    const dob = new Date(dateOfBirth);
-    const age = new Date().getFullYear() - dob.getFullYear();
-    if (age >= 18 && age <= 100) {
-      score += 20;
-    }
-  }
-
-  // Score for OCR matching
-  if (ocrResult) {
-    if (ocrResult.isNIDDetected) {
-      score += 20;
-    }
-    if (ocrResult.extractedNID === nidNumber) {
-      score += 20;
-    }
-    if (ocrResult.confidence >= 0.9) {
-      score += 10;
-    }
-  }
-
-  return Math.min(score, 100);
+  return 0;
 }
 
 /**
- * Admin: Manually approve/reject NID verification
+ * Validate age and date of birth
  */
-export const updateVerificationStatus = async (req: Request, res: Response) => {
+function validateAge(dateOfBirth: string): number {
   try {
-    const { verificationId } = req.params;
-    const { status, notes } = req.body;
+    const dob = new Date(dateOfBirth);
+    const currentDate = new Date();
+    let age = currentDate.getFullYear() - dob.getFullYear();
 
-    if (!["verified", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status. Must be 'verified' or 'rejected'",
-      });
+    const monthDiff = currentDate.getMonth() - dob.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && currentDate.getDate() < dob.getDate())
+    ) {
+      age--;
     }
 
-    const { data: verification, error } = await supabase
-      .from("nid_verifications")
-      .update({
-        status,
-        admin_notes: notes,
-        verified_at: status === "verified" ? new Date().toISOString() : null,
-      })
-      .eq("id", verificationId)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
+    if (age >= 18 && age <= 120) {
+      return age >= 18 && age <= 80 ? 15 : 10;
     }
-
-    // Update user verification status
-    if (status === "verified") {
-      await supabase
-        .from("users")
-        .update({
-          nid_verified: true,
-          verified_at: new Date().toISOString(),
-        })
-        .eq("id", verification.user_id);
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: `Verification ${status}`,
-      data: verification,
-    });
-  } catch (error: any) {
-    console.error("Update verification status error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update verification status",
-      error: error.message,
-    });
+    return 0;
+  } catch {
+    return 0;
   }
-};
+}
+
+/**
+ * Log verification attempt for security monitoring
+ */
+async function logVerificationAttempt(
+  userId: string,
+  nidNumber: string,
+  status: string,
+  score: number
+): Promise<void> {
+  try {
+    await supabase.from("verification_logs").insert({
+      user_id: userId,
+      nid_number_hash: createHash("sha256").update(nidNumber).digest("hex"),
+      verification_status: status,
+      score: score,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error logging verification attempt:", error);
+  }
+}
