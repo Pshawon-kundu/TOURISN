@@ -4,14 +4,13 @@
   # Base directory is the admin-web folder
   base = "admin-web"
   # Build command for admin panel only
-  command = "npm install && npm run build"
+  command = "npm ci && npm run build"
   # Publish directory for admin panel
   publish = "dist"
   
 [build.environment]
   NODE_VERSION = "18"
-  NPM_VERSION = "9"
-  NODE_ENV = "production"
+  CI = "true"
 
 # Redirect all routes to index.html for SPA (admin panel)
 [[redirects]]
