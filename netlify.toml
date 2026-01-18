@@ -1,35 +1,30 @@
-# Netlify Configuration for TOURISN Platform
-# This handles both frontend (Expo Web) and admin panel deployment
+# Netlify Configuration for TOURISN Admin Panel
 
 [build]
-  # Build command runs both frontend and admin builds
-  command = "npm run build:all"
-  # Publish directory - we'll serve from a combined dist folder
+  # Base directory is the admin-web folder
+  base = "admin-web"
+  # Build command for admin panel only
+  command = "npm install && npm run build"
+  # Publish directory for admin panel
   publish = "dist"
   
 [build.environment]
   NODE_VERSION = "18"
   NPM_VERSION = "9"
+  NODE_ENV = "production"
 
-# Redirect /admin/* to admin panel
-[[redirects]]
-  from = "/admin/*"
-  to = "/admin/:splat"
-  status = 200
-  force = true
-
-# Redirect /api/* to backend (you'll need to deploy backend separately or use serverless functions)
-[[redirects]]
-  from = "/api/*"
-  to = "https://your-backend-url.com/api/:splat"
-  status = 200
-  force = false
-  
-# SPA fallback for main app
+# Redirect all routes to index.html for SPA (admin panel)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# API proxy to backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://tourisn-backend.onrender.com/api/:splat"
+  status = 200
+  force = false
 
 [context.production]
   environment = { NODE_ENV = "production" }

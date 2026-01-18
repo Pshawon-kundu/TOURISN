@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════
+# 🚀 RENDER ENVIRONMENT VARIABLES - COPY THESE TO RENDER
+# ═══════════════════════════════════════════════════════════
+# 
+# INSTRUCTIONS:
+# 1. Go to https://render.com → Your Web Service
+# 2. Go to "Environment" tab
+# 3. Click "Add Environment Variable" for EACH line below
+# 4. Copy the Key and Value exactly as shown
+#
+# ═══════════════════════════════════════════════════════════
+
+Key: PORT
+Value: 5001
+
+Key: NODE_ENV
+Value: production
+
+Key: SUPABASE_URL
+Value: https://evsogczcljdxvqvlbefi.supabase.co
+
+Key: SUPABASE_ANON_KEY
+Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2c29nY3pjbGpkeHZxdmxiZWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDYzODQsImV4cCI6MjA4MzEyMjM4NH0.Rv0P3Mtz5GpHH4UsUP2X2dX9pYM5HzNtgQ2HDn8hxY4
+
+Key: SUPABASE_SERVICE_KEY
+Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2c29nY3pjbGpkeHZxdmxiZWZpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzU0NjM4NCwiZXhwIjoyMDgzMTIyMzg0fQ.Vm0heVlZFqbTVunbtZ4vh4prxawyijSpfebXd_F53g0
+
+Key: JWT_SECRET
+Value: your-super-secret-jwt-key-change-in-production-make-it-32-chars-minimum
+
+Key: CORS_ORIGIN
+Value: https://tourisn.netlify.app
+
+# ═══════════════════════════════════════════════════════════
+# ⚠️  IMPORTANT NOTES:
+# ═══════════════════════════════════════════════════════════
+#
+# 1. CHANGE JWT_SECRET to a strong random string (min 32 chars)
+#    Generate at: https://generate-secret.vercel.app/32
+#
+# 2. Update CORS_ORIGIN after deploying to Netlify
+#    Replace "your-site" with your actual Netlify domain
+#    Example: https://tourisn-app.netlify.app
+#
+# 3. If deploying admin panel to custom domain, add it:
+#    CORS_ORIGIN=https://your-site.netlify.app,https://yourdomain.com
+#
+# ═══════════════════════════════════════════════════════════
+
+# Optional: Add these if you're using Firebase/Stripe/Email
+
+# Key: FIREBASE_PROJECT_ID
+# Value: turison-96886
+
+# Key: FIREBASE_CLIENT_EMAIL
+# Value: firebase-adminsdk-fbsvc@tourism-965bd.iam.gserviceaccount.com
+
+# Key: STRIPE_SECRET_KEY
+# Value: sk_test_51234567890abcdefghijklmnop
+
+# Key: SMTP_HOST
+# Value: smtp.gmail.com
+
+# Key: SMTP_USER
+# Value: your-email@gmail.com
+
+# ═══════════════════════════════════════════════════════════
+# 📋 QUICK CHECKLIST:
+# ═══════════════════════════════════════════════════════════
+#
+# ✅ All 7 required variables added in Render
+# ✅ JWT_SECRET changed to strong random string
+# ✅ CORS_ORIGIN updated with Netlify URL (after Netlify deploy)
+# ✅ Clicked "Save Changes" in Render
+# ✅ Service redeployed automatically
+#
+# ═══════════════════════════════════════════════════════════

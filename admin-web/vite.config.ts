@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/admin/", // Set base path for admin panel
+  base: "/", // Root path since admin panel is the only app on Netlify
   server: {
     port: 4173,
   },
