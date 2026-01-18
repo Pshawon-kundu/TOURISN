@@ -1,4 +1,168 @@
 // Security Configuration for NID Verification
 // This file contains security settings and rate limiting configurations
 
-import rateLimit from 'express-rate-limit';\nimport helmet from 'helmet';\nimport { Request, Response, NextFunction } from 'express';\n\n// Rate limiting for NID verification endpoints\nexport const nidVerificationRateLimit = rateLimit({\n  windowMs: 60 * 60 * 1000, // 1 hour\n  max: 5, // limit each IP to 5 requests per windowMs\n  message: {\n    success: false,\n    message: 'Too many NID verification attempts. Please try again in an hour.',\n    retryAfter: 3600\n  },\n  standardHeaders: true,\n  legacyHeaders: false,\n  // Skip rate limiting for successful verifications\n  skip: (req: Request) => {\n    // Allow admins to bypass rate limiting\n    return req.body?.userRole === 'admin';\n  }\n});\n\n// General API rate limiting\nexport const generalRateLimit = rateLimit({\n  windowMs: 15 * 60 * 1000, // 15 minutes\n  max: 100, // limit each IP to 100 requests per windowMs\n  message: {\n    success: false,\n    message: 'Too many requests. Please try again later.',\n  }\n});\n\n// Security headers using Helmet\nexport const securityHeaders = helmet({\n  contentSecurityPolicy: {\n    directives: {\n      defaultSrc: [\"'self'\"],\n      imgSrc: [\"'self'\", \"data:\", \"https:\"],\n      scriptSrc: [\"'self'\"],\n      styleSrc: [\"'self'\", \"'unsafe-inline'\"],\n    },\n  },\n  hsts: {\n    maxAge: 31536000,\n    includeSubDomains: true,\n    preload: true\n  }\n});\n\n// Middleware to log security events\nexport const securityLogger = (req: Request, res: Response, next: NextFunction) => {\n  const startTime = Date.now();\n  \n  // Log suspicious patterns\n  const suspiciousPatterns = [\n    /\\.{2,}/, // Directory traversal attempts\n    /<script/i, // XSS attempts\n    /union.*select/i, // SQL injection attempts\n    /etc\\/passwd/, // File inclusion attempts\n  ];\n  \n  const requestData = JSON.stringify({\n    url: req.url,\n    body: req.body,\n    query: req.query,\n    params: req.params\n  });\n  \n  const hasSuspiciousContent = suspiciousPatterns.some(pattern => \n    pattern.test(requestData)\n  );\n  \n  if (hasSuspiciousContent) {\n    console.warn('🚨 Suspicious request detected:', {\n      ip: req.ip,\n      userAgent: req.get('User-Agent'),\n      url: req.url,\n      method: req.method,\n      timestamp: new Date().toISOString()\n    });\n  }\n  \n  // Log response time for performance monitoring\n  res.on('finish', () => {\n    const duration = Date.now() - startTime;\n    if (duration > 5000) { // Log slow requests (>5s)\n      console.warn('🐌 Slow request detected:', {\n        url: req.url,\n        method: req.method,\n        duration: `${duration}ms`,\n        statusCode: res.statusCode\n      });\n    }\n  });\n  \n  next();\n};\n\n// Input validation middleware\nexport const validateInput = (req: Request, res: Response, next: NextFunction) => {\n  // Sanitize string inputs\n  const sanitizeString = (str: string): string => {\n    if (typeof str !== 'string') return str;\n    \n    return str\n      .replace(/[<>\"'&]/g, '') // Remove potentially dangerous characters\n      .trim() // Remove whitespace\n      .slice(0, 1000); // Limit length\n  };\n  \n  // Recursively sanitize request body\n  const sanitizeObject = (obj: any): any => {\n    if (typeof obj === 'string') {\n      return sanitizeString(obj);\n    }\n    if (Array.isArray(obj)) {\n      return obj.map(sanitizeObject);\n    }\n    if (obj && typeof obj === 'object') {\n      const sanitized: any = {};\n      for (const [key, value] of Object.entries(obj)) {\n        sanitized[key] = sanitizeObject(value);\n      }\n      return sanitized;\n    }\n    return obj;\n  };\n  \n  // Apply sanitization to request body\n  if (req.body && typeof req.body === 'object') {\n    req.body = sanitizeObject(req.body);\n  }\n  \n  next();\n};\n\n// NID-specific validation\nexport const validateNIDRequest = (req: Request, res: Response, next: NextFunction) => {\n  const { nidNumber, dateOfBirth, userId } = req.body;\n  \n  // Validate required fields\n  if (!userId || !nidNumber || !dateOfBirth) {\n    return res.status(400).json({\n      success: false,\n      message: 'Missing required fields: userId, nidNumber, and dateOfBirth are required'\n    });\n  }\n  \n  // Validate NID format\n  const nidPattern = /^(\\d{10}|\\d{13}|\\d{17})$/;\n  if (!nidPattern.test(nidNumber)) {\n    return res.status(400).json({\n      success: false,\n      message: 'Invalid NID format. Must be 10, 13, or 17 digits'\n    });\n  }\n  \n  // Validate date of birth format\n  const dobPattern = /^\\d{4}-\\d{2}-\\d{2}$/;\n  if (!dobPattern.test(dateOfBirth)) {\n    return res.status(400).json({\n      success: false,\n      message: 'Invalid date of birth format. Use YYYY-MM-DD'\n    });\n  }\n  \n  // Validate UUID format for userId\n  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n  if (!uuidPattern.test(userId)) {\n    return res.status(400).json({\n      success: false,\n      message: 'Invalid user ID format'\n    });\n  }\n  \n  next();\n};
+import { NextFunction, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+
+// Rate limiting for NID verification endpoints
+export const nidVerificationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: {
+    success: false,
+    message: "Too many NID verification attempts. Please try again in an hour.",
+    retryAfter: 3600,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req: Request) => {
+    return req.body?.userRole === "admin";
+  },
+});
+
+// General API rate limiting
+export const generalRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: "Too many requests. Please try again later.",
+  },
+});
+
+// Security headers using Helmet
+export const securityHeaders = helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+});
+
+// Middleware to log security events
+export const securityLogger = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const startTime = Date.now();
+  const suspiciousPatterns = [
+    /\.{2,}/,
+    /<script/i,
+    /union.*select/i,
+    /etc\/passwd/,
+  ];
+  const requestData = JSON.stringify({
+    url: req.url,
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  });
+  const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
+    pattern.test(requestData),
+  );
+  if (hasSuspiciousContent) {
+    console.warn("Suspicious request detected:", {
+      ip: req.ip,
+      userAgent: req.get("User-Agent"),
+      url: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  res.on("finish", () => {
+    const duration = Date.now() - startTime;
+    if (duration > 5000) {
+      console.warn("Slow request detected:", {
+        url: req.url,
+        method: req.method,
+        duration: `${duration}ms`,
+        statusCode: res.statusCode,
+      });
+    }
+  });
+  next();
+};
+
+// Input validation middleware
+export const validateInput = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const sanitizeString = (str: string): string => {
+    if (typeof str !== "string") return str;
+    return str
+      .replace(/[<>"'&]/g, "")
+      .trim()
+      .slice(0, 1000);
+  };
+  const sanitizeObject = (obj: any): any => {
+    if (typeof obj === "string") {
+      return sanitizeString(obj);
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(sanitizeObject);
+    }
+    if (obj && typeof obj === "object") {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        sanitized[key] = sanitizeObject(value);
+      }
+      return sanitized;
+    }
+    return obj;
+  };
+  if (req.body && typeof req.body === "object") {
+    req.body = sanitizeObject(req.body);
+  }
+  next();
+};
+
+// NID-specific validation
+export const validateNIDRequest = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { nidNumber, dateOfBirth, userId } = req.body;
+  if (!userId || !nidNumber || !dateOfBirth) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required fields: userId, nidNumber, and dateOfBirth are required",
+    });
+  }
+  const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
+  if (!nidPattern.test(nidNumber)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid NID format. Must be 10, 13, or 17 digits",
+    });
+  }
+  const dobPattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dobPattern.test(dateOfBirth)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid date of birth format. Use YYYY-MM-DD",
+    });
+  }
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(userId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid user ID format",
+    });
+  }
+  next();
+};
