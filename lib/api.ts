@@ -1,5 +1,14 @@
 // API configuration and utilities
-const API_BASE_URL = "http://localhost:5001/api";
+import { Platform } from "react-native";
+
+const getApiBaseUrl = () => {
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5001/api";
+  }
+  return "http://localhost:5001/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface BookingData {
   transportType?: "car" | "bus" | "bike" | "boat";
@@ -372,6 +381,11 @@ export const registerGuide = async (
   authToken: string,
 ): Promise<any> => {
   try {
+    console.log("📡 registerGuide API call starting...");
+    console.log("API URL:", `${API_BASE_URL}/guides/register`);
+    console.log("Auth token length:", authToken.length);
+    console.log("Guide data keys:", Object.keys(guideData));
+
     const response = await fetch(`${API_BASE_URL}/guides/register`, {
       method: "POST",
       headers: {
@@ -381,15 +395,22 @@ export const registerGuide = async (
       body: JSON.stringify(guideData),
     });
 
+    console.log("📥 Response received, status:", response.status);
+
     const data = await response.json();
+    console.log("📄 Response data:", data);
 
     if (!response.ok) {
+      console.error("❌ API returned error:", data.error);
       throw new Error(data.error || "Failed to register guide");
     }
 
+    console.log("✅ registerGuide API call successful!");
     return data;
   } catch (error) {
-    console.error("Error registering guide:", error);
+    console.error("❌ Error in registerGuide API:", error);
+    console.error("Error type:", typeof error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     throw error;
   }
 };

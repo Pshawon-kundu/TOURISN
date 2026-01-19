@@ -53,7 +53,7 @@ const setupSupabaseListeners = () => {
 
           io.emit("stats-update", stats);
         }
-      }
+      },
     )
     .subscribe((status) => {
       console.log("👥 Users channel status:", status);
@@ -85,7 +85,7 @@ const setupSupabaseListeners = () => {
 
           io.emit("stats-update", stats);
         }
-      }
+      },
     )
     .subscribe((status) => {
       console.log("🎒 Guides channel status:", status);
@@ -117,7 +117,7 @@ const setupSupabaseListeners = () => {
 
           io.emit("stats-update", stats);
         }
-      }
+      },
     )
     .subscribe((status) => {
       console.log("📅 Bookings channel status:", status);
@@ -145,7 +145,7 @@ const setupSupabaseListeners = () => {
             timestamp: new Date().toISOString(),
           });
         }
-      }
+      },
     )
     .subscribe((status) => {
       console.log("🚗 Transport channel status:", status);
@@ -215,7 +215,7 @@ const getSystemStats = async () => {
     const monthlyRevenue =
       monthlyBookings?.reduce(
         (sum, booking) => sum + (parseFloat(booking.total_price) || 0),
-        0
+        0,
       ) || 0;
 
     return {
@@ -237,7 +237,7 @@ const getRecentUsers = async () => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, full_name, created_at, role")
+      .select("id, email, first_name, last_name, created_at, role")
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -261,9 +261,9 @@ const getRecentBookings = async () => {
         start_date,
         end_date,
         created_at,
-        users:traveler_id (full_name, email),
-        guides:guide_id (full_name)
-      `
+        user_id,
+        guide_id
+      `,
       )
       .order("created_at", { ascending: false })
       .limit(10);
@@ -283,13 +283,14 @@ const getRecentGuides = async () => {
       .select(
         `
         id,
-        full_name,
+        first_name,
+        last_name,
         status,
         specializations,
         hourly_rate,
         created_at,
         users:user_id (email)
-      `
+      `,
       )
       .order("created_at", { ascending: false })
       .limit(10);

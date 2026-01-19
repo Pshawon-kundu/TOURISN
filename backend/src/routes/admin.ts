@@ -316,7 +316,9 @@ router.get("/users", authenticateAdmin, async (req, res) => {
     }
 
     if (search) {
-      query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+      query = query.or(
+        `email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`,
+      );
     }
 
     const { data, error, count } = await query

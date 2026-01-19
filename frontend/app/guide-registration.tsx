@@ -1,8 +1,13 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,9 +17,20 @@ import {
 } from "react-native";
 
 import { ThemedView } from "@/components/themed-view";
-import { Colors as DesignColors, Radii, Spacing } from "@/constants/design";
-import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { registerGuide } from "@/lib/api";
+import { getSupabaseClient } from "@/lib/auth";
+
+const getApiBaseUrl = () => {
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5001/api";
+  }
+  // For Web or iOS simulator
+  return "http://localhost:5001/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const expertiseCategories = [
   "Historical Sites & Heritage",
@@ -97,10 +113,13 @@ const bangladeshDistricts = [
 ];
 
 export default function GuideRegistrationScreen() {
+  const { user } = useAuth();
   const [step, setStep] = useState<"details" | "nid" | "expertise">("details");
   const [fullName, setFullName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [nidNumber, setNidNumber] = useState("");
+  const [nidImage, setNidImage] = useState<string | null>(null);
+  const [nidImageUrl, setNidImageUrl] = useState<string | null>(null);
   const [nidVerified, setNidVerified] = useState(false);
   const [experience, setExperience] = useState("");
   const [yearsExperience, setYearsExperience] = useState("");
@@ -157,14 +176,96 @@ export default function GuideRegistrationScreen() {
     checkNIDPattern(text);
   };
 
-  const handleNIDVerification = () => {
-    // Validate NID format first
+  const pickNIDImage = async () => {
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission Required",
+          "Please allow access to your photo library to upload NID",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 10],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setNidImage(result.assets[0].uri);
+        setNidVerified(false);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const uploadNIDViaBackend = async (uri: string): Promise<string | null> => {
+    try {
+      let base64Image = "";
+
+      if (Platform.OS === "web") {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            // Remove data URL prefix if present
+            resolve(base64.includes(",") ? base64.split(",")[1] : base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        base64Image = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+
+      const response = await fetch(`${API_BASE_URL}/nid/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: `data:image/jpeg;base64,${base64Image}`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Upload failed:", response.status, errorText);
+        return null;
+      }
+
+      const result = await response.json();
+      if (!result?.publicUrl) {
+        console.error("Upload response missing publicUrl", result);
+        return null;
+      }
+
+      return result.publicUrl as string;
+    } catch (error) {
+      console.error("NID upload error:", error);
+      return null;
+    }
+  };
+
+  const handleNIDVerification = async (): Promise<boolean> => {
+    console.log("🔍 Starting NID verification...");
+    console.log("NID Number:", nidNumber);
+    console.log("NID Image:", nidImage ? "Selected" : "Not selected");
+
     if (!nidNumber.trim()) {
+      console.log("❌ Validation failed: No NID number");
       Alert.alert("Required", "Please enter your NID number");
-      return;
+      return false;
     }
 
-    // Check for fake NID patterns immediately on frontend
     const fakePatterns = [
       /^1234567890$/,
       /^123456789010$/,
@@ -178,37 +279,133 @@ export default function GuideRegistrationScreen() {
 
     for (const pattern of fakePatterns) {
       if (pattern.test(nidNumber.trim())) {
+        console.log("❌ Validation failed: Fake NID pattern detected");
         Alert.alert(
           "⚠️ Invalid NID",
           "This appears to be a test or fake NID number. Please enter your actual NID from your official card.",
           [{ text: "OK" }],
         );
         setNidVerified(false);
-        return;
+        return false;
       }
     }
 
-    // Validate Bangladesh NID format (10, 13, or 17 digits)
     const nidPattern = /^(\d{10}|\d{13}|\d{17})$/;
     if (!nidPattern.test(nidNumber.trim())) {
+      console.log("❌ Validation failed: Invalid NID format");
       Alert.alert(
         "Invalid NID Format",
         "Bangladesh NID must be exactly 10, 13, or 17 digits",
       );
-      return;
+      return false;
     }
 
-    // If passes frontend validation, show success
-    // In production, this should call the backend API
-    Alert.alert(
-      "✅ NID Format Valid",
-      "Your NID format is valid. It will be verified by our team during review.",
-      [{ text: "OK" }],
-    );
-    setNidVerified(true);
+    if (!nidImage) {
+      console.log("❌ Validation failed: No NID image");
+      Alert.alert("Required", "Please upload your NID card image");
+      return false;
+    }
+
+    console.log("✅ All validations passed, starting upload...");
+    setIsVerifying(true);
+
+    try {
+      console.log("📤 Uploading NID image via backend...");
+      const uploadedUrl = await uploadNIDViaBackend(nidImage);
+
+      if (!uploadedUrl) {
+        console.log("❌ Upload failed");
+        Alert.alert(
+          "Upload Failed",
+          "Failed to upload NID image. Please try again.",
+        );
+        return false;
+      }
+
+      setNidImageUrl(uploadedUrl);
+      console.log("✅ NID image uploaded successfully:", uploadedUrl);
+
+      console.log("📡 Calling backend OCR API...");
+      const extractResponse = await fetch(`${API_BASE_URL}/nid/extract`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageUrl: uploadedUrl }),
+      });
+
+      console.log("📥 Backend response status:", extractResponse.status);
+
+      if (!extractResponse.ok) {
+        console.log(
+          "❌ Backend returned error status:",
+          extractResponse.status,
+        );
+        throw new Error(`Backend error: ${extractResponse.status}`);
+      }
+
+      const extractData = await extractResponse.json();
+      console.log(
+        "📄 OCR extraction result:",
+        JSON.stringify(extractData, null, 2),
+      );
+
+      if (!extractData.success || !extractData.nidNumber) {
+        console.log("❌ OCR extraction failed or no NID found");
+        Alert.alert(
+          "❌ Verification Failed",
+          "Could not extract NID from image. Please ensure:\n• Image is clear and well-lit\n• NID card is fully visible\n• Text is readable",
+          [{ text: "Try Again" }],
+        );
+        return false;
+      }
+
+      const extractedNID = extractData.nidNumber.trim();
+      const enteredNID = nidNumber.trim();
+
+      console.log("🔍 Comparing NIDs:");
+      console.log("  Entered:", enteredNID);
+      console.log("  Extracted:", extractedNID);
+      console.log("  Match:", extractedNID === enteredNID);
+
+      if (extractedNID === enteredNID) {
+        console.log("✅ NID verification successful - numbers match!");
+        setNidVerified(true);
+        Alert.alert(
+          "✅ NID Verified Successfully!",
+          `Your NID has been verified.\n\nEntered: ${enteredNID}\nExtracted: ${extractedNID}`,
+          [{ text: "Continue" }],
+        );
+        return true;
+      }
+
+      console.log("❌ NID verification failed - numbers don't match!");
+      setNidVerified(false);
+      Alert.alert(
+        "❌ NID Mismatch",
+        `The NID number in your image doesn't match what you entered.\n\nYou entered: ${enteredNID}\nImage shows: ${extractedNID}\n\nPlease check and try again.`,
+        [{ text: "OK" }],
+      );
+      return false;
+    } catch (error: any) {
+      console.error("❌ Verification error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+      });
+      Alert.alert(
+        "Network Error",
+        `Failed to verify NID. Please check:\n\n• Backend is running on port 5001\n• Your internet connection\n• You're using an Android emulator (use 10.0.2.2 instead of localhost)\n\nError: ${error.message}`,
+        [{ text: "OK" }],
+      );
+      return false;
+    } finally {
+      console.log("🏁 Verification process completed");
+      setIsVerifying(false);
+    }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === "details") {
       if (!fullName.trim()) {
         Alert.alert("Required", "Please enter your full name");
@@ -229,8 +426,10 @@ export default function GuideRegistrationScreen() {
       setStep("nid");
     } else if (step === "nid") {
       if (!nidVerified) {
-        Alert.alert("Required", "Please verify your NID");
-        return;
+        const verified = await handleNIDVerification();
+        if (!verified) {
+          return;
+        }
       }
       setStep("expertise");
     }
@@ -250,191 +449,235 @@ export default function GuideRegistrationScreen() {
       yearsExperience,
     });
 
-    // Enhanced validation
-    if (!fullName.trim()) {
-      Alert.alert("Required Field", "Please enter your full name");
-      return;
-    }
-
-    if (!dateOfBirth.trim()) {
-      Alert.alert("Required", "Please enter your date of birth");
-      return;
-    }
-
-    if (!phone.trim()) {
-      Alert.alert("Required", "Please enter your phone number");
-      return;
-    }
-
-    if (!email.trim()) {
-      Alert.alert("Required", "Please enter your email address");
-      return;
-    }
-
-    if (!nidNumber.trim()) {
-      Alert.alert("Required", "Please enter your NID number");
-      return;
-    }
-
-    if (selectedExpertiseCategories.length === 0) {
-      Alert.alert(
-        "Required Field Missing",
-        "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
-      );
-      return;
-    }
-
-    if (coverageAreas.length === 0) {
-      Alert.alert(
-        "Required Field Missing",
-        "Please scroll down and select at least one coverage area (district) where you can provide services",
-      );
-      return;
-    }
-
-    if (
-      !perHourRate.trim() ||
-      isNaN(Number(perHourRate)) ||
-      Number(perHourRate) <= 0
-    ) {
-      Alert.alert(
-        "Required Field Missing",
-        "Please scroll down and enter your per hour rate in BDT",
-      );
-      return;
-    }
-
-    if (!yearsExperience.trim()) {
-      Alert.alert("Required", "Please enter your years of experience");
-      return;
-    }
-
-    // Validate phone number format
-    if (!phone.match(/^\+880\d{9,10}$/)) {
-      Alert.alert(
-        "Validation Error",
-        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
-      );
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Validation Error", "Please enter a valid email address");
-      return;
-    }
-
-    setIsSubmitting(true);
-
     try {
-      // Calculate age from date of birth
-      const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
-      const today = new Date();
-      const calculatedAge = Math.floor(
-        (today.getTime() - birthDate.getTime()) /
-          (365.25 * 24 * 60 * 60 * 1000),
-      );
+      // Enhanced validation
+      console.log("🔍 Starting validation checks...");
 
-      if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
+      if (!fullName.trim()) {
+        console.warn("❌ VALIDATION FAILED: fullName is empty");
+        Alert.alert("Required Field", "Please enter your full name");
+        return;
+      }
+      console.log("✅ fullName validation passed");
+
+      if (!dateOfBirth.trim()) {
+        console.warn("❌ VALIDATION FAILED: dateOfBirth is empty");
+        Alert.alert("Required", "Please enter your date of birth");
+        return;
+      }
+      console.log("✅ dateOfBirth validation passed");
+
+      if (!phone.trim()) {
+        console.warn("❌ VALIDATION FAILED: phone is empty");
+        Alert.alert("Required", "Please enter your phone number");
+        return;
+      }
+      console.log("✅ phone validation passed, value:", phone);
+
+      if (!email.trim()) {
+        console.warn("❌ VALIDATION FAILED: email is empty");
+        Alert.alert("Required", "Please enter your email address");
+        return;
+      }
+      console.log("✅ email validation passed");
+
+      if (!nidNumber.trim()) {
+        console.warn("❌ VALIDATION FAILED: nidNumber is empty");
+        Alert.alert("Required", "Please enter your NID number");
+        return;
+      }
+      console.log("✅ nidNumber validation passed");
+
+      if (selectedExpertiseCategories.length === 0) {
+        console.warn("❌ VALIDATION FAILED: no expertise categories selected");
+        Alert.alert(
+          "Required Field Missing",
+          "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
+        );
+        return;
+      }
+      console.log("✅ expertise categories validation passed");
+
+      if (coverageAreas.length === 0) {
+        console.warn("❌ VALIDATION FAILED: no coverage areas selected");
+        Alert.alert(
+          "Required Field Missing",
+          "Please scroll down and select at least one coverage area (district) where you can provide services",
+        );
+        return;
+      }
+      console.log("✅ coverage areas validation passed");
+
+      if (
+        !perHourRate.trim() ||
+        isNaN(Number(perHourRate)) ||
+        Number(perHourRate) <= 0
+      ) {
+        console.warn("❌ VALIDATION FAILED: invalid perHourRate", {
+          perHourRate,
+        });
+        Alert.alert(
+          "Required Field Missing",
+          "Please scroll down and enter your per hour rate in BDT",
+        );
+        return;
+      }
+      console.log("✅ perHourRate validation passed");
+
+      if (!yearsExperience.trim()) {
+        console.warn("❌ VALIDATION FAILED: yearsExperience is empty");
+        Alert.alert("Required", "Please enter your years of experience");
+        return;
+      }
+      console.log("✅ yearsExperience validation passed");
+
+      // Validate phone number format
+      console.log("📞 Validating phone format:", phone);
+      if (!phone.match(/^\+880\d{9,10}$/)) {
+        console.warn("❌ VALIDATION FAILED: invalid phone format");
         Alert.alert(
           "Validation Error",
-          "Please enter a valid date of birth. You must be between 18 and 120 years old.",
+          "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
         );
-        setIsSubmitting(false);
         return;
       }
+      console.log("✅ phone format validation passed");
 
-      // Format date of birth for database (YYYY-MM-DD)
-      const formattedDOB = dateOfBirth.split("/").reverse().join("-");
-
-      // Prepare data for API
-      const guideData = {
-        firstName: fullName.split(" ")[0] || fullName,
-        lastName: fullName.split(" ").slice(1).join(" ") || "",
-        email: email.trim().toLowerCase(),
-        phone: phone.trim(),
-        nidNumber: nidNumber.trim(),
-        nidImageUrl: "pending_upload",
-        age: calculatedAge,
-        // dateOfBirth: formattedDOB, // Backend might calculate age or use it? controller uses age.
-        expertiseArea: selectedExpertiseCategories[0] || "Tourism",
-        specialties: selectedExpertiseCategories,
-        selectedExpertiseCategories,
-        coverageAreas,
-        perHourRate: parseFloat(perHourRate),
-        yearsOfExperience: parseInt(yearsExperience) || 1,
-        bio:
-          experience ||
-          `Experienced guide specializing in ${selectedExpertiseCategories.join(", ")}. Available in ${coverageAreas.slice(0, 3).join(", ")}`,
-        languages: ["Bengali", "English"],
-        certifications: [],
-      };
-
-      console.log("📤 Submitting guide data to Backend API...", guideData);
-
-      // Get auth token from Supabase session
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        throw new Error("You must be logged in to register as a guide.");
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      console.log("📧 Validating email format:", email);
+      if (!emailRegex.test(email)) {
+        console.warn("❌ VALIDATION FAILED: invalid email format");
+        Alert.alert("Validation Error", "Please enter a valid email address");
+        return;
       }
+      console.log("✅ email format validation passed");
 
-      // Set token on API client
-      api.setToken(token);
+      console.log("🎉 ALL VALIDATIONS PASSED! Proceeding to API call...");
 
-      // Call Backend API
-      const data = await api.registerGuide(guideData);
+      setIsSubmitting(true);
 
-      console.log("✅ Guide registered successfully:", data);
+      try {
+        // Calculate age from date of birth
+        console.log("📅 Calculating age from DOB:", dateOfBirth);
+        const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
+        const today = new Date();
+        const calculatedAge = Math.floor(
+          (today.getTime() - birthDate.getTime()) /
+            (365.25 * 24 * 60 * 60 * 1000),
+        );
+        console.log("✅ Calculated age:", calculatedAge);
 
-      /* 
-      // Insert into Supabase guides table
-      /*
-      const { data, error } = await supabase
-        .from("guides")
-        .insert([guideData])
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("❌ Supabase error:", error);
+        if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
+          console.warn("❌ Age validation failed:", { calculatedAge });
+          Alert.alert(
+            "Validation Error",
+            "Please enter a valid date of birth. You must be between 18 and 120 years old.",
+          );
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Format date of birth for database (YYYY-MM-DD)
+        const formattedDOB = dateOfBirth.split("/").reverse().join("-");
+        console.log("✅ Formatted DOB:", formattedDOB);
+
+        // Create guide profile data for Backend API
+        const guideData = {
+          firstName: fullName.split(" ")[0] || fullName,
+          lastName: fullName.split(" ").slice(1).join(" ") || "",
+          phone: phone.trim(),
+          nidNumber: nidNumber.trim(),
+          nidImageUrl: nidImageUrl || "pending_upload",
+          age: calculatedAge,
+          dateOfBirth: formattedDOB,
+          expertiseArea: selectedExpertiseCategories[0] || "Tourism",
+          specialties: selectedExpertiseCategories,
+          selectedExpertiseCategories: selectedExpertiseCategories,
+          coverageAreas: coverageAreas,
+          perHourRate: parseFloat(perHourRate),
+          yearsOfExperience: parseInt(yearsExperience) || 1,
+          bio:
+            experience ||
+            `Experienced guide specializing in ${selectedExpertiseCategories.join(
+              ", ",
+            )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
+              coverageAreas.length > 3 ? " and more areas" : ""
+            }.`,
+          languages: ["Bengali", "English"],
+          certifications: [],
+        };
+
+        console.log("📤 Guide data prepared:", guideData);
+        console.log("📤 Submitting to Backend API...");
+
+        if (!user) {
+          console.error("❌ User not logged in!");
+          throw new Error("You must be logged in to register as a guide.");
+        }
+        console.log("✅ User authenticated:", user.email);
+
+        console.log("🔑 Getting Supabase session token...");
+        const supabase = await getSupabaseClient();
+        if (!supabase) {
+          throw new Error("Failed to initialize Supabase client");
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.access_token) {
+          throw new Error("Failed to get access token");
+        }
+
+        const token = sessionData.session.access_token;
+        console.log("✅ Token obtained, length:", token.length);
+
+        // Call Backend API instead of direct Supabase insert
+        console.log("📡 Calling registerGuide API...");
+        const data = await registerGuide(guideData, token);
+
+        console.log("✅ Guide registered successfully via API:", data);
+
+        // Show thank you popup
         Alert.alert(
-          "Registration Failed",
-          error.message || "Failed to save your data. Please try again."
+          "🎉 Thank You for Registering!",
+          `Welcome to our tourism community, ${fullName}!\n\nYour guide profile has been created successfully and will be reviewed within 24 hours.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
+          [
+            {
+              text: "Go to Home",
+              onPress: () => router.replace("/"),
+              style: "default",
+            },
+            {
+              text: "View Guides",
+              onPress: () => router.push("/guides"),
+              style: "cancel",
+            },
+          ],
         );
+      } catch (error: any) {
+        console.error("❌ Guide registration error caught!");
+        console.error("Error type:", typeof error);
+        console.error("Error message:", error?.message);
+        console.error("Error details:", error);
+
+        let errorMessage =
+          "Please check your internet connection and try again.";
+        if (error?.message) {
+          errorMessage = error.message;
+        }
+
+        console.error("📢 Showing error alert:", errorMessage);
+        Alert.alert("Registration Failed", errorMessage);
+      } finally {
         setIsSubmitting(false);
-        return;
       }
-      */
-
-      console.log("✅ Guide registered successfully:", data);
-
-      // Show thank you popup
+    } catch (outerError: any) {
+      console.error("❌ OUTER ERROR in handleSubmit:", outerError);
+      console.error("Error:", JSON.stringify(outerError, null, 2));
       Alert.alert(
-        "🎉 Thank You for Registering!",
-        `Welcome to our tourism community, ${fullName}!\n\nYour guide profile has been created successfully and will be reviewed within 24 hours.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
-        [
-          {
-            text: "Go to Home",
-            onPress: () => router.replace("/"),
-            style: "default",
-          },
-          {
-            text: "View Guides",
-            onPress: () => router.push("/guides"),
-            style: "cancel",
-          },
-        ],
+        "Error",
+        outerError?.message || "An unexpected error occurred",
       );
-    } catch (error: any) {
-      console.error("❌ Guide registration error:", error);
-      Alert.alert(
-        "Registration Error",
-        error.message || "An unexpected error occurred. Please try again.",
-      );
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -454,11 +697,7 @@ export default function GuideRegistrationScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color={DesignColors.textPrimary}
-          />
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Become a Local Guide</Text>
         <View style={styles.placeholder} />
@@ -590,6 +829,43 @@ export default function GuideRegistrationScreen() {
               )}
             </View>
 
+            {/* NID Card Image Upload */}
+            <View style={styles.fieldWrapper}>
+              <Label icon="camera" label="NID Card Image" required />
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={pickNIDImage}
+              >
+                {nidImage ? (
+                  <View style={styles.imagePreviewContainer}>
+                    <Image
+                      source={{ uri: nidImage }}
+                      style={styles.imagePreview}
+                    />
+                    <View style={styles.changeImageOverlay}>
+                      <Ionicons name="camera" size={32} color="#fff" />
+                      <Text style={styles.changeImageText}>Change Image</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.uploadPlaceholder}>
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={48}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.uploadText}>Upload NID Card</Text>
+                    <Text style={styles.uploadSubtext}>
+                      Tap to select image from gallery
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.helperText}>
+                Clear photo of your NID card (front side)
+              </Text>
+            </View>
+
             {/* Verification Status */}
             {nidVerified && (
               <View style={styles.successBox}>
@@ -608,14 +884,28 @@ export default function GuideRegistrationScreen() {
               <TouchableOpacity
                 style={[
                   styles.verifyButton,
-                  (nidWarning || !nidNumber.trim()) &&
+                  (nidWarning ||
+                    !nidNumber.trim() ||
+                    !nidImage ||
+                    isVerifying) &&
                     styles.verifyButtonDisabled,
                 ]}
                 onPress={handleNIDVerification}
-                disabled={!!nidWarning || !nidNumber.trim()}
+                disabled={
+                  !!nidWarning || !nidNumber.trim() || !nidImage || isVerifying
+                }
               >
-                <Ionicons name="shield-checkmark" size={20} color="#FFF" />
-                <Text style={styles.verifyButtonText}>Verify NID</Text>
+                {isVerifying ? (
+                  <>
+                    <ActivityIndicator size="small" color="#FFF" />
+                    <Text style={styles.verifyButtonText}>Verifying...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="shield-checkmark" size={20} color="#FFF" />
+                    <Text style={styles.verifyButtonText}>Verify NID</Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
 
@@ -929,7 +1219,7 @@ function Label({
 }) {
   return (
     <View style={styles.labelContainer}>
-      <Ionicons name={icon as any} size={16} color={DesignColors.primary} />
+      <Ionicons name={icon as any} size={16} color={Colors.primary} />
       <Text style={styles.label}>
         {label}
         {required && <Text style={styles.required}> *</Text>}
@@ -941,21 +1231,21 @@ function Label({
 function BenefitItem({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={styles.benefitItem}>
-      <Ionicons name={icon as any} size={18} color={DesignColors.primary} />
+      <Ionicons name={icon as any} size={18} color={Colors.primary} />
       <Text style={styles.benefitText}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: DesignColors.background },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: DesignColors.surface,
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
   },
@@ -965,7 +1255,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
     flex: 1,
     textAlign: "center",
   },
@@ -978,7 +1268,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
-    backgroundColor: DesignColors.surface,
+    backgroundColor: Colors.surface,
   },
   progressStep: {
     alignItems: "center",
@@ -996,12 +1286,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   progressStepCircleActive: {
-    borderColor: DesignColors.primary,
+    borderColor: Colors.primary,
     backgroundColor: "#EFF6FF",
   },
   progressStepCircleCompleted: {
-    backgroundColor: DesignColors.primary,
-    borderColor: DesignColors.primary,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   progressStepNumber: {
     fontSize: 16,
@@ -1009,7 +1299,7 @@ const styles = StyleSheet.create({
     color: "#999",
   },
   progressStepNumberActive: {
-    color: DesignColors.primary,
+    color: Colors.primary,
   },
   progressStepLabel: {
     fontSize: 12,
@@ -1018,7 +1308,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   progressStepLabelActive: {
-    color: DesignColors.primary,
+    color: Colors.primary,
     fontWeight: "700",
   },
   progressDivider: {
@@ -1028,7 +1318,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   progressDividerCompleted: {
-    backgroundColor: DesignColors.primary,
+    backgroundColor: Colors.primary,
   },
   content: {
     paddingHorizontal: Spacing.lg,
@@ -1040,11 +1330,11 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
   },
   stepDescription: {
     fontSize: 14,
-    color: DesignColors.textSecondary,
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   fieldWrapper: {
@@ -1058,7 +1348,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "700",
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
   },
   required: {
     color: "#EF4444",
@@ -1071,7 +1361,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     backgroundColor: "#F9FAFB",
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
     fontSize: 14,
   },
   inputError: {
@@ -1084,12 +1374,59 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: DesignColors.textSecondary,
+    color: Colors.textSecondary,
   },
   errorText: {
     fontSize: 12,
     color: "#EF4444",
     fontWeight: "600",
+  },
+  imagePickerButton: {
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: Colors.primary,
+    borderRadius: Radii.md,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  uploadPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    backgroundColor: "#F0F9FF",
+  },
+  uploadText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.primary,
+    marginTop: 12,
+  },
+  uploadSubtext: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    width: "100%",
+    height: 220,
+  },
+  imagePreview: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  changeImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  changeImageText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 8,
   },
   infoBox: {
     flexDirection: "row",
@@ -1146,7 +1483,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: DesignColors.primary,
+    backgroundColor: Colors.primary,
     borderRadius: Radii.full,
     paddingVertical: Spacing.md,
     gap: 8,
@@ -1165,14 +1502,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F9FF",
     borderRadius: Radii.lg,
     borderLeftWidth: 4,
-    borderLeftColor: DesignColors.primary,
+    borderLeftColor: Colors.primary,
     padding: Spacing.lg,
     gap: Spacing.md,
   },
   benefitsTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   benefitItem: {
@@ -1183,7 +1520,7 @@ const styles = StyleSheet.create({
   benefitText: {
     flex: 1,
     fontSize: 13,
-    color: DesignColors.textPrimary,
+    color: Colors.textPrimary,
     fontWeight: "500",
   },
   checkboxGrid: {
@@ -1210,7 +1547,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     fontSize: 13,
-    color: DesignColors.textSecondary,
+    color: Colors.textSecondary,
     fontWeight: "500",
   },
   checkboxTextSelected: {
@@ -1232,7 +1569,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
-    backgroundColor: DesignColors.surface,
+    backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: "#E0E0E0",
     gap: Spacing.md,
@@ -1241,7 +1578,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: DesignColors.primary,
+    backgroundColor: Colors.primary,
     borderRadius: Radii.full,
     paddingVertical: Spacing.md,
     gap: 8,
@@ -1256,12 +1593,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: DesignColors.primary,
+    borderColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryButtonText: {
-    color: DesignColors.primary,
+    color: Colors.primary,
     fontWeight: "700",
     fontSize: 16,
   },

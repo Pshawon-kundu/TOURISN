@@ -1,8 +1,12 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { signUp } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,26 +23,204 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [nidNumber, setNidNumber] = useState("");
+  const [nidImage, setNidImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
+  const pickNIDImage = async () => {
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission Required",
+          "Please allow access to your photo library to upload NID",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 10],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setNidImage(result.assets[0].uri);
+        setInfo("NID image selected successfully");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const uploadNIDToSupabase = async (
+    uri: string,
+    userId: string,
+  ): Promise<string | null> => {
+    try {
+      // Convert image to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      // Create unique filename
+      const fileExt = uri.split(".").pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const filePath = `nid-images/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from("nid-documents")
+        .upload(filePath, blob, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Upload error:", error);
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("nid-documents")
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("NID upload error:", error);
+      return null;
+    }
+  };
+
+  const extractNIDFromImage = async (
+    imageUrl: string,
+  ): Promise<string | null> => {
+    try {
+      // Call backend OCR API to extract NID from image
+      const response = await fetch("http://localhost:5001/api/nid/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.nidNumber) {
+        return data.nidNumber;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("NID extraction error:", error);
+      return null;
+    }
+  };
+
   const handleSignup = async () => {
     setError("");
     setInfo("");
+
+    // Validation
+    if (!fullName.trim()) {
+      setError("Please enter your full name");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Please enter your email");
+      return;
+    }
+
+    if (!nidNumber.trim()) {
+      setError("Please enter your NID number");
+      return;
+    }
+
+    if (!nidImage) {
+      setError("Please upload your NID card image");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
+    setInfo("Creating account...");
+
     try {
-      await signUp(email.trim(), password, "traveler", fullName);
-      setInfo("Account created! Redirecting...");
-      router.replace("/");
+      // Step 1: Create user account
+      const userResult = await signUp(
+        email.trim(),
+        password,
+        "traveler",
+        fullName,
+      );
+
+      if (!userResult || !userResult.user) {
+        throw new Error("Failed to create account");
+      }
+
+      const userId = userResult.user.id;
+      setInfo("Account created! Uploading NID...");
+
+      // Step 2: Upload NID image to Supabase
+      const nidImageUrl = await uploadNIDToSupabase(nidImage, userId);
+
+      if (!nidImageUrl) {
+        throw new Error("Failed to upload NID image");
+      }
+
+      setInfo("NID uploaded! Verifying...");
+
+      // Step 3: Extract NID number from image
+      const extractedNID = await extractNIDFromImage(nidImageUrl);
+
+      // Step 4: Verify NID match
+      const nidMatches = extractedNID && extractedNID === nidNumber.trim();
+
+      // Step 5: Save user data with NID info to Supabase
+      const { error: dbError } = await supabase
+        .from("users")
+        .update({
+          nid_number: nidNumber.trim(),
+          nid_image_url: nidImageUrl,
+          nid_verified: nidMatches,
+          nid_verification_date: nidMatches ? new Date().toISOString() : null,
+        })
+        .eq("id", userId);
+
+      if (dbError) {
+        console.error("Database error:", dbError);
+        throw new Error("Failed to save NID information");
+      }
+
+      if (!nidMatches) {
+        Alert.alert(
+          "NID Verification Pending",
+          "Your NID will be manually verified by our team. You'll be notified once verified.",
+          [{ text: "OK", onPress: () => router.replace("/") }],
+        );
+      } else {
+        setInfo("Account created successfully! Redirecting...");
+        setTimeout(() => router.replace("/"), 1500);
+      }
     } catch (err: any) {
-      setError(err?.message ?? "Signup failed");
+      console.error("Signup error:", err);
+      setError(err?.message ?? "Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -91,6 +273,53 @@ export default function SignupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>NID Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your NID number"
+              placeholderTextColor="#999"
+              value={nidNumber}
+              onChangeText={setNidNumber}
+              keyboardType="numeric"
+              maxLength={17}
+            />
+            <Text style={styles.helperText}>
+              Bangladesh NID: 10, 13, or 17 digits
+            </Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>NID Card Image</Text>
+            <TouchableOpacity
+              style={styles.imagePickerButton}
+              onPress={pickNIDImage}
+            >
+              {nidImage ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: nidImage }}
+                    style={styles.imagePreview}
+                  />
+                  <View style={styles.changeImageOverlay}>
+                    <Ionicons name="camera" size={24} color="#fff" />
+                    <Text style={styles.changeImageText}>Change Image</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.uploadPlaceholder}>
+                  <Ionicons
+                    name="cloud-upload-outline"
+                    size={40}
+                    color={Colors.primary}
+                  />
+                  <Text style={styles.uploadText}>Upload NID Card</Text>
+                  <Text style={styles.uploadSubtext}>Tap to select image</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
@@ -235,6 +464,57 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: "#E0E0E0",
+  },
+  helperText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  imagePickerButton: {
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: Colors.primary,
+    borderRadius: Radii.md,
+    overflow: "hidden",
+  },
+  uploadPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.xxl,
+    backgroundColor: "#F0F9FF",
+  },
+  uploadText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+  },
+  uploadSubtext: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    width: "100%",
+    height: 200,
+  },
+  imagePreview: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  changeImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  changeImageText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 8,
   },
   signupButton: {
     backgroundColor: Colors.primary,

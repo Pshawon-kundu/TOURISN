@@ -1,5 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { signIn, resetPassword } from "@/lib/auth";
+import { resetPassword, signIn } from "@/lib/auth";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -110,10 +110,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.loginButton,
-              loading ? { opacity: 0.7 } : undefined,
-            ]}
+            style={[styles.loginButton, loading ? { opacity: 0.7 } : undefined]}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -156,7 +153,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
+            <Text style={styles.signupText}>Don&apos;t have an account? </Text>
             <TouchableOpacity onPress={() => router.push("/signup")}>
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>

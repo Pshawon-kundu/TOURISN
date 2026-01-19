@@ -13,6 +13,7 @@ import districtRoutes from "./routes/districtRoutes";
 import experienceRoutes from "./routes/experienceRoutes";
 import foodRoutes from "./routes/foodRoutes";
 import guideRoutes from "./routes/guideRoutes";
+import nidExtractionRoutes from "./routes/nidExtractionRoutes";
 import nidVerificationRoutes from "./routes/nidVerificationRoutes";
 import profileRoutes from "./routes/profileRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
@@ -104,6 +105,7 @@ app.use("/api/guides", guideRoutes);
 app.use("/api/transport", transportRoutes);
 app.use("/api/stays", stayRoutes);
 app.use("/api/nid", nidVerificationRoutes);
+app.use("/api/nid", nidExtractionRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/districts", districtRoutes);
 app.use("/api/food", foodRoutes);
@@ -145,20 +147,36 @@ const initializeAndStartServer = async () => {
     // Initialize real-time service with Socket.IO
     initializeRealtimeService(io);
 
-    httpServer.listen(port, "0.0.0.0", () => {
-      console.log(`✅ Server is now listening on http://localhost:${port}`);
-      console.log(`✅ Server is also available at http://127.0.0.1:${port}`);
-      console.log(`✅ API available at http://localhost:${port}/api`);
-      console.log(`🔌 Socket.IO server is ready for real-time connections`);
-    });
-
     httpServer.on("error", (error: any) => {
       console.error("❌ Server error:", error);
+      throw error;
     });
+
+    await new Promise<void>((resolve, reject) => {
+      httpServer.listen(port, "0.0.0.0", () => {
+        console.log(`✅ Server is now listening on http://localhost:${port}`);
+        console.log(`✅ Server is also available at http://127.0.0.1:${port}`);
+        console.log(`✅ API available at http://localhost:${port}/api`);
+        console.log(`🔌 Socket.IO server is ready for real-time connections`);
+        resolve();
+      });
+      httpServer.on("error", reject);
+    });
+
+    console.log("✅ Server successfully started and ready for requests!");
 
     // Cleanup on shutdown
     process.on("SIGTERM", () => {
       console.log("🛑 SIGTERM received, cleaning up...");
+      cleanupRealtimeService();
+      httpServer.close(() => {
+        console.log("👋 Server shut down gracefully");
+        process.exit(0);
+      });
+    });
+
+    process.on("SIGINT", () => {
+      console.log("🛑 SIGINT received, cleaning up...");
       cleanupRealtimeService();
       httpServer.close(() => {
         console.log("👋 Server shut down gracefully");
@@ -172,4 +190,7 @@ const initializeAndStartServer = async () => {
 };
 
 console.log("🚀 Starting application initialization...");
-initializeAndStartServer();
+initializeAndStartServer().catch((error) => {
+  console.error("❌ Unhandled initialization error:", error);
+  process.exit(1);
+});

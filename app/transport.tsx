@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -123,7 +124,7 @@ export default function TransportHub() {
       const totalAmount = basePrice * passengers + serviceFee;
 
       const bookingData = {
-        transportType: selectedType,
+        transportType: selectedType || "car",
         from: fromLocation,
         to: toLocation,
         travelerName,
@@ -147,7 +148,7 @@ export default function TransportHub() {
     } catch (error) {
       Alert.alert(
         "Booking Failed",
-        error instanceof Error ? error.message : "Please try again"
+        error instanceof Error ? error.message : "Please try again",
       );
     } finally {
       setIsLoading(false);
@@ -188,7 +189,7 @@ export default function TransportHub() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(paymentData),
-        }
+        },
       );
 
       const result = await response.json();
@@ -218,7 +219,7 @@ export default function TransportHub() {
     } catch (error) {
       Alert.alert(
         "Payment Failed",
-        error instanceof Error ? error.message : "Please try again"
+        error instanceof Error ? error.message : "Please try again",
       );
     } finally {
       setIsLoading(false);
@@ -345,7 +346,7 @@ export default function TransportHub() {
           >
             {day}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity>,
       );
     }
 
@@ -497,7 +498,7 @@ export default function TransportHub() {
               <View style={styles.optionHeader}>
                 <View style={styles.optionIconContainer}>
                   <Ionicons
-                    name={TYPE_ICON[option.type]}
+                    name={TYPE_ICON[option.type] as any}
                     size={24}
                     color={Colors.secondary}
                   />
@@ -600,7 +601,7 @@ export default function TransportHub() {
             contentContainerStyle={styles.popularScroll}
           >
             <View style={styles.popularCard}>
-              <Text style={styles.popularRoute}>Dhaka → Cox's Bazar</Text>
+              <Text style={styles.popularRoute}>Dhaka → Cox&apos;s Bazar</Text>
               <Text style={styles.popularPrice}>From ৳ 1,200</Text>
             </View>
             <View style={styles.popularCard}>

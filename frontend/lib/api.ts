@@ -340,3 +340,13 @@ export const api = new APIClient();
 
 // Export base URL for reference
 export { API_BASE_URL };
+
+// Export guide registration function for use in components
+export const registerGuide = async (data: any, token: string) => {
+  console.log(
+    "📡 registerGuide wrapper called with token length:",
+    token.length,
+  );
+  api.setToken(token);
+  return api.registerGuide(data);
+};

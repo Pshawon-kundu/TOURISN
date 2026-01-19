@@ -5,7 +5,7 @@ import { AuthRequest } from "../middleware/auth";
 // Register as a guide (alias for createGuide)
 export const registerGuide = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   // Set default user_id from auth if not provided
   if (!req.user) {
@@ -19,7 +19,7 @@ export const registerGuide = async (
 
 export const createGuide = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -56,13 +56,27 @@ export const createGuide = async (
       perHourRate === undefined ||
       !selectedExpertiseCategories ||
       !coverageAreas ||
-      !phone ||
-      !email
+      !phone
     ) {
       res.status(400).json({
         success: false,
         error:
-          "All required fields must be provided: NID Number, NID Image, Age, Expertise Area, Per Hour Rate, Expertise Categories, Coverage Areas, Phone, and Email",
+          "All required fields must be provided: NID Number, NID Image, Age, Expertise Area, Per Hour Rate, Expertise Categories, Coverage Areas, and Phone",
+      });
+      return;
+    }
+
+    const normalizedEmail = (email || req.user.email || "")
+      .trim()
+      .toLowerCase();
+
+    // Validate email from request body or authenticated user
+    const emailToValidate = normalizedEmail;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailToValidate || !emailRegex.test(emailToValidate)) {
+      res.status(400).json({
+        success: false,
+        error: "Please provide a valid email address",
       });
       return;
     }
@@ -87,18 +101,10 @@ export const createGuide = async (
       return;
     }
 
-    // Validate email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      res.status(400).json({
-        success: false,
-        error: "Please provide a valid email address",
-      });
-      return;
-    }
-
     // Validate Bangladesh phone number
-    if (phone && !phone.match(/^\+880\d{9,10}$/)) {
+    const normalizedPhone = phone?.trim();
+
+    if (normalizedPhone && !normalizedPhone.match(/^\+880\d{9,10}$/)) {
       res.status(400).json({
         success: false,
         error:
@@ -131,6 +137,40 @@ export const createGuide = async (
       return;
     }
 
+    // Persist basic contact details to users table so the profile always has a name/email/phone
+    const userUpdatePayload: Record<string, any> = {};
+
+    if (firstName) userUpdatePayload.first_name = firstName.trim();
+    if (lastName) userUpdatePayload.last_name = lastName.trim();
+    if (normalizedPhone) userUpdatePayload.phone = normalizedPhone;
+    if (emailToValidate) userUpdatePayload.email = emailToValidate;
+
+    if (Object.keys(userUpdatePayload).length > 0) {
+      userUpdatePayload.updated_at = new Date().toISOString();
+
+      console.log("📝 Updating user contact info:", {
+        userId: req.user.id,
+        fields: Object.keys(userUpdatePayload),
+        data: userUpdatePayload,
+      });
+
+      const { error: userUpdateError } = await supabase
+        .from("users")
+        .update(userUpdatePayload)
+        .eq("id", req.user.id);
+
+      if (userUpdateError) {
+        console.error("Supabase user update error:", userUpdateError);
+        res.status(400).json({
+          success: false,
+          error: "Failed to save contact information. Please try again.",
+        });
+        return;
+      }
+
+      console.log("✅ User contact info updated successfully");
+    }
+
     // Check if guide already exists
     const { data: existingGuide } = await supabase
       .from("guides")
@@ -151,11 +191,6 @@ export const createGuide = async (
       .insert([
         {
           user_id: req.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          phone,
-          profile_image_url: profileImage,
           bio:
             bio ||
             `Experienced guide specializing in ${
@@ -164,19 +199,19 @@ export const createGuide = async (
           specialties: Array.isArray(specialties)
             ? specialties
             : specialties
-            ? [specialties]
-            : [expertiseArea || "Tourism"],
+              ? [specialties]
+              : [expertiseArea || "Tourism"],
           languages: Array.isArray(languages)
             ? languages
             : languages
-            ? [languages]
-            : ["Bengali", "English"],
+              ? [languages]
+              : ["Bengali", "English"],
           years_of_experience: yearsOfExperience || 1,
           certifications: Array.isArray(certifications)
             ? certifications
             : certifications
-            ? [certifications]
-            : [],
+              ? [certifications]
+              : [],
           nid_number: nidNumber,
           nid_image_url: nidImageUrl,
           age,
@@ -185,19 +220,13 @@ export const createGuide = async (
           expertise_categories: selectedExpertiseCategories,
           coverage_areas: coverageAreas,
           is_verified: false,
-          status: "pending", // Set as pending initially
           rating: 4.5, // Default rating for new guides
           total_reviews: 0,
-          is_available: true,
-          location:
-            coverageAreas && coverageAreas.length > 0
-              ? coverageAreas.join(", ")
-              : `${expertiseArea || "Bangladesh"}`,
         },
       ])
       .select(
         `*,
-         user:users!guides_user_id_fkey(id, first_name, last_name, email, phone, profile_image_url)`
+        user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)`,
       );
 
     if (error) {
@@ -233,7 +262,7 @@ export const createGuide = async (
 
 export const getGuideProfile = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -268,7 +297,7 @@ export const getGuideProfile = async (
 
 export const getGuideById = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -296,7 +325,7 @@ export const getGuideById = async (
 
 export const getAllGuides = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { page = 1, limit = 10, isVerified, category } = req.query;
@@ -306,7 +335,7 @@ export const getAllGuides = async (
       *,
       user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)
     `,
-      { count: "exact" }
+      { count: "exact" },
     );
 
     if (isVerified === "true") {
@@ -353,8 +382,8 @@ export const getAllGuides = async (
       badge: guide.is_verified
         ? "Verified"
         : guide.status === "pending"
-        ? "New Guide"
-        : guide.status,
+          ? "New Guide"
+          : guide.status,
       category: guide.expertise_area || "City",
       photo:
         guide.user?.avatar_url ||
@@ -390,7 +419,7 @@ export const getAllGuides = async (
 
 export const updateGuideProfile = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -432,7 +461,7 @@ export const updateGuideProfile = async (
 
 export const deleteGuideProfile = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {

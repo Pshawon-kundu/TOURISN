@@ -26,7 +26,7 @@ async function getSupabaseClient(): Promise<SupabaseClient | null> {
   const config = await loadSupabaseConfig();
   if (!config || !config.supabaseUrl || !config.supabaseKey) {
     console.error(
-      "❌ Supabase config missing. Add constants/supabaseConfig.ts"
+      "❌ Supabase config missing. Add constants/supabaseConfig.ts",
     );
     return null;
   }
@@ -65,7 +65,7 @@ export async function signIn(email: string, password: string) {
 
       if (error.message.includes("Invalid login credentials")) {
         throw new Error(
-          "No account found with this email or password is incorrect. Please check and try again."
+          "No account found with this email or password is incorrect. Please check and try again.",
         );
       }
 
@@ -125,7 +125,7 @@ export async function signIn(email: string, password: string) {
     });
 
     throw new Error(
-      error.message || "Invalid email or password. Please check and try again."
+      error.message || "Invalid email or password. Please check and try again.",
     );
   }
 }
@@ -136,7 +136,7 @@ export async function signUp(
   firstName: string = "",
   lastName: string = "",
   role: string = "traveler",
-  phone: string = ""
+  phone: string = "",
 ) {
   const supabase = await getSupabaseClient();
   if (!supabase)
@@ -168,7 +168,7 @@ export async function signUp(
 
       if (signUpError.message.includes("already registered")) {
         throw new Error(
-          "This email is already registered. Please login instead or use a different email."
+          "This email is already registered. Please login instead or use a different email.",
         );
       }
 
@@ -249,7 +249,7 @@ export async function registerAsGuide(
   age: number,
   expertiseArea: string,
   yearsOfExperience: number,
-  perHourRate: number
+  perHourRate: number,
 ) {
   // Call backend API to register guide profile
   const response = await api.post("/guides/register", {
@@ -305,7 +305,7 @@ export async function resetPassword(email: string) {
 }
 
 export async function watchAuth(
-  handler: (user: any | null) => void
+  handler: (user: any | null) => void,
 ): Promise<() => void> {
   const supabase = await getSupabaseClient();
   if (!supabase) {
@@ -339,3 +339,5 @@ export async function watchAuth(
 }
 
 export type AuthUser = any | null;
+
+export { getSupabaseClient };
