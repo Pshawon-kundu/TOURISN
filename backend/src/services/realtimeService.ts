@@ -256,13 +256,13 @@ const getRecentBookings = async () => {
       .select(
         `
         id,
-        status,
+        status:booking_status,
         total_price,
-        start_date,
-        end_date,
+        start_date:check_in_date,
+        end_date:check_out_date,
         created_at,
         user_id,
-        guide_id
+        item_id
       `,
       )
       .order("created_at", { ascending: false })
@@ -283,13 +283,10 @@ const getRecentGuides = async () => {
       .select(
         `
         id,
-        first_name,
-        last_name,
         status,
-        specializations,
-        hourly_rate,
+        per_hour_rate,
         created_at,
-        users:user_id (email)
+        users:user_id (email, first_name, last_name)
       `,
       )
       .order("created_at", { ascending: false })

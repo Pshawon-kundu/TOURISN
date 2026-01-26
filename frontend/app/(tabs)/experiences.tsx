@@ -23,13 +23,13 @@ export default function ExperiencesScreen() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [sortBy, setSortBy] = useState<"rating" | "price" | "duration">(
-    "rating"
+    "rating",
   );
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const filterAnim = useRef(new Animated.Value(0)).current;
   const cardAnims = useRef(
-    experiences.map(() => new Animated.Value(0))
+    experiences.map(() => new Animated.Value(0)),
   ).current;
 
   useEffect(() => {
@@ -53,8 +53,8 @@ export default function ExperiencesScreen() {
             tension: 60,
             friction: 8,
             useNativeDriver: Platform.OS !== "web",
-          })
-        )
+          }),
+        ),
       ),
     ]).start();
   }, []);
@@ -255,11 +255,19 @@ export default function ExperiencesScreen() {
                 {item.price.toLocaleString()} {item.currency}
               </Text>
             </View>
-            <TouchableOpacity style={styles.bookButton}>
+            <TouchableOpacity
+              style={styles.bookButton}
+              onPress={() =>
+                router.push({
+                  pathname: "/experience-booking" as any,
+                  params: { id: item.id },
+                })
+              }
+            >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
               >
-                <Ionicons name="calendar" size={18} color="#fff" />
+                <Ionicons name="calendar-outline" size={18} color="#fff" />
                 <Text style={styles.bookButtonText}>Book Now</Text>
               </View>
             </TouchableOpacity>
@@ -291,19 +299,20 @@ export default function ExperiencesScreen() {
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.navigate("/")}
           >
             <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Experiences</Text>
+            <Text style={styles.headerOverline}>ADVENTURE AWAITS</Text>
+            <Text style={styles.headerTitle}>Find Experiences</Text>
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
               <Text style={styles.headerSubtitle}>
-                Create unforgettable memories
+                Curated tours & activities
               </Text>
-              {/* Removed sparkles icon for cleaner look */}
+              <Ionicons name="compass" size={16} color={Colors.primary} />
             </View>
           </View>
         </View>
@@ -480,42 +489,41 @@ const styles = StyleSheet.create({
 
   headerTop: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+    alignItems: "flex-start",
+    marginBottom: Spacing.md,
   },
-
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    marginRight: Spacing.md,
+    marginTop: 4,
   },
-
   headerTextContainer: {
     flex: 1,
   },
-
+  headerOverline: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.primary,
+    letterSpacing: 1.5,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
   headerTitle: {
     fontSize: 32,
-    fontWeight: "900",
-    color: "#1F2937",
-    marginBottom: 4,
+    fontFamily: "Poppins-Bold",
+    color: Colors.textPrimary,
     letterSpacing: -0.5,
+    lineHeight: 38,
   },
-
   headerSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    color: Colors.textSecondary,
   },
 
   filterScroll: {

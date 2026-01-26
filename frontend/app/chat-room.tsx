@@ -1,19 +1,12 @@
-/* eslint-disable import/no-unresolved */
-
 import { ThemedView } from "@/components/themed-view";
-import { Radii, Spacing } from "@/constants/design";
+import { Colors, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  getChatRoomId,
-  initFirebase,
-  sendMessage,
-  subscribeToMessages,
-} from "@/lib/firebase";
+import * as ChatApi from "@/lib/chat"; // Use new Chat API
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -27,292 +20,276 @@ import {
 interface Message {
   id: string;
   text: string;
-  from: string;
-  userName?: string;
+  from: string; // userId
   createdAt: any;
+  isMe: boolean;
 }
 
 export default function ChatScreen() {
   const params = useLocalSearchParams();
-  const guideId = params.guideId as string | undefined;
-  const guideName = params.guideName as string | undefined;
+  // guideId param here represents the "other" user (Guide or Traveler)
+  const otherUserId = (params.guideId || params.otherUserId) as
+    | string
+    | undefined;
+  const otherUserName = (params.guideName || params.otherUserName) as
+    | string
+    | undefined;
+  const roomIdProp = params.roomId as string | undefined;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [connected, setConnected] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState(0);
+  const [roomId, setRoomId] = useState<string | null>(roomIdProp || null);
+
   const listRef = useRef<FlatList>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
   const { user } = useAuth();
 
-  const currentUserName =
-    user?.displayName || user?.email?.split("@")[0] || "Guest";
-  const currentUserId = user?.uid || "anonymous";
+  const currentUserId = user?.id;
 
-  // Create chat room ID for this user-guide pair
-  const chatRoomId = guideId
-    ? getChatRoomId(currentUserId, guideId)
-    : "general";
+  // Deduplicate messages helper
+  const addUniqueMessages = (current: Message[], newMsgs: Message[]) => {
+    const existingIds = new Set(current.map((m) => m.id));
+    const uniqueNew = newMsgs.filter((m) => !existingIds.has(m.id));
+    if (uniqueNew.length === 0) return current;
+    return [...current, ...uniqueNew].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  };
 
   useEffect(() => {
-    (async () => {
-      let config: any = null;
-      try {
-        // dynamic import to avoid build errors when the file is not present
-        // eslint-disable-next-line import/no-unresolved
-        // @ts-ignore: optional import (created by copying firebaseConfig.example.ts)
-        const mod = await import("@/constants/firebaseConfig");
-        config = mod.firebaseConfig;
-      } catch {
-        config = null;
-      }
+    let unsubscribe: () => void = () => {};
 
-      if (!config) {
-        setConnected(false);
+    const initChat = async () => {
+      console.log("🔵 Initializing chat...");
+      console.log("  Current User ID:", currentUserId);
+      console.log("  Other User ID:", otherUserId);
+      console.log("  Room ID Prop:", roomIdProp);
+      console.log("  Room ID State:", roomId);
+
+      if (!currentUserId) {
+        console.log("❌ No current user ID, waiting...");
         return;
       }
 
-      const db = initFirebase(config);
-      if (!db) {
-        setConnected(false);
+      let activeRoomId = roomId;
+
+      // If we don't have a room ID but have an other user ID, fetch/create room
+      if (!activeRoomId && otherUserId) {
+        console.log("📞 Creating/fetching chat room with:", otherUserId);
+        try {
+          const room = await ChatApi.getOrCreateChatRoom(otherUserId);
+          console.log("✅ Room fetched/created:", room);
+          if (room) {
+            activeRoomId = room.id;
+            setRoomId(room.id);
+            console.log("✅ Room ID set:", room.id);
+          } else {
+            console.error("❌ Room creation returned null");
+            Alert.alert(
+              "Chat Room Error",
+              "Failed to create chat room. Please check your connection and try again.",
+              [
+                { text: "Go Back", onPress: () => router.back() },
+                { text: "Retry", onPress: () => initChat() },
+              ],
+            );
+            return;
+          }
+        } catch (error) {
+          console.error("❌ Error creating room:", error);
+          Alert.alert(
+            "Connection Error",
+            "Failed to initialize chat. Please check your internet connection and try again.",
+            [
+              { text: "Go Back", onPress: () => router.back() },
+              { text: "Retry", onPress: () => initChat() },
+            ],
+          );
+          return;
+        }
+      }
+
+      if (!activeRoomId) {
+        console.error("❌ No active room ID after initialization");
         return;
       }
 
       setConnected(true);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      console.log("✅ Chat connected with room:", activeRoomId);
 
-      const chatPath = `chats/${chatRoomId}/messages`;
-      const unsub = subscribeToMessages(chatPath, (msgs) => {
-        setMessages(msgs as Message[]);
-        setOnlineUsers(2); // User + Guide
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-      });
+      // Load initial messages
+      try {
+        const msgs = await ChatApi.getMessages(activeRoomId);
+        console.log(`📥 Loaded ${msgs.length} messages`);
+        setMessages((prev) =>
+          addUniqueMessages(
+            prev,
+            msgs.map((m) => ({
+              id: m.id,
+              text: m.message,
+              from: m.sender_id,
+              createdAt: m.created_at,
+              isMe: m.sender_id === currentUserId,
+            })),
+          ),
+        );
+      } catch (error) {
+        console.error("❌ Error loading messages:", error);
+      }
 
-      return () => unsub && unsub();
-    })();
-  }, [chatRoomId, fadeAnim, slideAnim]);
-
-  async function onSend() {
-    if (!text.trim()) return;
-    try {
-      const chatPath = `chats/${chatRoomId}/messages`;
-      const userMessage = text.trim();
-
-      // Send user message
-      await sendMessage(chatPath, {
-        text: userMessage,
-        from: currentUserId,
-        userName: currentUserName,
-      });
-      setText("");
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-
-      // Auto-reply from guide after 2 seconds
-      setTimeout(async () => {
-        const guideResponse = getGuideAutoResponse(userMessage);
-        await sendMessage(chatPath, {
-          text: guideResponse,
-          from: guideId || "guide",
-          userName: guideName || "Guide",
+      // Subscribe to real-time
+      try {
+        unsubscribe = await ChatApi.subscribeToChat(activeRoomId, (newMsg) => {
+          console.log("📨 New message received:", newMsg);
+          setMessages((prev) => {
+            const incomingMessage: Message = {
+              id: newMsg.id,
+              text: newMsg.message,
+              from: newMsg.sender_id,
+              createdAt: newMsg.created_at,
+              isMe: newMsg.sender_id === currentUserId,
+            };
+            return addUniqueMessages(prev, [incomingMessage]);
+          });
+          // Scroll to bottom
+          setTimeout(() => listRef.current?.scrollToEnd(), 100);
         });
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-      }, 2000);
-    } catch (err) {
-      console.warn("send failed", err);
-    }
-  }
+        console.log("✅ Subscribed to real-time updates");
+      } catch (error) {
+        console.error("❌ Error subscribing to chat:", error);
+      }
+    };
 
-  function getGuideAutoResponse(userMessage: string): string {
-    const msg = userMessage.toLowerCase();
+    initChat();
 
-    // Greeting responses
-    if (msg.includes("hello") || msg.includes("hi") || msg.includes("hey")) {
-      return "Hello! Thanks for reaching out. I'm here to help you plan your perfect tour. What would you like to know?";
-    }
+    return () => {
+      unsubscribe();
+    };
+  }, [otherUserId, currentUserId]);
 
-    // Booking related
-    if (
-      msg.includes("book") ||
-      msg.includes("reserve") ||
-      msg.includes("available")
-    ) {
-      return "I'd be happy to help you book a tour! I'm available most days. What dates are you considering?";
-    }
+  const handleSend = async () => {
+    console.log("🔵 Send button pressed");
+    console.log("  Text:", text);
+    console.log("  Room ID:", roomId);
+    console.log("  User ID:", currentUserId);
 
-    // Pricing
-    if (
-      msg.includes("price") ||
-      msg.includes("cost") ||
-      msg.includes("rate") ||
-      msg.includes("fee")
-    ) {
-      return "My rate is $50/hour for standard tours. I also offer full-day packages at $350. Would you like more details?";
+    if (!text.trim()) {
+      console.log("❌ No text to send");
+      return;
     }
 
-    // Location/area
-    if (
-      msg.includes("where") ||
-      msg.includes("location") ||
-      msg.includes("area") ||
-      msg.includes("place")
-    ) {
-      return "I specialize in tours around Dhaka, Sylhet, and Cox's Bazar. I can also arrange custom tours to other locations. Where would you like to explore?";
+    if (!roomId) {
+      console.log("❌ No room ID");
+      alert("Chat room not initialized");
+      return;
     }
 
-    // Experience
-    if (msg.includes("experience") || msg.includes("expertise")) {
-      return "I have over 5 years of experience as a local guide. I specialize in cultural tours, historical sites, and food experiences. What interests you most?";
+    if (!currentUserId) {
+      console.log("❌ No user ID - not logged in?");
+      alert("Please log in to send messages");
+      return;
     }
 
-    // Languages
-    if (msg.includes("language") || msg.includes("speak")) {
-      return "I'm fluent in English, Bangla, and Hindi. Communication won't be a problem!";
+    const msgText = text.trim();
+    setText("");
+
+    try {
+      console.log("📤 Sending message...");
+      const sentMsg = await ChatApi.sendMessage(roomId, msgText, currentUserId);
+      console.log("✅ Message sent:", sentMsg);
+
+      // Optimistically add message to list if returned
+      if (sentMsg) {
+        setMessages((prev) => {
+          const newMsg: Message = {
+            id: sentMsg.id,
+            text: sentMsg.message,
+            from: sentMsg.sender_id,
+            createdAt: sentMsg.created_at,
+            isMe: true,
+          };
+          return addUniqueMessages(prev, [newMsg]);
+        });
+        setTimeout(() => listRef.current?.scrollToEnd(), 100);
+      }
+    } catch (error) {
+      console.error("❌ Failed to send:", error);
+      alert("Failed to send message. Check console for details.");
+      setText(msgText); // Restore the text
     }
-
-    // Thanks
-    if (msg.includes("thank") || msg.includes("thanks")) {
-      return "You're welcome! Feel free to ask me anything else. I'm here to help make your trip memorable!";
-    }
-
-    // Default response
-    const defaultResponses = [
-      "That's a great question! Let me help you with that. Could you provide a bit more detail?",
-      "I'd be happy to assist! Can you tell me more about what you're looking for?",
-      "Sure! I have experience with that. What specific information do you need?",
-      "Interesting! I can definitely help with that. Let me know your preferences.",
-    ];
-
-    return defaultResponses[
-      Math.floor(Math.random() * defaultResponses.length)
-    ];
-  }
-
-  const formatTime = (timestamp: any) => {
-    if (!timestamp) return "";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isMe = item.from === currentUserId;
-    const showName =
-      !isMe && (index === 0 || messages[index - 1]?.from !== item.from);
-
+  const renderMessage = ({ item }: { item: Message }) => {
     return (
-      <Animated.View
+      <View
         style={[
-          styles.messageContainer,
-          isMe ? styles.myMessageContainer : styles.theirMessageContainer,
+          styles.messageBubble,
+          item.isMe ? styles.myMessage : styles.theirMessage,
         ]}
       >
-        {showName && !isMe && (
-          <Text style={styles.senderName}>{item.userName || "User"}</Text>
-        )}
-        <View style={[styles.msg, isMe ? styles.msgRight : styles.msgLeft]}>
-          <Text
-            style={[
-              styles.msgText,
-              isMe ? styles.myMsgText : styles.theirMsgText,
-            ]}
-          >
-            {item.text}
-          </Text>
-          <Text
-            style={[
-              styles.timeText,
-              isMe ? styles.myTimeText : styles.theirTimeText,
-            ]}
-          >
-            {formatTime(item.createdAt)}
-          </Text>
-        </View>
-      </Animated.View>
+        <Text
+          style={[
+            styles.messageText,
+            item.isMe ? styles.myMessageText : styles.theirMessageText,
+          ]}
+        >
+          {item.text}
+        </Text>
+        <Text style={styles.timestamp}>
+          {new Date(item.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
     );
   };
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.chatHeader}>
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.headerLeft}>
-          <View style={styles.headerIconWrapper}>
-            <Ionicons name="person" size={24} color="#3B82F6" />
-          </View>
-          <View>
-            <Text style={styles.chatTitle}>{guideName || "Guide"}</Text>
-            <View style={styles.onlineIndicator}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Active now</Text>
-            </View>
-          </View>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>{otherUserName || "Chat"}</Text>
+          {connected && <Text style={styles.onlineStatus}>Connected</Text>}
         </View>
       </View>
 
-      <View style={styles.body}>
-        {!connected && (
-          <View style={styles.notice}>
-            <Ionicons
-              name="warning"
-              size={24}
-              color="#FCD34D"
-              style={{ marginBottom: 8 }}
-            />
-            <Text style={styles.noticeTitle}>Firebase Not Configured</Text>
-            <Text style={styles.noticeText}>
-              Create `constants/firebaseConfig.ts` from the example file and add
-              your Firebase credentials to enable real-time chat.
-            </Text>
-          </View>
-        )}
-
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(i) => i.id}
-          contentContainerStyle={styles.list}
-          renderItem={renderMessage}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
+        contentContainerStyle={styles.listContent}
+        onContentSizeChange={() => listRef.current?.scrollToEnd()}
+      />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={80}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
       >
-        <View style={styles.composer}>
+        <View style={styles.inputContainer}>
           <TextInput
-            placeholder={connected ? "Type a message..." : "Chat disabled"}
-            placeholderTextColor="rgba(255, 255, 255, 0.4)"
+            style={styles.input}
+            placeholder="Type a message..."
             value={text}
             onChangeText={setText}
-            style={styles.input}
-            editable={connected}
-            multiline
-            maxLength={500}
-            onSubmitEditing={onSend}
+            placeholderTextColor="#94A3B8"
           />
           <TouchableOpacity
-            onPress={onSend}
-            style={[styles.send, !connected && styles.sendDisabled]}
-            disabled={!connected || !text.trim()}
+            style={[
+              styles.sendButton,
+              !text.trim() && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!text.trim()}
           >
             <Ionicons name="send" size={20} color="#FFF" />
           </TouchableOpacity>
@@ -323,215 +300,103 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
-
-  chatHeader: {
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  header: {
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: "#FFF",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-    gap: Spacing.md,
+    borderBottomColor: "#E2E8F0",
   },
-
   backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    padding: 8,
+    marginRight: 8,
   },
-
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+  headerInfo: {
+    flex: 1,
   },
-
-  headerIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(59, 130, 246, 0.3)",
-  },
-
-  chatTitle: {
+  headerTitle: {
     fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 4,
+    fontWeight: "bold",
+    color: Colors.textPrimary,
   },
-
-  onlineIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  onlineStatus: {
+    fontSize: 12,
+    color: "#10B981",
   },
-
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#10B981",
+  listContent: {
+    padding: Spacing.md,
+    paddingBottom: 20,
   },
-
-  onlineText: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.6)",
-    fontWeight: "600",
-  },
-
-  body: { flex: 1, backgroundColor: "#0F172A" },
-
-  notice: {
-    margin: Spacing.lg,
-    padding: Spacing.xl,
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.3)",
-    alignItems: "center",
-  },
-
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FCD34D",
+  messageBubble: {
+    maxWidth: "80%",
+    padding: 12,
+    borderRadius: 16,
     marginBottom: 8,
   },
-
-  noticeText: {
-    color: "#FCD34D",
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-
-  list: {
-    padding: Spacing.md,
-    paddingBottom: Spacing.xl,
-  },
-
-  messageContainer: {
-    marginVertical: 4,
-    maxWidth: "80%",
-  },
-
-  myMessageContainer: {
+  myMessage: {
     alignSelf: "flex-end",
-  },
-
-  theirMessageContainer: {
-    alignSelf: "flex-start",
-  },
-
-  senderName: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#3B82F6",
-    marginBottom: 4,
-    marginLeft: Spacing.sm,
-  },
-
-  msg: {
-    padding: Spacing.md,
-    borderRadius: Radii.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    minWidth: 100,
-  },
-
-  msgLeft: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderBottomLeftRadius: 4,
-  },
-
-  msgRight: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: Colors.primary,
     borderBottomRightRadius: 4,
   },
-
-  msgText: {
-    fontSize: 15,
+  theirMessage: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF",
+    borderBottomLeftRadius: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  messageText: {
+    fontSize: 16,
     lineHeight: 22,
-    fontWeight: "500",
-    marginBottom: 4,
   },
-
-  myMsgText: {
-    color: "#FFFFFF",
+  myMessageText: {
+    color: "#FFF",
   },
-
-  theirMsgText: {
-    color: "#FFFFFF",
+  theirMessageText: {
+    color: Colors.textPrimary,
   },
-
-  timeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 2,
+  timestamp: {
+    fontSize: 10,
+    marginTop: 4,
+    opacity: 0.7,
+    alignSelf: "flex-end",
+    color: "inherit",
   },
-
-  myTimeText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "right",
-  },
-
-  theirTimeText: {
-    color: "rgba(255, 255, 255, 0.6)",
-  },
-
-  composer: {
+  inputContainer: {
     flexDirection: "row",
     padding: Spacing.md,
-    alignItems: "flex-end",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "#FFF",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    gap: Spacing.sm,
+    borderTopColor: "#E2E8F0",
+    alignItems: "center",
   },
-
   input: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "500",
-    maxHeight: 100,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    marginRight: Spacing.md,
+    color: Colors.textPrimary,
   },
-
-  send: {
+  sendButton: {
     width: 44,
     height: 44,
-    backgroundColor: "#3B82F6",
     borderRadius: 22,
-    alignItems: "center",
+    backgroundColor: Colors.primary,
     justifyContent: "center",
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    alignItems: "center",
   },
-
-  sendDisabled: {
-    backgroundColor: "rgba(59, 130, 246, 0.3)",
-    shadowOpacity: 0,
+  sendButtonDisabled: {
+    backgroundColor: "#CBD5E1",
   },
 });

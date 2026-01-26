@@ -63,7 +63,7 @@ export default function ExploreScreen() {
           d.division.toLowerCase().includes(query) ||
           d.description.toLowerCase().includes(query) ||
           d.famousPlaces.some((p) => p.toLowerCase().includes(query)) ||
-          d.famousFoods.some((f) => f.toLowerCase().includes(query))
+          d.famousFoods.some((f) => f.toLowerCase().includes(query)),
       );
     }
 
@@ -211,23 +211,23 @@ export default function ExploreScreen() {
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.navigate("/")}
           >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Explore</Text>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
+            <Text style={styles.headerOverline}>DISCOVER THE BEAUTY</Text>
+            <Text style={styles.headerTitle}>Explore Nature</Text>
+            <View style={styles.subtitleRow}>
               <Text style={styles.headerSubtitle}>
-                Create unforgettable memories
+                Traditional & Natural Wonders
               </Text>
-              <Ionicons name="sparkles" size={16} color="#F59E0B" />
+              <Ionicons name="leaf" size={16} color="#10B981" />
             </View>
           </View>
+
           <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications" size={24} color="#1F2937" />
+            <Ionicons name="notifications-outline" size={24} color="#1F2937" />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
@@ -344,7 +344,7 @@ export default function ExploreScreen() {
           <Text style={styles.statNumber}>
             {filteredDistricts.reduce(
               (sum, d) => sum + d.famousPlaces.length,
-              0
+              0,
             )}
           </Text>
           <Text style={styles.statLabel}>Places</Text>
@@ -404,8 +404,8 @@ const styles = StyleSheet.create({
 
   headerTop: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: Spacing.md,
   },
 
@@ -413,29 +413,44 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    marginRight: Spacing.sm,
+    marginTop: 4,
   },
 
   headerTextContainer: {
     flex: 1,
   },
 
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#1F2937",
+  headerOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#667eea",
+    letterSpacing: 1,
+    textTransform: "uppercase",
     marginBottom: 4,
+  },
+
+  headerTitle: {
+    fontSize: 32,
+    fontFamily: "Poppins-Bold",
+    color: "#111827",
     letterSpacing: -0.5,
   },
 
+  subtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
     color: "#6B7280",
-    fontWeight: "500",
   },
 
   notificationButton: {

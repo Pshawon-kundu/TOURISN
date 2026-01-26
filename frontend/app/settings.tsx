@@ -1,6 +1,8 @@
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/design";
+import { APIClient } from "@/lib/api";
+import { signOut } from "@/lib/auth";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -16,10 +18,12 @@ import {
   View,
 } from "react-native";
 
+const apiClient = new APIClient();
+
 export default function SettingsScreen() {
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(
-    Appearance.getColorScheme() === "dark"
+    Appearance.getColorScheme() === "dark",
   );
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
@@ -37,7 +41,7 @@ export default function SettingsScreen() {
     }
     Alert.alert(
       "Dark Mode",
-      value ? "Dark mode enabled" : "Light mode enabled"
+      value ? "Dark mode enabled" : "Light mode enabled",
     );
   };
 
@@ -47,9 +51,14 @@ export default function SettingsScreen() {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {
-          // Clear user data and navigate to login
-          router.replace("/login");
+        onPress: async () => {
+          try {
+            await signOut();
+            router.replace("/login");
+          } catch (error) {
+            console.error("Logout failed:", error);
+            router.replace("/login");
+          }
         },
       },
     ]);
@@ -64,12 +73,24 @@ export default function SettingsScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => {
-            // Handle account deletion
-            Alert.alert("Account Deleted", "Your account has been deleted.");
+          onPress: async () => {
+            try {
+              // 1. Call backend to delete data
+              await apiClient.deleteAccount();
+
+              // 2. Sign out
+              await signOut();
+
+              Alert.alert("Account Deleted", "Your account has been deleted.", [
+                { text: "OK", onPress: () => router.replace("/login") },
+              ]);
+            } catch (error: any) {
+              console.error("Delete account error:", error);
+              Alert.alert("Error", error.message || "Failed to delete account");
+            }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -158,9 +179,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={() =>
-              Alert.alert("Change Password", "Feature coming soon")
-            }
+            onPress={() => router.push("/change-password")}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="key" size={24} color={Colors.primary} />
@@ -176,9 +195,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={() =>
-              Alert.alert("Payment Methods", "Feature coming soon")
-            }
+            onPress={() => router.push("/payment-methods")}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="card" size={24} color={Colors.primary} />
@@ -231,9 +248,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={() =>
-              Alert.alert("Terms & Privacy", "Feature coming soon")
-            }
+            onPress={() => router.push("/privacy-security")}
           >
             <View style={styles.settingLeft}>
               <Ionicons name="shield" size={24} color={Colors.primary} />
@@ -247,7 +262,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingItem}
-            onPress={() => Alert.alert("About", "Tourisn App v1.0.0")}
+            onPress={() => router.push("/about")}
           >
             <View style={styles.settingLeft}>
               <Ionicons

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -55,7 +55,7 @@ export default function ProfileScreen() {
   const [rewardPoints, setRewardPoints] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"current" | "previous">(
-    "current"
+    "current",
   );
 
   // Edit form states
@@ -66,10 +66,12 @@ export default function ProfileScreen() {
   const [editBio, setEditBio] = useState("");
   const [editAvatar, setEditAvatar] = useState("");
 
-  useEffect(() => {
-    loadUserProfile();
-    loadBookings();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadUserProfile();
+      loadBookings();
+    }, []),
+  );
 
   const loadUserProfile = async () => {
     try {
@@ -103,7 +105,7 @@ export default function ProfileScreen() {
         // Calculate reward points (10 points per 1000 TK spent)
         const totalSpent = result.reduce(
           (sum, b) => sum + (b.total_price || 0),
-          0
+          0,
         );
         setRewardPoints(Math.floor(totalSpent / 100));
       }
@@ -173,7 +175,7 @@ export default function ProfileScreen() {
       console.error("Error updating profile:", err);
       Alert.alert(
         "Error",
-        err.message || "Failed to update profile. Please try again."
+        err.message || "Failed to update profile. Please try again.",
       );
     } finally {
       setSaving(false);
@@ -217,10 +219,10 @@ export default function ProfileScreen() {
   const userEmail = userProfile?.email || user?.email || "user@example.com";
 
   const currentBookings = bookings.filter(
-    (b) => b.booking_status === "confirmed" || b.booking_status === "pending"
+    (b) => b.booking_status === "confirmed" || b.booking_status === "pending",
   );
   const previousBookings = bookings.filter(
-    (b) => b.booking_status === "completed" || b.booking_status === "cancelled"
+    (b) => b.booking_status === "completed" || b.booking_status === "cancelled",
   );
 
   const getStatusColor = (status: string) => {

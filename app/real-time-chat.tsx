@@ -57,21 +57,29 @@ export default function RealTimeChatScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const pollIntervalRef = useRef<(() => void) | null>(null);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const currentUserName =
     user?.displayName || user?.email?.split("@")[0] || "Guest";
   const currentUserId = user?.uid || "anonymous";
 
   useEffect(() => {
-    initializeChat();
+    if (!authLoading) {
+      if (!user) {
+        Alert.alert("Login Required", "Please log in to chat with a guide.", [
+          { text: "OK", onPress: () => router.push("/login") },
+        ]);
+        return;
+      }
+      initializeChat();
+    }
     return () => {
       // Cleanup polling on unmount
       if (pollIntervalRef.current) {
         pollIntervalRef.current();
       }
     };
-  }, [guideId]);
+  }, [guideId, user, authLoading]);
 
   const initializeChat = async () => {
     if (!guideId) {
@@ -143,8 +151,12 @@ export default function RealTimeChatScreen() {
 
   const initializeBackendChat = async () => {
     try {
-      // Set auth token if available (you might need to implement this based on your auth system)
-      // ChatAPI.setAuthToken(user?.accessToken);
+      if (user) {
+        const token = await user.getIdToken();
+        ChatAPI.setAuthToken(token);
+      } else {
+        throw new Error("User authentication required");
+      }
 
       // Get or create chat room
       const room = await ChatAPI.getOrCreateChatRoom(guideId!);
@@ -171,9 +183,9 @@ export default function RealTimeChatScreen() {
           setMessages(formattedMessages);
           setTimeout(
             () => listRef.current?.scrollToEnd({ animated: true }),
-            100
+            100,
           );
-        }
+        },
       );
 
       setLoading(false);

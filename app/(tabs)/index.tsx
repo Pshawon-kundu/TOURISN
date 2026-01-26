@@ -6,6 +6,7 @@ import {
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   Modal,
@@ -21,6 +22,7 @@ import {
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
+import { getAllGuides } from "@/lib/api";
 import { signOut as signOutUser } from "@/lib/auth";
 
 export default function HomeScreen() {
@@ -251,24 +253,25 @@ export default function HomeScreen() {
     },
   ];
 
-  const topGuides = [
-    {
-      name: "Rakibul Islam",
-      city: "Chittagong",
-      rating: "4.8",
-      reviews: 390,
-      photo:
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400",
-    },
-    {
-      name: "Riaz Afridi",
-      city: "Cox's Bazar",
-      rating: "4.7",
-      reviews: 240,
-      photo:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    },
-  ];
+  const [guides, setGuides] = useState<any[]>([]);
+  const [isLoadingGuides, setIsLoadingGuides] = useState(true);
+
+  useEffect(() => {
+    loadGuides();
+  }, []);
+
+  const loadGuides = async () => {
+    try {
+      const response = await getAllGuides();
+      if (response.success && Array.isArray(response.data)) {
+        setGuides(response.data.slice(0, 5));
+      }
+    } catch (error) {
+      console.error("Failed to load guides:", error);
+    } finally {
+      setIsLoadingGuides(false);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -559,30 +562,75 @@ export default function HomeScreen() {
 
         {/* Top Guides */}
         <View style={styles.sectionSpacing}>
-          <Text style={styles.sectionTitle}>Top guides</Text>
-          {topGuides.map((guide) => (
-            <View key={guide.name} style={styles.guideCard}>
-              <Image source={{ uri: guide.photo }} style={styles.guideAvatar} />
-              <View style={styles.guideInfo}>
-                <Text style={styles.guideName}>{guide.name}</Text>
-                <Text style={styles.guideMeta}>{guide.city}</Text>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-                >
-                  <Ionicons name="star" size={14} color="#F59E0B" />
-                  <Text style={styles.guideRating}>
-                    {guide.rating} ({guide.reviews} reviews)
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.guideAction}
-                onPress={() => router.push("/guides")}
-              >
-                <Text style={styles.guideActionText}>View</Text>
-              </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Registered Guides</Text>
+          {isLoadingGuides ? (
+            <View style={{ padding: 20 }}>
+              <ActivityIndicator size="small" color={Colors.primary} />
             </View>
-          ))}
+          ) : guides.length === 0 ? (
+            <Text
+              style={{
+                color: Colors.textSecondary,
+                fontStyle: "italic",
+                textAlign: "center",
+                marginVertical: 10,
+              }}
+            >
+              No guides found.
+            </Text>
+          ) : (
+            guides.map((guide) => (
+              <View key={guide.id || guide.name} style={styles.guideCard}>
+                <Image
+                  source={{
+                    uri:
+                      guide.photo ||
+                      guide.profile_image ||
+                      `https://ui-avatars.com/api/?name=${(guide.name || "Guide").split(" ").join("+")}&background=random`,
+                  }}
+                  style={styles.guideAvatar}
+                />
+                <View style={styles.guideInfo}>
+                  <Text style={styles.guideName}>{guide.name}</Text>
+                  <Text style={styles.guideMeta}>
+                    {guide.city || "Bangladesh"}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <Ionicons name="star" size={14} color="#F59E0B" />
+                    <Text style={styles.guideRating}>
+                      {guide.rating || "New"} ({guide.reviews || 0} reviews)
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.guideAction,
+                    {
+                      backgroundColor: "#EC4899",
+                      flexDirection: "row",
+                      gap: 6,
+                      alignItems: "center",
+                    },
+                  ]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/real-time-chat",
+                      params: { guideId: guide.id, guideName: guide.name },
+                    })
+                  }
+                >
+                  <Ionicons name="chatbubble-ellipses" size={16} color="#FFF" />
+                  <Text style={styles.guideActionText}>Chat</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Chat Section - Prominent CTA */}

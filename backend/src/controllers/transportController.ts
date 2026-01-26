@@ -5,7 +5,7 @@ import { AuthRequest } from "../middleware/auth";
 // Create transport booking
 export const createTransportBooking = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     // Allow guest bookings (optional authentication)
@@ -154,7 +154,7 @@ export const createTransportBooking = async (
     }
 
     console.log(
-      `✅ Transport booking created successfully - ID: ${transportResult.id}`
+      `✅ Transport booking created successfully - ID: ${transportResult.id}`,
     );
 
     res.status(201).json({
@@ -176,15 +176,15 @@ export const createTransportBooking = async (
 // Process payment for transport booking
 export const processTransportPayment = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     if (!req.user) {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    const { booking_id, payment_method, payment_number, transaction_id } =
-      req.body;
+    const booking_id = req.params.id || req.body.booking_id;
+    const { payment_method, payment_number, transaction_id } = req.body;
 
     if (!booking_id || !payment_method) {
       return res.status(400).json({
@@ -252,7 +252,7 @@ export const processTransportPayment = async (
 // Get user's transport bookings
 export const getUserTransportBookings = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     if (!req.user) {
@@ -347,7 +347,7 @@ export const getTransportBookingById = async (req: Request, res: Response) => {
 // Update booking status
 export const updateTransportBookingStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { id } = req.params;

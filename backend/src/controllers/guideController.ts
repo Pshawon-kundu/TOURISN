@@ -137,97 +137,127 @@ export const createGuide = async (
       return;
     }
 
-    // Persist basic contact details to users table so the profile always has a name/email/phone
-    const userUpdatePayload: Record<string, any> = {};
+    let userUpdatePayload: Record<string, any> = {};
+
+    if (Object.keys(userUpdatePayload).length === 0) {
+      // If empty, likely it's a fresh registration where the user record might not exist or be empty
+      // We force an UPSERT (Insert if not exists, Update if exists) to ensure the foreign key is valid
+      userUpdatePayload = {
+        id: req.user.id,
+        email: emailToValidate || req.user.email,
+        role: "guide", // Force role to guide
+        updated_at: new Date().toISOString(),
+      };
+    }
 
     if (firstName) userUpdatePayload.first_name = firstName.trim();
     if (lastName) userUpdatePayload.last_name = lastName.trim();
     if (normalizedPhone) userUpdatePayload.phone = normalizedPhone;
     if (emailToValidate) userUpdatePayload.email = emailToValidate;
 
-    if (Object.keys(userUpdatePayload).length > 0) {
-      userUpdatePayload.updated_at = new Date().toISOString();
+    console.log("📝 Upserting user contact info to ensure FK validity:", {
+      userId: req.user.id,
+      fields: Object.keys(userUpdatePayload),
+      data: userUpdatePayload,
+    });
 
-      console.log("📝 Updating user contact info:", {
-        userId: req.user.id,
-        fields: Object.keys(userUpdatePayload),
-        data: userUpdatePayload,
-      });
+    // Use upsert instead of update to handle cases where the user record is missing
+    const { data: updateResult, error: userUpdateError } = await supabase
+      .from("users")
+      .upsert(userUpdatePayload)
+      .select();
 
-      const { error: userUpdateError } = await supabase
-        .from("users")
-        .update(userUpdatePayload)
-        .eq("id", req.user.id);
-
-      if (userUpdateError) {
-        console.error("Supabase user update error:", userUpdateError);
-        res.status(400).json({
-          success: false,
-          error: "Failed to save contact information. Please try again.",
-        });
-        return;
-      }
-
-      console.log("✅ User contact info updated successfully");
+    if (updateResult) {
+      console.log("✅ User upsert result:", updateResult);
     }
+
+    if (userUpdateError) {
+      console.error("Supabase user upsert error:", userUpdateError);
+      res.status(400).json({
+        success: false,
+        error: "Failed to save user information: " + userUpdateError.message,
+      });
+      return;
+    }
+
+    console.log("✅ User contact info upserted successfully");
+
+    // Prepare guide payload
+    const guidePayload = {
+      user_id: req.user.id,
+      bio:
+        bio ||
+        `Experienced guide specializing in ${expertiseArea || "various areas"}`,
+      specialties: Array.isArray(specialties)
+        ? specialties
+        : specialties
+          ? [specialties]
+          : [expertiseArea || "Tourism"],
+      languages: Array.isArray(languages)
+        ? languages
+        : languages
+          ? [languages]
+          : ["Bengali", "English"],
+      years_of_experience: yearsOfExperience || 1,
+      certifications: Array.isArray(certifications)
+        ? certifications
+        : certifications
+          ? [certifications]
+          : [],
+      nid_number: nidNumber,
+      nid_image_url: nidImageUrl,
+      age,
+      expertise_area: expertiseArea,
+      per_hour_rate: perHourRate,
+      expertise_categories: selectedExpertiseCategories,
+      coverage_areas: coverageAreas,
+    };
 
     // Check if guide already exists
     const { data: existingGuide } = await supabase
       .from("guides")
-      .select("*")
+      .select("id")
       .eq("user_id", req.user.id)
       .single();
 
-    if (existingGuide) {
-      res
-        .status(400)
-        .json({ success: false, error: "Guide profile already exists" });
-      return;
-    }
+    let guide, error;
 
-    // Insert into Supabase with all guide details
-    const { data: guide, error } = await supabase
-      .from("guides")
-      .insert([
-        {
-          user_id: req.user.id,
-          bio:
-            bio ||
-            `Experienced guide specializing in ${
-              expertiseArea || "various areas"
-            }`,
-          specialties: Array.isArray(specialties)
-            ? specialties
-            : specialties
-              ? [specialties]
-              : [expertiseArea || "Tourism"],
-          languages: Array.isArray(languages)
-            ? languages
-            : languages
-              ? [languages]
-              : ["Bengali", "English"],
-          years_of_experience: yearsOfExperience || 1,
-          certifications: Array.isArray(certifications)
-            ? certifications
-            : certifications
-              ? [certifications]
-              : [],
-          nid_number: nidNumber,
-          nid_image_url: nidImageUrl,
-          age,
-          expertise_area: expertiseArea,
-          per_hour_rate: perHourRate,
-          expertise_categories: selectedExpertiseCategories,
-          coverage_areas: coverageAreas,
-          is_verified: false,
-          rating: 4.5, // Default rating for new guides
-          total_reviews: 0,
-        },
-      ])
-      .select(
-        `*,
+    if (existingGuide) {
+      console.log("🔄 Updating existing guide profile:", existingGuide.id);
+      const result = await supabase
+        .from("guides")
+        .update({
+          ...guidePayload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingGuide.id)
+        .select(
+          `*,
         user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)`,
-      );
+        );
+
+      guide = result.data;
+      error = result.error;
+    } else {
+      console.log("✨ Creating new guide profile");
+      const result = await supabase
+        .from("guides")
+        .insert([
+          {
+            ...guidePayload,
+            is_verified: false,
+            rating: 4.5, // Default rating for new guides
+            total_reviews: 0,
+          },
+        ])
+        .select(
+          `*,
+        user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)`,
+        );
+
+      guide = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error("Supabase guide creation error:", error);
@@ -330,13 +360,17 @@ export const getAllGuides = async (
   try {
     const { page = 1, limit = 10, isVerified, category } = req.query;
 
-    let query = supabase.from("guides").select(
-      `
+    let query = supabase
+      .from("guides")
+      .select(
+        `
       *,
-      user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)
+      user:users!guides_user_id_fkey(id, first_name, last_name, email, phone),
+      online_status:guide_online_status(is_online)
     `,
-      { count: "exact" },
-    );
+        { count: "exact" },
+      )
+      .eq("status", "approved");
 
     if (isVerified === "true") {
       query = query.eq("is_verified", true);
@@ -394,6 +428,9 @@ export const getAllGuides = async (
       yearsExperience: guide.years_of_experience || 1,
       bio: guide.bio || `Experienced guide in ${guide.expertise_area}`,
       isAvailable: guide.is_available,
+      isOnline: Array.isArray(guide.online_status)
+        ? guide.online_status[0]?.is_online
+        : guide.online_status?.is_online || false,
       perHourRate: guide.per_hour_rate,
       expertiseCategories: guide.expertise_categories || [],
       coverageAreas: guide.coverage_areas || [],

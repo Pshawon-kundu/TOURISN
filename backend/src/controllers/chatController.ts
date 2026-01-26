@@ -30,7 +30,7 @@ interface ChatRoom {
  */
 export const getOrCreateChatRoom = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -105,7 +105,7 @@ export const getOrCreateChatRoom = async (
  */
 export const sendMessage = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -183,7 +183,7 @@ export const sendMessage = async (
  */
 export const getChatMessages = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -221,7 +221,7 @@ export const getChatMessages = async (
       .from("chat_messages")
       .select(
         "*, sender:users!chat_messages_sender_id_fkey(first_name, last_name)",
-        { count: "exact" }
+        { count: "exact" },
       )
       .eq("room_id", roomId)
       .order("created_at", { ascending: true })
@@ -255,7 +255,7 @@ export const getChatMessages = async (
  */
 export const getUserChatRooms = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -270,11 +270,21 @@ export const getUserChatRooms = async (
       .select(
         `
         *,
-        user1:users!chat_rooms_user1_id_fkey(id, first_name, last_name, profile_image_url),
-        user2:users!chat_rooms_user2_id_fkey(id, first_name, last_name, profile_image_url),
-        guide1:guides!guides_user_id_fkey1(id, expertise_area, per_hour_rate, rating, is_verified),
-        guide2:guides!guides_user_id_fkey2(id, expertise_area, per_hour_rate, rating, is_verified)
-      `
+        user1:users!chat_rooms_user1_id_fkey(
+          id, 
+          first_name, 
+          last_name, 
+          avatar_url,
+          guide:guides(id, expertise_area, per_hour_rate, rating, is_verified)
+        ),
+        user2:users!chat_rooms_user2_id_fkey(
+          id, 
+          first_name, 
+          last_name, 
+          avatar_url,
+          guide:guides(id, expertise_area, per_hour_rate, rating, is_verified)
+        )
+      `,
       )
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order("last_message_at", { ascending: false });
@@ -288,14 +298,29 @@ export const getUserChatRooms = async (
     // Process rooms to show the other participant
     const processedRooms = (rooms || []).map((room: any) => {
       const isUser1 = room.user1_id === userId;
-      const otherUser = isUser1 ? room.user2 : room.user1;
-      const otherGuideInfo = isUser1 ? room.guide2 : room.guide1;
+
+      // Get the full user objects
+      const u1 = room.user1;
+      const u2 = room.user2;
+
+      // Determine other user and their guide info
+      const otherUserFull = isUser1 ? u2 : u1;
+
+      // Handle potential array return from Supabase for 1:1 relationships
+      const guideData = Array.isArray(otherUserFull.guide)
+        ? otherUserFull.guide[0]
+        : otherUserFull.guide;
 
       return {
         ...room,
-        otherUser,
-        isGuideChat: !!otherGuideInfo,
-        guideInfo: otherGuideInfo || null,
+        otherUser: {
+          id: otherUserFull.id,
+          first_name: otherUserFull.first_name,
+          last_name: otherUserFull.last_name,
+          profile_image_url: otherUserFull.avatar_url,
+        },
+        isGuideChat: !!guideData,
+        guideInfo: guideData || null,
       };
     });
 
@@ -315,7 +340,7 @@ export const getUserChatRooms = async (
  */
 export const markMessagesAsRead = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {

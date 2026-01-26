@@ -94,8 +94,8 @@ export default function BookingScreen() {
   const numberOfNights = Math.max(
     1,
     Math.ceil(
-      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
+      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24),
+    ),
   );
 
   // Price calculations with nights multiplier
@@ -103,7 +103,7 @@ export default function BookingScreen() {
   const pricePerNight = calculateStayPrice(
     basePrice,
     personCount,
-    selectedQuality
+    selectedQuality,
   );
   const calculatedPrice = pricePerNight * numberOfNights;
   const taxes = Math.round(calculatedPrice * 0.08);
@@ -114,7 +114,7 @@ export default function BookingScreen() {
   const quality = roomQualities.find((q) => q.id === selectedQuality);
 
   const filteredDistricts = bangladeshDistricts.filter((district) =>
-    district.toLowerCase().includes(districtSearchQuery.toLowerCase())
+    district.toLowerCase().includes(districtSearchQuery.toLowerCase()),
   );
 
   // Helper function to generate date options (60 days)
@@ -152,7 +152,9 @@ export default function BookingScreen() {
         const currentUser = (await apiClient.getCurrentUser()) as any;
         if (currentUser) {
           setTravelerName(
-            (currentUser.first_name || "") + " " + (currentUser.last_name || "")
+            (currentUser.first_name || "") +
+              " " +
+              (currentUser.last_name || ""),
           );
           setEmail(currentUser.email || "");
           setPhone(currentUser.phone || "");
@@ -189,37 +191,62 @@ export default function BookingScreen() {
 
     setLoading(true);
 
-    // Show thank you modal immediately for better UX
-    setShowThankYou(true);
-    setLoading(false);
+    // Prepare robust booking data using current state
+    const payload = {
+      booking_type: "stay",
+      // Use toDistrict as location context
+      location: toDistrict,
+      // User details
+      travelerName,
+      phone,
+      email,
+      notes,
 
-    // Send booking to backend in background (optional)
+      // Item details
+      item_id: `stay_${toDistrict}_${Date.now()}`,
+      item_name: `${toDistrict} Stay - ${quality?.label} Room`,
+
+      // Dates
+      check_in_date: checkInDate.toISOString(),
+      check_out_date: checkOutDate.toISOString(),
+
+      // Quantities
+      guests: personCount,
+      total_days_or_units: numberOfNights,
+
+      // Financials
+      price_per_unit: pricePerNight,
+      subtotal: calculatedPrice,
+      service_fee: serviceFee,
+      total_price: totalAmount,
+      currency: "TK",
+
+      // Payment
+      payment_method: "card",
+      payment_number: cardNumber.slice(-4),
+      payment_status: "completed",
+      booking_status: "confirmed",
+    };
+
     try {
+      // Send to backend and wait for confirmation BEFORE showing success
+      console.log("Sending booking payload:", payload);
       await apiClient.request({
         method: "POST",
         endpoint: "/stays",
-        body: {
-          booking_type: "stay",
-          item_id: bookingData.experienceId || "",
-          item_name: `${toDistrict} Stay - ${quality?.label} Room`,
-          check_in_date: bookingData.date || new Date().toISOString(),
-          check_out_date: bookingData.date || new Date().toISOString(),
-          guests: personCount,
-          price_per_unit: calculatedPrice / personCount,
-          total_days_or_units: 1,
-          subtotal: calculatedPrice,
-          service_fee: serviceFee,
-          total_price: totalAmount,
-          currency: "TK",
-          payment_method: "card",
-          payment_number: cardNumber.slice(-4),
-          payment_status: "completed",
-          booking_status: "confirmed",
-        },
+        body: payload,
       });
+
+      // If successful, show thank you modal
+      setLoading(false);
+      setShowThankYou(true);
     } catch (error) {
       console.error("Booking error:", error);
-      // Don't show error to user since booking confirmation is already displayed
+      setLoading(false);
+      Alert.alert(
+        "Booking Failed",
+        "Could not save your booking. Please check your connection and try again.",
+      );
     }
   };
 
@@ -665,8 +692,8 @@ export default function BookingScreen() {
           {loading
             ? "Processing..."
             : step === "details"
-            ? "Continue to payment"
-            : "Confirm & pay"}
+              ? "Continue to payment"
+              : "Confirm & pay"}
         </ActionButton>
       </ScrollView>
 

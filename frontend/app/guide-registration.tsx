@@ -20,13 +20,12 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
 import { registerGuide } from "@/lib/api";
-import { getSupabaseClient } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 const getApiBaseUrl = () => {
   if (Platform.OS === "android") {
     return "http://10.0.2.2:5001/api";
   }
-  // For Web or iOS simulator
   return "http://localhost:5001/api";
 };
 
@@ -200,7 +199,7 @@ export default function GuideRegistrationScreen() {
         setNidImage(result.assets[0].uri);
         setNidVerified(false);
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to pick image");
     }
   };
@@ -224,7 +223,7 @@ export default function GuideRegistrationScreen() {
         });
       } else {
         base64Image = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: "base64",
         });
       }
 
@@ -436,7 +435,24 @@ export default function GuideRegistrationScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log("🚀 Starting guide registration submission...");
+    console.log("�🔥🔥 BUTTON CLICKED! handleSubmit function started!");
+    console.log("🚀 Submit button clicked!");
+
+    // Check user authentication first
+    if (!user) {
+      console.log("❌ User not logged in - showing auth alert");
+      Alert.alert(
+        "Authentication Required",
+        "You must be logged in to register as a guide. Please log in first.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Go to Login", onPress: () => router.push("/login") },
+        ],
+      );
+      return;
+    }
+
+    console.log("✅ User authenticated:", user.email);
     console.log("Form data:", {
       fullName,
       dateOfBirth,
@@ -449,235 +465,287 @@ export default function GuideRegistrationScreen() {
       yearsExperience,
     });
 
+    // Enhanced validation
+    console.log("🔍 Starting field validation...");
+
+    if (!fullName.trim()) {
+      console.warn("❌ Validation FAILED: fullName is empty");
+      Alert.alert("Required Field", "Please enter your full name");
+      return;
+    }
+    console.log("✅ fullName validation passed");
+
+    if (!dateOfBirth.trim()) {
+      console.warn("❌ Validation FAILED: dateOfBirth is empty");
+      Alert.alert("Required", "Please enter your date of birth");
+      return;
+    }
+    console.log("✅ dateOfBirth validation passed");
+
+    if (!phone.trim()) {
+      console.warn("❌ Validation FAILED: phone is empty");
+      Alert.alert("Required", "Please enter your phone number");
+      return;
+    }
+    console.log("✅ phone basic validation passed");
+
+    if (!email.trim()) {
+      console.warn("❌ Validation FAILED: email is empty");
+      Alert.alert("Required", "Please enter your email address");
+      return;
+    }
+    console.log("✅ email basic validation passed");
+
+    if (!nidNumber.trim()) {
+      console.warn("❌ Validation FAILED: nidNumber is empty");
+      Alert.alert("Required", "Please enter your NID number");
+      return;
+    }
+    console.log("✅ nidNumber validation passed");
+
+    if (selectedExpertiseCategories.length === 0) {
+      console.warn("❌ Validation FAILED: no expertise categories selected");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
+      );
+      return;
+    }
+    console.log("✅ expertiseCategories validation passed");
+
+    if (coverageAreas.length === 0) {
+      console.warn("❌ Validation FAILED: no coverage areas selected");
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and select at least one coverage area (district) where you can provide services",
+      );
+      return;
+    }
+    console.log("✅ coverageAreas validation passed");
+
+    if (
+      !perHourRate.trim() ||
+      isNaN(Number(perHourRate)) ||
+      Number(perHourRate) <= 0
+    ) {
+      console.warn("❌ Validation FAILED: invalid perHourRate", {
+        perHourRate,
+        isNum: isNaN(Number(perHourRate)),
+        value: Number(perHourRate),
+      });
+      Alert.alert(
+        "Required Field Missing",
+        "Please scroll down and enter your per hour rate in BDT",
+      );
+      return;
+    }
+    console.log("✅ perHourRate validation passed");
+
+    if (!yearsExperience.trim()) {
+      Alert.alert("Required", "Please enter your years of experience");
+      return;
+    }
+
+    // Validate phone number format
+    console.log("📞 Validating phone number:", phone);
+    console.log("📞 Phone format check regex: /^\\+880\\d{9,10}$/");
+    console.log(
+      "📞 Phone matches format?",
+      phone.match(/^\+880\d{9,10}$/) ? "YES" : "NO",
+    );
+
+    if (!phone.match(/^\+880\d{9,10}$/)) {
+      console.warn("❌ Phone validation FAILED - showing alert");
+      Alert.alert(
+        "Validation Error",
+        "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
+      );
+      return;
+    }
+    console.log("✅ Phone validation PASSED");
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    console.log(
+      "📧 email format check regex: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/",
+    );
+    console.log(
+      "📧 email:",
+      email,
+      "matches?",
+      emailRegex.test(email) ? "YES" : "NO",
+    );
+    if (!emailRegex.test(email)) {
+      console.warn("❌ Validation FAILED: invalid email format");
+      Alert.alert("Validation Error", "Please enter a valid email address");
+      return;
+    }
+    console.log("✅ email format validation PASSED");
+
+    console.log("🎉 ALL VALIDATIONS PASSED! Proceeding to API call...");
+
+    setIsSubmitting(true);
+
     try {
-      // Enhanced validation
-      console.log("🔍 Starting validation checks...");
+      // Calculate age from date of birth
+      const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
+      const today = new Date();
+      const calculatedAge = Math.floor(
+        (today.getTime() - birthDate.getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000),
+      );
 
-      if (!fullName.trim()) {
-        console.warn("❌ VALIDATION FAILED: fullName is empty");
-        Alert.alert("Required Field", "Please enter your full name");
-        return;
-      }
-      console.log("✅ fullName validation passed");
-
-      if (!dateOfBirth.trim()) {
-        console.warn("❌ VALIDATION FAILED: dateOfBirth is empty");
-        Alert.alert("Required", "Please enter your date of birth");
-        return;
-      }
-      console.log("✅ dateOfBirth validation passed");
-
-      if (!phone.trim()) {
-        console.warn("❌ VALIDATION FAILED: phone is empty");
-        Alert.alert("Required", "Please enter your phone number");
-        return;
-      }
-      console.log("✅ phone validation passed, value:", phone);
-
-      if (!email.trim()) {
-        console.warn("❌ VALIDATION FAILED: email is empty");
-        Alert.alert("Required", "Please enter your email address");
-        return;
-      }
-      console.log("✅ email validation passed");
-
-      if (!nidNumber.trim()) {
-        console.warn("❌ VALIDATION FAILED: nidNumber is empty");
-        Alert.alert("Required", "Please enter your NID number");
-        return;
-      }
-      console.log("✅ nidNumber validation passed");
-
-      if (selectedExpertiseCategories.length === 0) {
-        console.warn("❌ VALIDATION FAILED: no expertise categories selected");
-        Alert.alert(
-          "Required Field Missing",
-          "Please scroll down and select at least one area of expertise (e.g., Historical Sites, Cultural Tours, etc.)",
-        );
-        return;
-      }
-      console.log("✅ expertise categories validation passed");
-
-      if (coverageAreas.length === 0) {
-        console.warn("❌ VALIDATION FAILED: no coverage areas selected");
-        Alert.alert(
-          "Required Field Missing",
-          "Please scroll down and select at least one coverage area (district) where you can provide services",
-        );
-        return;
-      }
-      console.log("✅ coverage areas validation passed");
-
-      if (
-        !perHourRate.trim() ||
-        isNaN(Number(perHourRate)) ||
-        Number(perHourRate) <= 0
-      ) {
-        console.warn("❌ VALIDATION FAILED: invalid perHourRate", {
-          perHourRate,
-        });
-        Alert.alert(
-          "Required Field Missing",
-          "Please scroll down and enter your per hour rate in BDT",
-        );
-        return;
-      }
-      console.log("✅ perHourRate validation passed");
-
-      if (!yearsExperience.trim()) {
-        console.warn("❌ VALIDATION FAILED: yearsExperience is empty");
-        Alert.alert("Required", "Please enter your years of experience");
-        return;
-      }
-      console.log("✅ yearsExperience validation passed");
-
-      // Validate phone number format
-      console.log("📞 Validating phone format:", phone);
-      if (!phone.match(/^\+880\d{9,10}$/)) {
-        console.warn("❌ VALIDATION FAILED: invalid phone format");
+      if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
         Alert.alert(
           "Validation Error",
-          "Please enter a valid Bangladesh phone number (e.g., +880XXXXXXXXX)",
+          "Please enter a valid date of birth. You must be between 18 and 120 years old.",
         );
-        return;
-      }
-      console.log("✅ phone format validation passed");
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      console.log("📧 Validating email format:", email);
-      if (!emailRegex.test(email)) {
-        console.warn("❌ VALIDATION FAILED: invalid email format");
-        Alert.alert("Validation Error", "Please enter a valid email address");
-        return;
-      }
-      console.log("✅ email format validation passed");
-
-      console.log("🎉 ALL VALIDATIONS PASSED! Proceeding to API call...");
-
-      setIsSubmitting(true);
-
-      try {
-        // Calculate age from date of birth
-        console.log("📅 Calculating age from DOB:", dateOfBirth);
-        const birthDate = new Date(dateOfBirth.split("/").reverse().join("-"));
-        const today = new Date();
-        const calculatedAge = Math.floor(
-          (today.getTime() - birthDate.getTime()) /
-            (365.25 * 24 * 60 * 60 * 1000),
-        );
-        console.log("✅ Calculated age:", calculatedAge);
-
-        if (isNaN(calculatedAge) || calculatedAge < 18 || calculatedAge > 120) {
-          console.warn("❌ Age validation failed:", { calculatedAge });
-          Alert.alert(
-            "Validation Error",
-            "Please enter a valid date of birth. You must be between 18 and 120 years old.",
-          );
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Format date of birth for database (YYYY-MM-DD)
-        const formattedDOB = dateOfBirth.split("/").reverse().join("-");
-        console.log("✅ Formatted DOB:", formattedDOB);
-
-        // Create guide profile data for Backend API
-        const guideData = {
-          firstName: fullName.split(" ")[0] || fullName,
-          lastName: fullName.split(" ").slice(1).join(" ") || "",
-          phone: phone.trim(),
-          nidNumber: nidNumber.trim(),
-          nidImageUrl: nidImageUrl || "pending_upload",
-          age: calculatedAge,
-          dateOfBirth: formattedDOB,
-          expertiseArea: selectedExpertiseCategories[0] || "Tourism",
-          specialties: selectedExpertiseCategories,
-          selectedExpertiseCategories: selectedExpertiseCategories,
-          coverageAreas: coverageAreas,
-          perHourRate: parseFloat(perHourRate),
-          yearsOfExperience: parseInt(yearsExperience) || 1,
-          bio:
-            experience ||
-            `Experienced guide specializing in ${selectedExpertiseCategories.join(
-              ", ",
-            )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
-              coverageAreas.length > 3 ? " and more areas" : ""
-            }.`,
-          languages: ["Bengali", "English"],
-          certifications: [],
-        };
-
-        console.log("📤 Guide data prepared:", guideData);
-        console.log("📤 Submitting to Backend API...");
-
-        if (!user) {
-          console.error("❌ User not logged in!");
-          throw new Error("You must be logged in to register as a guide.");
-        }
-        console.log("✅ User authenticated:", user.email);
-
-        console.log("🔑 Getting Supabase session token...");
-        const supabase = await getSupabaseClient();
-        if (!supabase) {
-          throw new Error("Failed to initialize Supabase client");
-        }
-
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session?.access_token) {
-          throw new Error("Failed to get access token");
-        }
-
-        const token = sessionData.session.access_token;
-        console.log("✅ Token obtained, length:", token.length);
-
-        // Call Backend API instead of direct Supabase insert
-        console.log("📡 Calling registerGuide API...");
-        const data = await registerGuide(guideData, token);
-
-        console.log("✅ Guide registered successfully via API:", data);
-
-        // Show thank you popup
-        Alert.alert(
-          "🎉 Thank You for Registering!",
-          `Welcome to our tourism community, ${fullName}!\n\nYour guide profile has been created successfully and will be reviewed within 24 hours.\n\nWhat's next?\n• Complete your profile with photos\n• Wait for verification\n• Start connecting with travelers`,
-          [
-            {
-              text: "Go to Home",
-              onPress: () => router.replace("/"),
-              style: "default",
-            },
-            {
-              text: "View Guides",
-              onPress: () => router.push("/guides"),
-              style: "cancel",
-            },
-          ],
-        );
-      } catch (error: any) {
-        console.error("❌ Guide registration error caught!");
-        console.error("Error type:", typeof error);
-        console.error("Error message:", error?.message);
-        console.error("Error details:", error);
-
-        let errorMessage =
-          "Please check your internet connection and try again.";
-        if (error?.message) {
-          errorMessage = error.message;
-        }
-
-        console.error("📢 Showing error alert:", errorMessage);
-        Alert.alert("Registration Failed", errorMessage);
-      } finally {
         setIsSubmitting(false);
+        return;
       }
-    } catch (outerError: any) {
-      console.error("❌ OUTER ERROR in handleSubmit:", outerError);
-      console.error("Error:", JSON.stringify(outerError, null, 2));
-      Alert.alert(
-        "Error",
-        outerError?.message || "An unexpected error occurred",
+
+      // Format date of birth for database (YYYY-MM-DD)
+      const formattedDOB = dateOfBirth.split("/").reverse().join("-");
+
+      // Create guide profile data for Backend API
+      const guideData = {
+        firstName: fullName.split(" ")[0] || fullName,
+        lastName: fullName.split(" ").slice(1).join(" ") || "",
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        nidNumber: nidNumber.trim(),
+        nidImageUrl: nidImageUrl || "pending_upload",
+        age: calculatedAge,
+        dateOfBirth: formattedDOB,
+        expertiseArea: selectedExpertiseCategories[0] || "Tourism",
+        specialties: selectedExpertiseCategories,
+        selectedExpertiseCategories: selectedExpertiseCategories,
+        coverageAreas: coverageAreas,
+        perHourRate: parseFloat(perHourRate),
+        yearsOfExperience: parseInt(yearsExperience) || 1,
+        bio:
+          experience ||
+          `Experienced guide specializing in ${selectedExpertiseCategories.join(
+            ", ",
+          )}. Available in ${coverageAreas.slice(0, 3).join(", ")}${
+            coverageAreas.length > 3 ? " and more areas" : ""
+          }.`,
+        languages: ["Bengali", "English"],
+        certifications: [],
+      };
+
+      console.log("📤 Submitting guide data to Backend API...");
+      console.log(
+        "📦 Full Guide Data Object:",
+        JSON.stringify(guideData, null, 2),
       );
+      console.log("📋 Data Summary:", {
+        firstName: guideData.firstName,
+        lastName: guideData.lastName,
+        email: guideData.email,
+        phone: guideData.phone,
+        perHourRate: guideData.perHourRate,
+        expertiseCount: guideData.selectedExpertiseCategories.length,
+        coverageCount: guideData.coverageAreas.length,
+      });
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.error("❌ No access token found in session");
+        throw new Error("You must be logged in to register (Session Expired)");
+      }
+      console.log("✅ Got auth token (Supabase), length:", token.length);
+
+      // Test backend connectivity first
+      console.log("🔍 Testing backend connectivity...");
+      console.log("🌐 Testing URL:", `${API_BASE_URL}/guides`);
+      try {
+        const testResponse = await fetch(`${API_BASE_URL}/guides`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        console.log("✅ Backend is reachable, status:", testResponse.status);
+        const testData = await testResponse.text();
+        console.log("✅ Backend response sample:", testData.substring(0, 100));
+      } catch (testError) {
+        console.error("❌ Backend connectivity test failed:", testError);
+        throw new Error(
+          "Cannot connect to server. Please check your internet connection and try again.",
+        );
+      }
+
+      // Call Backend API instead of direct Supabase insert
+      console.log("📡 Calling registerGuide API...");
+      console.log(
+        "📤 Sending POST request to:",
+        `${API_BASE_URL}/guides/register`,
+      );
+      console.log("📦 Request payload:", guideData);
+
+      let data;
+      try {
+        data = await registerGuide(guideData, token);
+        console.log("✅ Guide registered successfully via API:", data);
+      } catch (apiError: any) {
+        console.error("🚨 API call failed immediately:");
+        console.error("Error:", apiError);
+        console.error("Message:", apiError?.message);
+        throw apiError;
+      }
+
+      // Show verification notice and auto-redirect home
+      if (Platform.OS === "web") {
+        window.alert(
+          "We Are Verifying Now\n\nThank you for registering! We are verifying your details now.",
+        );
+      } else {
+        Alert.alert(
+          "We Are Verifying Now",
+          "Thank you for registering! We are verifying your details now.",
+        );
+      }
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 1500);
+    } catch (error: any) {
+      console.error("❌ Guide registration error caught!");
+      console.error("Error type:", typeof error);
+      console.error("Error object:", error);
+      console.error("Error message:", error?.message);
+      console.error("Error stack:", error?.stack);
+      console.error("Full error JSON:", JSON.stringify(error, null, 2));
+
+      let errorMessage = "Please check your internet connection and try again.";
+
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.toString && typeof error.toString === "function") {
+        errorMessage = error.toString();
+      }
+
+      console.error("📢 Showing error alert with message:", errorMessage);
+
+      if (Platform.OS === "web") {
+        window.alert(
+          `Sorry, Please Check Again\n\nError: ${errorMessage}\n\nPlease give us your right details.`,
+        );
+      } else {
+        Alert.alert(
+          "Sorry, Please Check Again",
+          `Error: ${errorMessage}\n\nPlease give us your right details.`,
+          [{ text: "OK" }],
+        );
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1118,7 +1186,11 @@ export default function GuideRegistrationScreen() {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         {step !== "details" && (
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleBack}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleBack}
+            disabled={isSubmitting}
+          >
             <Text style={styles.secondaryButtonText}>Back</Text>
           </TouchableOpacity>
         )}
@@ -1126,19 +1198,34 @@ export default function GuideRegistrationScreen() {
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
+              { flex: 1 },
+              isSubmitting && { opacity: 0.6 },
             ]}
-            onPress={handleSubmit}
+            onPress={() => {
+              console.log("💥 TouchableOpacity onPress fired!");
+              handleSubmit();
+            }}
+            onPressIn={() => console.log("👆 Button press detected!")}
+            disabled={isSubmitting}
+            activeOpacity={0.7}
           >
-            <Ionicons name="checkmark" size={20} color="#FFF" />
-            <Text style={styles.primaryButtonText}>Submit Registration</Text>
+            {isSubmitting ? (
+              <>
+                <ActivityIndicator size="small" color="#FFF" />
+                <Text style={styles.primaryButtonText}>Submitting...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={20} color="#FFF" />
+                <Text style={styles.primaryButtonText}>
+                  Submit Registration
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { flex: 1, marginLeft: step !== "details" ? Spacing.md : 0 },
-            ]}
+            style={[styles.primaryButton, { flex: 1 }]}
             onPress={handleNext}
           >
             <Text style={styles.primaryButtonText}>

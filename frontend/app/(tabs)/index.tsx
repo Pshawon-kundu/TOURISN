@@ -21,17 +21,83 @@ import {
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
+import { APIClient } from "@/lib/api";
 import { signOut as signOutUser } from "@/lib/auth";
+import { useFocusEffect } from "expo-router";
+
+const apiClient = new APIClient();
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
+  const [activeGuides, setActiveGuides] = useState<any[]>([]);
+  const [recentGuides, setRecentGuides] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
   const { user } = useAuth();
-  const displayName = user?.displayName || user?.email || "Traveler";
+
+  const displayName = userProfile?.first_name
+    ? `${userProfile.first_name} ${userProfile.last_name || ""}`.trim()
+    : user?.displayName || user?.email?.split("@")[0] || "Traveler";
   const userEmail = user?.email || "";
-  const userInitial = displayName.charAt(0).toUpperCase();
+  const userInitial = (displayName || "T").charAt(0).toUpperCase();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserProfile();
+      fetchGuides();
+    }, []),
+  );
+
+  const fetchUserProfile = async () => {
+    try {
+      const profile = await apiClient.getCurrentUser();
+      if (profile) {
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.log("Error fetching user profile:", error);
+    }
+  };
+
+  const fetchGuides = async () => {
+    try {
+      // Assuming api.getGuides is available or reuse logic
+      // We will use direct fetch to backend for now if api lib is restricted, but ideally api lib
+      // Using manual fetch to backend endpoint as I can't see api lib entirely
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:5001";
+
+      // Fetch Active (Online) Guides - using with-status endpoint which likely returns all with online flags
+      // Or filter manually. Let's try fetching all for now.
+      const res = await fetch(`${backendUrl}/api/guides/with-status`);
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.data)) {
+        const guides = data.data;
+        // Filter for active/online
+        const online = guides.filter((g: any) => g.isOnline).slice(0, 5);
+        setActiveGuides(online);
+
+        // Filter for recent (assuming sorted by date or we sort) - here just taking slice
+        // In real app, sort by created_at desc
+        const recent = [...guides]
+          .sort((a: any, b: any) => {
+            return (
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime()
+            );
+          })
+          .slice(0, 5);
+
+        setRecentGuides(recent);
+      }
+    } catch (err) {
+      console.log("Error fetching guides:", err);
+    }
+  };
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -557,6 +623,102 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Active Guides Section added */}
+        <View
+          style={[
+            styles.sectionHeader,
+            { paddingHorizontal: Spacing.lg, marginTop: Spacing.xl },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Active Guides 🟢</Text>
+          <TouchableOpacity onPress={() => router.push("/guides")}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.horizontalScroll,
+            { paddingHorizontal: Spacing.lg },
+          ]}
+        >
+          {activeGuides.length > 0 ? (
+            activeGuides.map((guide) => (
+              <TouchableOpacity
+                key={guide.id}
+                style={styles.guideCardHorizontal}
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat-room",
+                    params: {
+                      guideId: guide.userId || guide.user_id || guide.id,
+                      guideName: guide.name,
+                    },
+                  })
+                }
+              >
+                <Image
+                  source={{
+                    uri: guide.avatarUrl || "https://via.placeholder.com/100",
+                  }}
+                  style={styles.guideImage}
+                />
+                <Text style={styles.guideNameSmall} numberOfLines={1}>
+                  {guide.name}
+                </Text>
+                <Text style={styles.guideRole}>Available</Text>
+                <View style={styles.onlineIndicatorDot} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No active guides</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Recently Joined Section added */}
+        <View
+          style={[
+            styles.sectionHeader,
+            { paddingHorizontal: Spacing.lg, marginTop: Spacing.xl },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>New Guides</Text>
+          <TouchableOpacity onPress={() => router.push("/guides")}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.horizontalScroll,
+            { paddingHorizontal: Spacing.lg },
+          ]}
+        >
+          {recentGuides.map((guide) => (
+            <TouchableOpacity
+              key={guide.id}
+              style={styles.guideCardHorizontal}
+              onPress={() => router.push(`/guide/${guide.id}` as any)}
+            >
+              <Image
+                source={{
+                  uri: guide.avatarUrl || "https://via.placeholder.com/100",
+                }}
+                style={styles.guideImage}
+              />
+              <Text style={styles.guideNameSmall} numberOfLines={1}>
+                {guide.name}
+              </Text>
+              <Text style={styles.guideRole}>New Member</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {/* Top Guides */}
         <View style={styles.sectionSpacing}>
           <Text style={styles.sectionTitle}>Top guides</Text>
@@ -994,6 +1156,64 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: Spacing.md,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
+  guideCardHorizontal: {
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    marginRight: Spacing.md,
+    width: 120,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guideImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  guideNameSmall: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+    textAlign: "center",
+    marginTop: Spacing.sm,
+  },
+  guideRole: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  onlineIndicatorDot: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#10B981",
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: "italic",
   },
   sectionTitle: {
     fontSize: 18,

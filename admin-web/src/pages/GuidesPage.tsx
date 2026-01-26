@@ -193,30 +193,18 @@ export function GuidesPage() {
               >
                 View
               </button>
-              {!guide.is_verified && (
-                <button
-                  className="btn"
-                  onClick={() => handleVerifyGuide(guide.id, true)}
-                >
-                  Verify
-                </button>
-              )}
-              {guide.status === "pending" && (
-                <button
-                  className="btn"
-                  onClick={() => handleUpdateStatus(guide.id, "active")}
-                >
-                  Approve
-                </button>
-              )}
-              {guide.status !== "suspended" && (
-                <button
-                  className="btn btn-danger"
-                  onClick={() => handleUpdateStatus(guide.id, "suspended")}
-                >
-                  Suspend
-                </button>
-              )}
+              <button
+                className="btn btn-primary"
+                onClick={() => handleUpdateStatus(guide.id, "active")}
+              >
+                Approve
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => handleUpdateStatus(guide.id, "suspended")}
+              >
+                Suspend
+              </button>
             </div>
           )}
         />
@@ -369,6 +357,42 @@ export function GuidesPage() {
                   <strong>Total Reviews:</strong>{" "}
                   {selectedGuide.total_reviews || 0}
                 </p>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                {!selectedGuide.is_verified && (
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      handleVerifyGuide(selectedGuide.id, true);
+                      setShowDetailsModal(false);
+                    }}
+                  >
+                    Verify
+                  </button>
+                )}
+                {selectedGuide.status !== "active" && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      handleUpdateStatus(selectedGuide.id, "active");
+                      setShowDetailsModal(false);
+                    }}
+                  >
+                    Approve
+                  </button>
+                )}
+                {selectedGuide.status !== "suspended" && (
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      handleUpdateStatus(selectedGuide.id, "suspended");
+                      setShowDetailsModal(false);
+                    }}
+                  >
+                    Suspend
+                  </button>
+                )}
               </div>
             </div>
           </div>

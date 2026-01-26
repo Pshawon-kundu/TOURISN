@@ -1,4 +1,13 @@
-const API_BASE_URL = "http://localhost:5001/api";
+import { Platform } from "react-native";
+
+const getApiBaseUrl = () => {
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5001/api";
+  }
+  return "http://localhost:5001/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface ChatRoom {
   id: string;
@@ -38,7 +47,7 @@ export class ChatAPI {
 
   private static async makeRequest(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ) {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = {
@@ -73,7 +82,7 @@ export class ChatAPI {
   static async sendMessage(
     roomId: string,
     message: string,
-    messageType = "text"
+    messageType = "text",
   ): Promise<ChatMessage> {
     const response = await this.makeRequest("/chat/message", {
       method: "POST",
@@ -90,13 +99,13 @@ export class ChatAPI {
   static async getChatMessages(
     roomId: string,
     page = 1,
-    limit = 50
+    limit = 50,
   ): Promise<{
     data: ChatMessage[];
     pagination: any;
   }> {
     const response = await this.makeRequest(
-      `/chat/messages/${roomId}?page=${page}&limit=${limit}`
+      `/chat/messages/${roomId}?page=${page}&limit=${limit}`,
     );
     return response;
   }
@@ -119,7 +128,7 @@ export class ChatAPI {
   static startMessagePolling(
     roomId: string,
     callback: (messages: ChatMessage[]) => void,
-    interval = 2000
+    interval = 2000,
   ) {
     const poll = async () => {
       try {
@@ -166,7 +175,7 @@ export function formatChatTime(dateString: string): string {
 
 // Helper function to get display name
 export function getDisplayName(
-  user: { first_name?: string; last_name?: string } | undefined
+  user: { first_name?: string; last_name?: string } | undefined,
 ): string {
   if (!user) return "User";
   return `${user.first_name || ""} ${user.last_name || ""}`.trim() || "User";

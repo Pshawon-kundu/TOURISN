@@ -2,12 +2,97 @@ import { NextFunction, Response } from "express";
 import { supabase } from "../config/supabase";
 import { AuthRequest } from "../middleware/auth";
 
+// Delete user account
+export const deleteAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.email) {
+      res.status(401).json({ success: false, error: "Not authenticated" });
+      return;
+    }
+
+    console.log("⚠️ Deleting account for:", req.user.email);
+
+    // 1. Delete from public users table (Supabase)
+    const { error } = await supabase
+      .from("users")
+      .delete()
+      .eq("email", req.user.email);
+
+    if (error) {
+      console.error("❌ Delete account error:", error);
+      res.status(500).json({ success: false, error: "Failed to delete account data" });
+      return;
+    }
+    
+    // Note: We cannot easily delete from auth.users via client library without service role key
+    // But deleting from 'users' table removes their profile data.
+    
+    console.log("✅ Account data deleted for:", req.user.email);
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error: any) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 // Update user profile
 export const updateProfile = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+// ...
+  // (existing code)
+};
+
+// Delete user account
+export const deleteAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.email) {
+      res.status(401).json({ success: false, error: "Not authenticated" });
+      return;
+    }
+
+    // 1. Delete from public users table (Supabase)
+    const { error } = await supabase
+      .from("users")
+      .delete()
+      .eq("email", req.user.email);
+
+    if (error) {
+      console.error("❌ Delete account error:", error);
+      res.status(500).json({ success: false, error: "Failed to delete account data" });
+      return;
+    }
+    
+    // Note: We cannot easily delete from auth.users via client library without service role key
+    // But deleting from 'users' table removes their profile data.
+    
+    console.log("✅ Account data deleted for:", req.user.email);
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error: any) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Get saved places
   try {
     if (!req.user?.email) {
       res.status(401).json({

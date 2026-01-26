@@ -43,6 +43,8 @@ const port = Number(process.env.PORT) || 5001;
 const corsOptions = {
   origin: [
     process.env.FRONTEND_URL || "http://localhost:3000",
+    "http://localhost:5173", // Guide web dashboard
+    "http://127.0.0.1:5173",
     "http://localhost:8081",
     "http://127.0.0.1:8081",
     "http://localhost:8082",
@@ -51,6 +53,8 @@ const corsOptions = {
     "http://127.0.0.1:8084",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "http://localhost:4174",
+    "http://127.0.0.1:4174",
     "http://192.168.0.196:8081",
     "http://192.168.0.196:8084",
     "exp://192.168.0.196:8081",

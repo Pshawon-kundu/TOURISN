@@ -20,6 +20,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
 import { registerGuide } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 const getApiBaseUrl = () => {
   if (Platform.OS === "android") {
@@ -648,8 +649,16 @@ export default function GuideRegistrationScreen() {
         coverageCount: guideData.coverageAreas.length,
       });
 
-      const token = await user.getIdToken();
-      console.log("✅ Got auth token, length:", token.length);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.error("❌ No access token found in session");
+        throw new Error("You must be logged in to register (Session Expired)");
+      }
+      console.log("✅ Got auth token (Supabase), length:", token.length);
 
       // Test backend connectivity first
       console.log("🔍 Testing backend connectivity...");

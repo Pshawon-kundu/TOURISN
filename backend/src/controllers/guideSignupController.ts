@@ -106,6 +106,8 @@ export const signupGuide = async (req: Request, res: Response) => {
       userData = newUserData;
     }
 
+    // Now proceed to create guide profile
+
     // Check if guide profile already exists
     const { data: existingGuide } = await supabase
       .from("guides")
@@ -130,6 +132,10 @@ export const signupGuide = async (req: Request, res: Response) => {
         languages: languages || ["Bangla", "English"],
         years_of_experience: yearsOfExperience || 0,
         certifications: certifications || [],
+        nid_number: nidNumber,
+        nid_image_url: nidImageUrl || null,
+        city: city || null,
+        district: district || null,
         rating: 0,
         total_reviews: 0,
         is_verified: false,
@@ -219,7 +225,7 @@ export const getGuidesWithStatus = async (req: Request, res: Response) => {
           phone,
           avatar_url
         )
-      `
+      `,
       )
       .eq("is_verified", true)
       .order("rating", { ascending: false });
@@ -243,7 +249,7 @@ export const getGuidesWithStatus = async (req: Request, res: Response) => {
       statusData?.map((s) => [
         s.guide_id,
         { isOnline: s.is_online, lastSeen: s.last_seen },
-      ]) || []
+      ]) || [],
     );
 
     // Combine guide data with online status
@@ -336,6 +342,214 @@ export const updateGuideOnlineStatus = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Update status error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Internal server error",
+    });
+  }
+};
+
+/**
+ * Guide Login with Phone - Verify credentials and return success
+ * POST /api/guides/login-with-phone
+ */
+export const loginWithPhone = async (req: Request, res: Response) => {
+  try {
+    const { email, phone } = req.body;
+
+    if (!email || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and phone number are required",
+      });
+    }
+
+    console.log(`Attempting login with email: ${email} and phone: ${phone}`);
+
+    // Check if user exists with matching email and phone and is a guide
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*, guides(*)")
+      .eq("email", email)
+      .eq("phone", phone)
+      .eq("role", "guide")
+      .single();
+
+    if (error || !user) {
+      console.log("Login failed: User not found or mismatch", error);
+      return res.status(401).json({
+        success: false,
+        error: "Invalid email or phone number, or not a registered guide.",
+      });
+    }
+
+    // Found user! Update the user's password to the phone number so standard login works.
+    const { data: authData, error: updateError } =
+      await supabase.auth.admin.updateUserById(user.auth_id, {
+        password: phone,
+      });
+
+    if (updateError) {
+      console.error("Failed to set password:", updateError);
+      return res.status(500).json({
+        success: false,
+        error: "Login system error. Please contact support.",
+      });
+    }
+
+    // Return success. Frontend will now call signInWithPassword(email, phone).
+    return res.status(200).json({
+      success: true,
+      message: "Credentials verified",
+      user: {
+        id: user.id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: user.phone,
+      },
+    });
+  } catch (error) {
+    console.error("Login verification error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Guide Login with NID - Verify NID + Phone and enable login
+ * POST /api/guides/login-with-nid
+ */
+export const loginWithNid = async (req: Request, res: Response) => {
+  try {
+    const { nid } = req.body;
+
+    if (!nid) {
+      return res.status(400).json({
+        success: false,
+        error: "NID number is required",
+      });
+    }
+
+    console.log(`Attempting login with NID: ${nid}`);
+
+    // finding guide by nid_number
+    // We need to join with users to verify phone
+    const { data: guide, error: guideError } = await supabase
+      .from("guides")
+      .select("*, users!inner(*)")
+      .eq("nid_number", nid)
+      .single();
+
+    if (guideError || !guide) {
+      console.log("Guide lookup failed:", guideError);
+      return res.status(401).json({
+        success: false,
+        error: "Guide not found with this NID.",
+      });
+    }
+
+    const user = (guide as any).users;
+    const phone = user.phone;
+
+    // Handle missing auth_id (Account Configuration Error)
+    let authId = user.auth_id;
+    if (!authId) {
+      console.log("No auth_id found for user. Attempting recovery...");
+
+      // 1. Try to create the auth user
+      const { data: newAuth, error: createError } =
+        await supabase.auth.admin.createUser({
+          email: user.email,
+          password: phone,
+          email_confirm: true,
+          user_metadata: {
+            first_name: user.first_name || "Guide",
+            role: "guide",
+          },
+        });
+
+      if (!createError && newAuth?.user) {
+        authId = newAuth.user.id;
+        // Update the user record
+        await supabase
+          .from("users")
+          .update({ auth_id: authId })
+          .eq("id", user.id);
+      } else {
+        // 2. Creation failed (likely exists), try to find by email
+        // Note: This lists only first 50 users by default. In production, this needs pagination.
+        const { data: listData, error: listError } =
+          await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+
+        if (listError || !listData || !listData.users) {
+          console.error("Auth recovery failed (listUsers):", listError);
+          return res.status(500).json({
+            success: false,
+            error:
+              "Account configuration error. Could not verify existing accounts.",
+          });
+        }
+
+        const authUsers = listData.users;
+        const existingAuth = authUsers.find((u: any) => u.email === user.email);
+
+        if (existingAuth) {
+          authId = existingAuth.id;
+          await supabase
+            .from("users")
+            .update({ auth_id: authId })
+            .eq("id", user.id);
+        } else {
+          console.error("Auth recovery failed:", createError);
+          return res.status(500).json({
+            success: false,
+            error:
+              "Account configuration error. Auth user missing and could not be created.",
+          });
+        }
+      }
+    }
+
+    // Update the user's password to the phone number so standard login works.
+    if (authId) {
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        authId,
+        {
+          password: phone,
+        },
+      );
+
+      if (updateError) {
+        console.error("Failed to set password:", updateError);
+        return res.status(500).json({
+          success: false,
+          error: "Login system error. Please contact support.",
+        });
+      }
+    } else {
+      // Should be unreachable if logic above works
+      return res.status(500).json({
+        success: false,
+        error: "Account configuration error (ID missing).",
+      });
+    }
+
+    // Return success with EMAIL and PHONE so frontend can sign in
+    return res.status(200).json({
+      success: true,
+      message: "Credentials verified",
+      email: user.email,
+      phone: user.phone, // Return phone to be used as password
+      user: {
+        email: user.email,
+        name: `${user.first_name} ${user.last_name}`,
+      },
+    });
+  } catch (error: any) {
+    console.error("NID Login error:", error);
     return res.status(500).json({
       success: false,
       error: error.message || "Internal server error",

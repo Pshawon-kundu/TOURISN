@@ -42,6 +42,7 @@ interface Guide {
   yearsExperience: number;
   bio: string;
   isAvailable: boolean;
+  isOnline: boolean;
   perHourRate: number;
   expertiseCategories: string[];
   coverageAreas: string[];
@@ -75,7 +76,7 @@ export default function GuidesScreen() {
       console.error("Guide fetch error:", error);
       Alert.alert(
         "Error",
-        "Failed to connect to server. Please check your connection."
+        "Failed to connect to server. Please check your connection.",
       );
     } finally {
       setLoading(false);
@@ -244,8 +245,8 @@ export default function GuidesScreen() {
                         guide.isVerified
                           ? styles.badgeVerified
                           : guide.badge === "New Guide"
-                          ? styles.badgeNew
-                          : styles.badgeDefault,
+                            ? styles.badgeNew
+                            : styles.badgeDefault,
                       ]}
                     >
                       <Text
@@ -254,8 +255,8 @@ export default function GuidesScreen() {
                           guide.isVerified
                             ? styles.badgeTextVerified
                             : guide.badge === "New Guide"
-                            ? styles.badgeTextNew
-                            : styles.badgeTextDefault,
+                              ? styles.badgeTextNew
+                              : styles.badgeTextDefault,
                         ]}
                       >
                         {guide.badge}
@@ -273,21 +274,39 @@ export default function GuidesScreen() {
                       </Text>
                       <MaterialIcons
                         name={
-                          guide.isAvailable
-                            ? "radio-button-checked"
-                            : "radio-button-unchecked"
+                          guide.isOnline
+                            ? "fiber-manual-record"
+                            : guide.isAvailable
+                              ? "radio-button-checked"
+                              : "radio-button-unchecked"
                         }
                         size={12}
-                        color={guide.isAvailable ? "#10B981" : "#6B7280"}
+                        color={
+                          guide.isOnline
+                            ? "#10B981"
+                            : guide.isAvailable
+                              ? "#3B82F6"
+                              : "#6B7280"
+                        }
                         style={{ marginLeft: 8 }}
                       />
                       <Text
                         style={[
                           styles.statusText,
-                          { color: guide.isAvailable ? "#10B981" : "#6B7280" },
+                          {
+                            color: guide.isOnline
+                              ? "#10B981"
+                              : guide.isAvailable
+                                ? "#3B82F6"
+                                : "#6B7280",
+                          },
                         ]}
                       >
-                        {guide.isAvailable ? "Available" : "Busy"}
+                        {guide.isOnline
+                          ? "Online"
+                          : guide.isAvailable
+                            ? "Available"
+                            : "Away"}
                       </Text>
                     </View>
                     <Text style={styles.price}>{guide.price}</Text>

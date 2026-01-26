@@ -32,7 +32,7 @@ export default function TransportHub() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTransport, setSelectedTransport] = useState<string | null>(
-    null
+    null,
   );
   const [travelDate, setTravelDate] = useState("");
   const [passengers, setPassengers] = useState(1);
@@ -49,11 +49,11 @@ export default function TransportHub() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const fromSuggestions = bangladeshDistricts.filter((district) =>
-    district.toLowerCase().includes(fromLocation.toLowerCase())
+    district.toLowerCase().includes(fromLocation.toLowerCase()),
   );
 
   const toSuggestions = bangladeshDistricts.filter((district) =>
-    district.toLowerCase().includes(toLocation.toLowerCase())
+    district.toLowerCase().includes(toLocation.toLowerCase()),
   );
 
   const calculateDistance = () => {
@@ -74,7 +74,7 @@ export default function TransportHub() {
     if (!fromLocation || !toLocation) {
       Alert.alert(
         "Missing Information",
-        "Please select both From and To locations"
+        "Please select both From and To locations",
       );
       return;
     }
@@ -143,7 +143,14 @@ export default function TransportHub() {
 
       const result = await api.createTransportBooking(bookingData);
 
-      setBookingId(result.data?.booking_id || result.data?.id);
+      // Extract booking ID from nested response structure
+      // result.data contains { booking: {...}, transport_booking: {...} }
+      // Use logical OR to safely get the ID without TS errors
+      const booking = result.data?.booking;
+      const transportBooking = result.data?.transport_booking;
+      const id = booking?.id || transportBooking?.booking_id;
+
+      setBookingId(id);
 
       // Close booking modal and show payment modal
       setShowBookingModal(false);
@@ -154,7 +161,7 @@ export default function TransportHub() {
         error instanceof Error ? error.message : "Unknown error occurred";
       Alert.alert(
         "Booking Failed",
-        `Failed to create booking: ${errorMessage}\n\nPlease check:\n- Backend is running on port 5001\n- You are logged in\n- Network connection is working`
+        `Failed to create booking: ${errorMessage}\n\nPlease check:\n- Backend is running on port 5001\n- You are logged in\n- Network connection is working`,
       );
     } finally {
       setIsLoading(false);
@@ -227,7 +234,7 @@ export default function TransportHub() {
       console.error("Payment error:", error);
       Alert.alert(
         "Payment Failed",
-        error instanceof Error ? error.message : "Please try again"
+        error instanceof Error ? error.message : "Please try again",
       );
     } finally {
       setIsLoading(false);
@@ -335,7 +342,7 @@ export default function TransportHub() {
           >
             {day}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity>,
       );
     }
 
@@ -368,7 +375,7 @@ export default function TransportHub() {
 
   const renderSuggestion = (
     item: string,
-    onSelect: (value: string) => void
+    onSelect: (value: string) => void,
   ) => (
     <TouchableOpacity
       style={styles.suggestionItem}
@@ -514,7 +521,7 @@ export default function TransportHub() {
                         month: "short",
                         day: "2-digit",
                         year: "numeric",
-                      }
+                      },
                     )})`}
               </Text>
             </View>
@@ -551,10 +558,10 @@ export default function TransportHub() {
                 transport.id === "car"
                   ? "car-sport"
                   : transport.id === "bus"
-                  ? "bus"
-                  : transport.id === "bike"
-                  ? "bicycle"
-                  : "boat";
+                    ? "bus"
+                    : transport.id === "bike"
+                      ? "bicycle"
+                      : "boat";
 
               return (
                 <TouchableOpacity
@@ -858,10 +865,16 @@ export default function TransportHub() {
                 {isLoading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <Ionicons name="card" size={20} color="#FFF" />
                     <Text style={styles.confirmButtonText}>Pay Now</Text>
-                  </>
+                  </View>
                 )}
               </TouchableOpacity>
             </ScrollView>

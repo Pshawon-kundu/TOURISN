@@ -178,6 +178,10 @@ export class APIClient {
     return this.get("/auth/me");
   }
 
+  async deleteAccount() {
+    return this.delete("/profile");
+  }
+
   // ===== EXPERIENCES ENDPOINTS =====
   async getExperiences(page: number = 1, limit: number = 10) {
     return this.get(`/experiences?page=${page}&limit=${limit}`);
@@ -231,6 +235,10 @@ export class APIClient {
 
   async registerGuide(data: any) {
     return this.post("/guides/register", data);
+  }
+
+  async loginWithNid(nid: string, phone: string) {
+    return this.post("/guides/login-with-nid", { nid, phone });
   }
 
   async createGuideProfile(data: any) {

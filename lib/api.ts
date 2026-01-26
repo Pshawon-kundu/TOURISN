@@ -299,6 +299,23 @@ export const getExperienceById = async (id: string): Promise<any> => {
   }
 };
 
+// Guide API Functions
+export const getAllGuides = async (): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/guides`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch guides");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching guides:", error);
+    throw error;
+  }
+};
+
 export const createExperienceBooking = async (
   bookingData: BookingData,
 ): Promise<any> => {

@@ -2,6 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import {
   addFavorite,
   addSavedPlace,
+  deleteAccount,
   getFavorites,
   getSavedPlaces,
   removeFavorite,
@@ -25,6 +26,7 @@ const asyncHandler =
 
 // Profile routes
 router.patch("/", authenticateToken, asyncHandler(updateProfile));
+router.delete("/", authenticateToken, asyncHandler(deleteAccount));
 
 // Saved places routes
 router.get("/saved", authenticateToken, asyncHandler(getSavedPlaces));
@@ -37,7 +39,7 @@ router.post("/favorites", authenticateToken, asyncHandler(addFavorite));
 router.delete(
   "/favorites/:id",
   authenticateToken,
-  asyncHandler(removeFavorite)
+  asyncHandler(removeFavorite),
 );
 
 export default router;

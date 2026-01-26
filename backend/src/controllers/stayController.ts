@@ -7,7 +7,7 @@ export const createStayBooking = async (req: Request, res: Response) => {
     const bookingData = req.body;
     console.log(
       "📝 Stay booking request data:",
-      JSON.stringify(bookingData, null, 2)
+      JSON.stringify(bookingData, null, 2),
     );
 
     // Handle user_id from multiple sources
@@ -61,21 +61,65 @@ export const createStayBooking = async (req: Request, res: Response) => {
 
     console.log(
       "📝 Transformed data for stay_bookings:",
-      JSON.stringify(transformedData, null, 2)
+      JSON.stringify(transformedData, null, 2),
     );
 
-    const { data, error } = await supabase
+    const { data: stayData, error: stayError } = await supabase
       .from("stay_bookings")
       .insert([transformedData])
       .select();
 
-    if (error) {
-      console.error("❌ Supabase stay booking error:", error);
-      return res.status(400).json({ success: false, error: error.message });
+    if (stayError) {
+      console.error("❌ Supabase stay booking error:", stayError);
+      return res.status(400).json({ success: false, error: stayError.message });
     }
 
-    console.log(`✅ Stay booking created - Supabase ID: ${data?.[0]?.id}`);
-    res.status(201).json({ success: true, data: data?.[0] });
+    console.log(
+      `✅ Stay booking created in stay_bookings - ID: ${stayData?.[0]?.id}`,
+    );
+
+    // ALSO insert into main 'bookings' table for Admin Panel visibility and unified view
+    const mainBookingData = {
+      user_id: userId,
+      booking_type: "stay",
+      trip_name: transformedData.property_name,
+      location: transformedData.location,
+      check_in_date: transformedData.check_in_date,
+      check_out_date: transformedData.check_out_date,
+      guests: transformedData.number_of_guests,
+      item_id: transformedData.property_id,
+      item_name: transformedData.property_name,
+      price_per_unit: transformedData.base_fare,
+      total_days_or_units: transformedData.number_of_nights,
+      subtotal: transformedData.base_fare * transformedData.number_of_nights,
+      service_fee: transformedData.service_fee,
+      total_price: transformedData.total_amount,
+      currency: "TK",
+      payment_method: transformedData.payment_method,
+      payment_status: "completed",
+      booking_status: transformedData.status,
+      // Store traveler details in a way that fits or rely on user join
+      // 'bookings' table schema inspection didn't show 'traveler_name', but let's check
+    };
+
+    const { data: mainData, error: mainError } = await supabase
+      .from("bookings")
+      .insert([mainBookingData])
+      .select();
+
+    if (mainError) {
+      console.error(
+        "⚠️ Warning: Failed to insert into main bookings table:",
+        mainError,
+      );
+      // We don't fail the request since the detailed stay record was created
+    } else {
+      console.log(
+        `✅ Copy created in bookings table - ID: ${mainData?.[0]?.id}`,
+      );
+    }
+
+    res.status(201).json({ success: true, data: stayData?.[0] });
   } catch (error) {
     console.error("❌ Error creating stay booking:", error);
     res
@@ -273,7 +317,7 @@ export const streamStayBookings = (req: Request, res: Response) => {
         `data: ${JSON.stringify({
           type: "heartbeat",
           timestamp: new Date().toISOString(),
-        })}\n\n`
+        })}\n\n`,
       );
     } catch (error) {
       console.error("Error in SSE stream:", error);

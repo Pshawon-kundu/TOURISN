@@ -16,7 +16,7 @@ async function loadSupabaseConfig() {
   return cachedConfig;
 }
 
-async function getSupabaseClient(): Promise<SupabaseClient | null> {
+export async function getSupabaseClient(): Promise<SupabaseClient | null> {
   if (cachedClient) {
     console.log("✅ Using cached Supabase client");
     return cachedClient;

@@ -9,6 +9,8 @@ import {
 } from "../controllers/guideController";
 import {
   getGuidesWithStatus,
+  loginWithNid,
+  loginWithPhone,
   signupGuide,
   updateGuideOnlineStatus,
 } from "../controllers/guideSignupController";
@@ -18,6 +20,12 @@ const router = Router();
 
 // Guide signup (public - creates new guide account)
 router.post("/signup", signupGuide);
+
+// Guide login with phone (public - verifies email+phone and sets password)
+router.post("/login-with-phone", loginWithPhone);
+
+// Guide login with NID (public - verifies nid+phone sets password)
+router.post("/login-with-nid", loginWithNid);
 
 // Get guides with online status (for chat)
 router.get("/with-status", getGuidesWithStatus);

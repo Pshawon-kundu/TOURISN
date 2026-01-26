@@ -16,7 +16,7 @@ export interface AuthRequest extends Request {
 export const signup = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const {
@@ -170,7 +170,7 @@ export const signup = async (
 export const login = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { email, password, idToken } = req.body;
@@ -234,7 +234,7 @@ export const login = async (
       const newUserData = {
         id: uuidv4(),
         email,
-        role: "traveler",
+        role: "user",
         first_name: nameFromEmail,
         last_name: "",
         phone: null,
@@ -290,6 +290,7 @@ export const login = async (
     console.log("✅ LOGIN COMPLETE");
     res.status(200).json({
       success: true,
+      token: idToken,
       user: {
         id: user.id,
         email: user.email,
@@ -314,7 +315,7 @@ export const login = async (
 export const verifyToken = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { token } = req.body;
@@ -371,7 +372,7 @@ export const verifyToken = async (
 export const getCurrentUser = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
