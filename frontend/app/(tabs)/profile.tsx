@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -182,23 +183,31 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await signOutUser();
-            router.replace("/login");
-          } catch (err) {
-            console.warn("Logout failed", err);
-            Alert.alert("Error", "Failed to logout. Please try again.");
-          }
+  const doLogout = async () => {
+    try {
+      await signOutUser();
+    } catch (e) {
+      console.warn("Logout error:", e);
+    }
+    router.replace("/welcome");
+  };
+
+  const handleLogout = () => {
+    if (Platform.OS === "web") {
+      // On web, directly logout without Alert (Alert may not work reliably)
+      if (window.confirm("Are you sure you want to logout?")) {
+        doLogout();
+      }
+    } else {
+      Alert.alert("Logout", "Are you sure you want to logout?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: doLogout,
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const handleSavedPlaces = () => {
@@ -255,14 +264,19 @@ export default function ProfileScreen() {
     }
   };
 
+  const goBack = () => {
+    if (Platform.OS === "web") {
+      window.location.href = "/";
+    } else {
+      router.replace("/(tabs)/index");
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Profile</Text>

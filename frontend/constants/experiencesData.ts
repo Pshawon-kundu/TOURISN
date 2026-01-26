@@ -54,7 +54,7 @@ export const experiences: Experience[] = [
     groupSize: "2-6 people",
     rating: 4.9,
     reviews: 287,
-    image: "https://images.unsplash.com/photo-1541480601022-2308c0f9c4b0?w=800",
+    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
     description:
       "Watch the sunrise over the longest natural sea beach in Bangladesh while learning to surf. Professional instructors guide you through basic techniques.",
     highlights: [
@@ -74,7 +74,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Cox's Bazar Beach Main Gate",
     guide: {
       name: "Rauf Ahmed",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
       languages: ["Bengali", "English"],
       experience: 8,
       rating: 4.9,
@@ -98,7 +99,7 @@ export const experiences: Experience[] = [
     groupSize: "3-8 people",
     rating: 4.8,
     reviews: 412,
-    image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800",
+    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800",
     description:
       "Trek through lush hills, visit authentic tribal villages, and experience the unique culture of the Marma people. Includes traditional meals and homestay interaction.",
     highlights: [
@@ -119,7 +120,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Bandarban Main Bus Station",
     guide: {
       name: "Kamal Chakma",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
       languages: ["Bengali", "English", "Marma"],
       experience: 12,
       rating: 4.8,
@@ -143,7 +145,7 @@ export const experiences: Experience[] = [
     groupSize: "2-10 people",
     rating: 4.7,
     reviews: 356,
-    image: "https://images.unsplash.com/photo-1579781403261-f404518bf92b?w=800",
+    image: "https://images.unsplash.com/photo-1556881286-fc6915169721?w=800",
     description:
       "Explore verdant tea gardens, learn about tea cultivation and processing, and participate in a tea tasting session with a local expert.",
     highlights: [
@@ -158,7 +160,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Sylhet City Centre",
     guide: {
       name: "Biswajit Roy",
-      avatar: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200",
       languages: ["Bengali", "English"],
       experience: 15,
       rating: 4.7,
@@ -182,7 +185,7 @@ export const experiences: Experience[] = [
     groupSize: "4-12 people",
     rating: 4.9,
     reviews: 189,
-    image: "https://images.unsplash.com/photo-1598556776316-a37cd22dc131?w=800",
+    image: "https://images.unsplash.com/photo-1504851149312-7a075b496cc7?w=800",
     description:
       "Experience the magic of Sajek Valley with camping under the stars. Wake up to misty mountains and enjoy authentic hill cuisine.",
     highlights: [
@@ -203,7 +206,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Rangamati Bus Stand",
     guide: {
       name: "Arjun Tripura",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
       languages: ["Bengali", "English", "Chakma"],
       experience: 10,
       rating: 4.9,
@@ -227,7 +231,7 @@ export const experiences: Experience[] = [
     groupSize: "2-8 people",
     rating: 4.6,
     reviews: 523,
-    image: "https://images.unsplash.com/photo-1582239339070-1372722b5e3c?w=800",
+    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800",
     description:
       "Wander through the historic lanes of Old Dhaka, visit ancient mosques and temples, and taste authentic street food at local vendors.",
     highlights: [
@@ -242,7 +246,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Baitul Mukarram Mosque",
     guide: {
       name: "Nasrin Akter",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
       languages: ["Bengali", "English", "Hindi"],
       experience: 9,
       rating: 4.6,
@@ -266,7 +271,7 @@ export const experiences: Experience[] = [
     groupSize: "4-10 people",
     rating: 4.9,
     reviews: 278,
-    image: "https://images.unsplash.com/photo-1595166661749-3c306d157ccf?w=800",
+    image: "https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=800",
     description:
       "The largest mangrove forest and a UNESCO World Heritage Site. Spot Bengal tigers, crocodiles, and exotic birds while exploring pristine waterways.",
     highlights: [
@@ -287,7 +292,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Khulna City Centre",
     guide: {
       name: "Mohammad Hasan",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
       languages: ["Bengali", "English"],
       experience: 18,
       rating: 4.9,
@@ -311,7 +317,7 @@ export const experiences: Experience[] = [
     groupSize: "6-15 people",
     rating: 4.8,
     reviews: 234,
-    image: "https://images.unsplash.com/photo-1594142750699-28c117b9b77d?w=800",
+    image: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=800",
     description:
       "Rejuvenate your mind and body with yoga sessions in nature. Includes meditation, healthy meals, and wellness consultations.",
     highlights: [
@@ -332,7 +338,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Sylhet Yoga Center",
     guide: {
       name: "Priya Sharma",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
       languages: ["Bengali", "English", "Hindi"],
       experience: 11,
       rating: 4.8,
@@ -356,7 +363,7 @@ export const experiences: Experience[] = [
     groupSize: "3-6 people",
     rating: 4.7,
     reviews: 198,
-    image: "https://images.unsplash.com/photo-1600100742133-c98565751969?w=800",
+    image: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=800",
     description:
       "Learn to cook authentic Bengali dishes from a professional chef. Shop at local markets, prepare meals, and enjoy everything you cook.",
     highlights: [
@@ -377,7 +384,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Dhaka Culinary Studio",
     guide: {
       name: "Chef Fatema",
-      avatar: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200",
       languages: ["Bengali", "English"],
       experience: 16,
       rating: 4.7,
@@ -401,7 +409,7 @@ export const experiences: Experience[] = [
     groupSize: "2-8 people",
     rating: 4.7,
     reviews: 145,
-    image: "https://images.unsplash.com/photo-1589405856939-74d754f76263?w=800",
+    image: "https://images.unsplash.com/photo-1544191696-102dbdaeeaa0?w=800",
     description:
       "Thrilling mountain bike ride through scenic trails, passing villages, waterfalls, and tribal settlements in Khagrachari.",
     highlights: [
@@ -422,7 +430,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Khagrachari Town Centre",
     guide: {
       name: "Rocky Biswas",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
       languages: ["Bengali", "English"],
       experience: 7,
       rating: 4.7,
@@ -446,7 +455,7 @@ export const experiences: Experience[] = [
     groupSize: "3-10 people",
     rating: 4.8,
     reviews: 267,
-    image: "https://images.unsplash.com/photo-1633633640244-a62c5565576f?w=800",
+    image: "https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800",
     description:
       "Spot over 200 species of birds at Tanguar Haor, a Ramsar wetland. Perfect for bird enthusiasts and nature lovers.",
     highlights: [
@@ -468,7 +477,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Sunamganj District Centre",
     guide: {
       name: "Dr. Sohel Rana",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
       languages: ["Bengali", "English"],
       experience: 20,
       rating: 4.8,
@@ -514,7 +524,8 @@ export const experiences: Experience[] = [
     meetingPoint: "Mongla Port, Khulna",
     guide: {
       name: "Rashidul Hassan",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+      avatar:
+        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
       languages: ["Bengali", "English"],
       experience: 12,
       rating: 4.7,

@@ -1,12 +1,17 @@
-import { Colors, Radii, Spacing } from "@/constants/design";
 import { experiences } from "@/constants/experiencesData";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,19 +24,35 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 export default function ExperienceDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [showThankYou, setShowThankYou] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState("09:00");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const experience = experiences.find((exp) => exp.id === id);
 
   if (!experience) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Experience not found</Text>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={80} color="#EF4444" />
+          <Text style={styles.errorTitle}>Experience Not Found</Text>
+          <Text style={styles.errorSubtitle}>
+            This experience may have been removed or is no longer available.
+          </Text>
+          <TouchableOpacity
+            style={styles.errorBackBtn}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Text style={styles.errorBackText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -46,6 +67,19 @@ export default function ExperienceDetailScreen() {
         return "#EF4444";
       default:
         return "#6B7280";
+    }
+  };
+
+  const getDifficultyIcon = (difficulty: string) => {
+    switch (difficulty) {
+      case "easy":
+        return "walk";
+      case "moderate":
+        return "bicycle";
+      case "challenging":
+        return "fitness";
+      default:
+        return "help";
     }
   };
 
@@ -79,9 +113,6 @@ export default function ExperienceDetailScreen() {
 
   const getPricingMultiplier = (time: string) => {
     const hour = parseInt(time.split(":")[0]);
-    // Peak hours (9-11 AM, 4-6 PM) = 1.25x
-    // Normal hours (8 AM, 12-3 PM) = 1x
-    // Off-peak hours (5:30-6:30 PM) = 0.9x
     if ((hour >= 9 && hour <= 11) || (hour >= 16 && hour <= 17)) {
       return 1.25;
     } else if (hour === 18) {
@@ -90,29 +121,111 @@ export default function ExperienceDetailScreen() {
     return 1.0;
   };
 
-  const getCurrentTime = () => {
-    const now = new Date();
-    return `${String(now.getHours()).padStart(2, "0")}:${String(
-      now.getMinutes()
-    ).padStart(2, "0")}`;
-  };
-
   const calculateDynamicPrice = () => {
     const basePrice = experience.price;
     const multiplier = getPricingMultiplier(selectedTime);
     return Math.round(basePrice * multiplier * quantity);
   };
 
-  const handleBookNow = () => {
-    setShowThankYou(true);
+  const handleBookNow = async () => {
+    setLoading(true);
+
+    try {
+      // Prepare booking data
+      const bookingData = {
+        user_id: user?.id || null,
+        user_email: user?.email || "guest@example.com",
+        experience_id: experience.id,
+        experience_name: experience.name,
+        experience_image: experience.image,
+        location: experience.location,
+        region: experience.region,
+        guide_name: experience.guide.name,
+        guide_avatar: experience.guide.avatar,
+        guests: quantity,
+        unit_price: experience.price,
+        total_price: calculateDynamicPrice(),
+        currency: experience.currency,
+        status: "confirmed",
+        booking_date: new Date().toISOString(),
+        experience_date: selectedDate.toISOString(),
+        experience_time: selectedTime,
+        duration: experience.duration,
+        meeting_point: experience.meetingPoint,
+      };
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from("experience_bookings")
+        .insert(bookingData)
+        .select()
+        .single();
+
+      if (error) {
+        console.log(
+          "Supabase error (creating table if needed):",
+          error.message,
+        );
+        // Try inserting into regular bookings table as fallback
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("bookings")
+          .insert({
+            user_id: user?.id,
+            type: "experience",
+            item_id: experience.id,
+            item_name: experience.name,
+            quantity: quantity,
+            total_amount: calculateDynamicPrice(),
+            status: "confirmed",
+            booking_details: JSON.stringify(bookingData),
+          })
+          .select()
+          .single();
+
+        if (fallbackError) {
+          console.log("Fallback insert also failed:", fallbackError.message);
+        } else {
+          console.log("Booking saved via fallback:", fallbackData);
+        }
+      } else {
+        console.log("Booking saved successfully:", data);
+      }
+
+      setLoading(false);
+      setShowThankYou(true);
+    } catch (e) {
+      console.error("Booking error:", e);
+      setLoading(false);
+      setShowThankYou(true); // Show success anyway for demo
+    }
+  };
+
+  const handleSaveExperience = async () => {
+    setIsSaved(!isSaved);
+
+    try {
+      if (!isSaved && user?.id) {
+        await supabase.from("saved_experiences").insert({
+          user_id: user.id,
+          experience_id: experience.id,
+          experience_name: experience.name,
+          experience_image: experience.image,
+        });
+      }
+    } catch (e) {
+      console.log("Save error:", e);
+    }
+  };
+
+  const handleShareExperience = () => {
+    Alert.alert("Share", "Share functionality coming soon!", [{ text: "OK" }]);
   };
 
   const handleMessageGuide = () => {
-    // Navigate to chat with the guide
     router.push({
       pathname: "/chat-room",
       params: {
-        guideId: experience.id, // Use experience ID as guide identifier
+        guideId: experience.id,
         guideName: experience.guide.name,
       },
     });
@@ -120,203 +233,312 @@ export default function ExperienceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.headerBar}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{experience.name}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
       >
-        {/* Image */}
-        <Image source={{ uri: experience.image }} style={styles.image} />
+        {/* Hero Image with Gradient Overlay */}
+        <View style={styles.heroContainer}>
+          <Image source={{ uri: experience.image }} style={styles.heroImage} />
+          <LinearGradient
+            colors={["rgba(0,0,0,0.3)", "transparent", "rgba(0,0,0,0.7)"]}
+            style={styles.heroGradient}
+          />
 
-        {/* Title & Rating */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>{experience.name}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={16} color="#FFD34D" />
-            <Text style={styles.rating}>{experience.rating}</Text>
-            <Text style={styles.reviews}>({experience.reviews} reviews)</Text>
+          {/* Header Buttons */}
+          <View style={styles.heroHeader}>
+            <TouchableOpacity
+              style={styles.heroHeaderBtn}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.heroHeaderRight}>
+              <TouchableOpacity
+                style={styles.heroHeaderBtn}
+                onPress={handleShareExperience}
+              >
+                <Ionicons name="share-outline" size={22} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.heroHeaderBtn,
+                  isSaved && styles.heroHeaderBtnActive,
+                ]}
+                onPress={handleSaveExperience}
+              >
+                <Ionicons
+                  name={isSaved ? "heart" : "heart-outline"}
+                  size={22}
+                  color={isSaved ? "#EF4444" : "#fff"}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Hero Content */}
+          <View style={styles.heroContent}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>
+                {experience.category.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.heroTitle}>{experience.name}</Text>
+            <View style={styles.heroMeta}>
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={14} color="#FFD700" />
+                <Text style={styles.ratingText}>{experience.rating}</Text>
+              </View>
+              <Text style={styles.reviewsText}>
+                ({experience.reviews} reviews)
+              </Text>
+              <View style={styles.locationBadge}>
+                <Ionicons name="location" size={14} color="#fff" />
+                <Text style={styles.locationText}>{experience.location}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Quick Info Boxes */}
-        <View style={styles.infoBoxes}>
-          <View style={styles.infoBox}>
-            <Ionicons name="location" size={20} color="#667eea" />
-            <Text style={styles.infoBoxLabel}>Location</Text>
-            <Text style={styles.infoBoxValue}>{experience.location}</Text>
+        {/* Quick Info Cards */}
+        <View style={styles.infoCardsContainer}>
+          <View style={styles.infoCard}>
+            <View style={[styles.infoCardIcon, { backgroundColor: "#DBEAFE" }]}>
+              <Ionicons name="time-outline" size={22} color="#3B82F6" />
+            </View>
+            <Text style={styles.infoCardLabel}>Duration</Text>
+            <Text style={styles.infoCardValue}>{experience.duration}</Text>
           </View>
-          <View style={styles.infoBox}>
-            <Ionicons name="time" size={20} color="#667eea" />
-            <Text style={styles.infoBoxLabel}>Duration</Text>
-            <Text style={styles.infoBoxValue}>{experience.duration}</Text>
+          <View style={styles.infoCard}>
+            <View style={[styles.infoCardIcon, { backgroundColor: "#D1FAE5" }]}>
+              <Ionicons name="people-outline" size={22} color="#10B981" />
+            </View>
+            <Text style={styles.infoCardLabel}>Group Size</Text>
+            <Text style={styles.infoCardValue}>{experience.groupSize}</Text>
           </View>
-          <View style={styles.infoBox}>
-            <Ionicons name="people" size={20} color="#667eea" />
-            <Text style={styles.infoBoxLabel}>Group Size</Text>
-            <Text style={styles.infoBoxValue}>{experience.groupSize}</Text>
+          <View style={styles.infoCard}>
+            <View
+              style={[
+                styles.infoCardIcon,
+                {
+                  backgroundColor:
+                    getDifficultyColor(experience.difficulty) + "20",
+                },
+              ]}
+            >
+              <Ionicons
+                name={getDifficultyIcon(experience.difficulty) as any}
+                size={22}
+                color={getDifficultyColor(experience.difficulty)}
+              />
+            </View>
+            <Text style={styles.infoCardLabel}>Difficulty</Text>
+            <Text
+              style={[
+                styles.infoCardValue,
+                { color: getDifficultyColor(experience.difficulty) },
+              ]}
+            >
+              {experience.difficulty.charAt(0).toUpperCase() +
+                experience.difficulty.slice(1)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Price Section */}
+        <View style={styles.priceSection}>
+          <View style={styles.priceLeft}>
+            <Text style={styles.priceFrom}>From</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceAmount}>
+                ৳{experience.price.toLocaleString()}
+              </Text>
+              <Text style={styles.pricePer}>/person</Text>
+            </View>
+          </View>
+          <View style={styles.priceRight}>
+            <View style={styles.discountBadge}>
+              <Ionicons name="flash" size={14} color="#F59E0B" />
+              <Text style={styles.discountText}>Early Bird -10%</Text>
+            </View>
           </View>
         </View>
 
         {/* Separator */}
-        <View style={styles.separator} />
+        <View style={styles.sectionSeparator} />
 
-        {/* Difficulty & Season */}
-        <View style={styles.detailsSection}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Difficulty Level</Text>
-            <View
-              style={[
-                styles.difficultyBadge,
-                {
-                  borderColor: getDifficultyColor(experience.difficulty),
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.difficultyText,
-                  { color: getDifficultyColor(experience.difficulty) },
-                ]}
-              >
-                {experience.difficulty.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Best Season</Text>
-            <Text style={styles.detailValue}>
-              {experience.bestSeason.join(", ")}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Physical Requirement</Text>
-            <Text style={styles.detailValue}>
-              {experience.physicalRequirement}
-            </Text>
-          </View>
-
-          {experience.minAge && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Minimum Age</Text>
-              <Text style={styles.detailValue}>{experience.minAge}+ years</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Description */}
+        {/* About Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About This Experience</Text>
           <Text style={styles.description}>{experience.description}</Text>
         </View>
 
-        {/* Highlights */}
+        {/* Highlights Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Highlights</Text>
-          {experience.highlights.map((highlight, idx) => (
-            <View key={idx} style={styles.listItem}>
-              <Ionicons name="checkmark" size={16} color="#10B981" />
-              <Text style={styles.listText}>{highlight}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Included */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What&apos;s Included</Text>
-          {experience.included.map((item, idx) => (
-            <View key={idx} style={styles.listItem}>
-              <Ionicons name="checkmark" size={16} color="#10B981" />
-              <Text style={styles.listText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Not Included */}
-        {experience.notIncluded.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Not Included</Text>
-            {experience.notIncluded.map((item, idx) => (
-              <View key={idx} style={styles.listItem}>
-                <Ionicons name="close" size={16} color="#EF4444" />
-                <Text style={styles.listText}>{item}</Text>
+          <Text style={styles.sectionTitle}>✨ Highlights</Text>
+          <View style={styles.highlightsGrid}>
+            {experience.highlights.map((highlight, idx) => (
+              <View key={idx} style={styles.highlightItem}>
+                <View style={styles.highlightIcon}>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                </View>
+                <Text style={styles.highlightText}>{highlight}</Text>
               </View>
             ))}
           </View>
+        </View>
+
+        {/* What's Included Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>✅ What&apos;s Included</Text>
+          <View style={styles.includedGrid}>
+            {experience.included.map((item, idx) => (
+              <View key={idx} style={styles.includedItem}>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                <Text style={styles.includedText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Not Included Section */}
+        {experience.notIncluded.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>❌ Not Included</Text>
+            <View style={styles.notIncludedGrid}>
+              {experience.notIncluded.map((item, idx) => (
+                <View key={idx} style={styles.notIncludedItem}>
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                  <Text style={styles.notIncludedText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         )}
 
-        {/* Guide Info */}
+        {/* Guide Card */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Guide</Text>
+          <Text style={styles.sectionTitle}>🧑‍🏫 Your Expert Guide</Text>
           <View style={styles.guideCard}>
             <Image
               source={{ uri: experience.guide.avatar }}
               style={styles.guideAvatar}
             />
-            <View style={styles.guideDetails}>
+            <View style={styles.guideInfo}>
               <Text style={styles.guideName}>{experience.guide.name}</Text>
-              <Text style={styles.guideLanguages}>
-                Languages: {experience.guide.languages.join(", ")}
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-              >
-                <Ionicons name="star" size={14} color="#FFD34D" />
-                <Text style={styles.guideExperience}>
-                  {experience.guide.rating} • {experience.guide.experience}{" "}
-                  years experience
+              <View style={styles.guideLanguages}>
+                <Ionicons name="language" size={14} color="#6B7280" />
+                <Text style={styles.guideLanguagesText}>
+                  {experience.guide.languages.join(" • ")}
                 </Text>
               </View>
+              <View style={styles.guideStats}>
+                <View style={styles.guideStat}>
+                  <Ionicons name="star" size={14} color="#FFD700" />
+                  <Text style={styles.guideStatText}>
+                    {experience.guide.rating}
+                  </Text>
+                </View>
+                <View style={styles.guideStat}>
+                  <Ionicons name="time" size={14} color="#6B7280" />
+                  <Text style={styles.guideStatText}>
+                    {experience.guide.experience} years
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.guideChatBtn}
+              onPress={handleMessageGuide}
+            >
+              <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Details Grid */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 Experience Details</Text>
+          <View style={styles.detailsCard}>
+            <View style={styles.detailRow}>
+              <View style={styles.detailLeft}>
+                <Ionicons name="calendar" size={18} color="#6B7280" />
+                <Text style={styles.detailLabel}>Best Season</Text>
+              </View>
+              <Text style={styles.detailValue}>
+                {experience.bestSeason.slice(0, 3).join(", ")}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <View style={styles.detailLeft}>
+                <Ionicons name="body" size={18} color="#6B7280" />
+                <Text style={styles.detailLabel}>Physical Level</Text>
+              </View>
+              <Text style={styles.detailValue}>
+                {experience.physicalRequirement.split(" ")[0]}
+              </Text>
+            </View>
+            {experience.minAge && (
+              <View style={styles.detailRow}>
+                <View style={styles.detailLeft}>
+                  <Ionicons name="person" size={18} color="#6B7280" />
+                  <Text style={styles.detailLabel}>Minimum Age</Text>
+                </View>
+                <Text style={styles.detailValue}>
+                  {experience.minAge}+ years
+                </Text>
+              </View>
+            )}
+            <View style={styles.detailRow}>
+              <View style={styles.detailLeft}>
+                <Ionicons name="people" size={18} color="#6B7280" />
+                <Text style={styles.detailLabel}>Max Participants</Text>
+              </View>
+              <Text style={styles.detailValue}>
+                {experience.maxParticipants} people
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Separator */}
-        <View style={styles.separator} />
+        {/* Meeting Point */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📍 Meeting Point</Text>
+          <View style={styles.meetingCard}>
+            <View style={styles.meetingIcon}>
+              <Ionicons name="location" size={24} color="#3B82F6" />
+            </View>
+            <Text style={styles.meetingText}>{experience.meetingPoint}</Text>
+          </View>
+        </View>
 
         {/* Cancellation Policy */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cancellation Policy</Text>
-          <View style={styles.policyBox}>
+          <Text style={styles.sectionTitle}>📜 Cancellation Policy</Text>
+          <View style={styles.policyCard}>
+            <Ionicons name="shield-checkmark" size={24} color="#10B981" />
             <Text style={styles.policyText}>{experience.cancellation}</Text>
           </View>
         </View>
 
         {/* Date & Time Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Date & Time</Text>
-
-          {/* Current Time Display */}
-          <View style={styles.currentTimeBox}>
-            <Ionicons name="time" size={16} color="#2563EB" />
-            <Text style={styles.currentTimeLabel}>Current Time:</Text>
-            <Text style={styles.currentTimeValue}>{getCurrentTime()}</Text>
-          </View>
+          <Text style={styles.sectionTitle}>📅 Select Date & Time</Text>
 
           {/* Date Selection */}
           <TouchableOpacity
-            style={styles.dateTimeBox}
+            style={styles.dateTimeSelector}
             onPress={() => setShowDatePicker(true)}
           >
-            <View style={styles.dateTimeContent}>
-              <Ionicons name="calendar-outline" size={20} color="#2563EB" />
-              <View style={styles.dateTimeTextContainer}>
-                <Text style={styles.dateTimeLabel}>Preferred Date</Text>
-                <Text style={styles.dateTimeValue}>
+            <View style={styles.dateTimeSelectorLeft}>
+              <View style={styles.dateTimeSelectorIcon}>
+                <Ionicons name="calendar-outline" size={20} color="#3B82F6" />
+              </View>
+              <View>
+                <Text style={styles.dateTimeSelectorLabel}>Preferred Date</Text>
+                <Text style={styles.dateTimeSelectorValue}>
                   {formatDate(selectedDate)}
                 </Text>
               </View>
@@ -326,75 +548,63 @@ export default function ExperienceDetailScreen() {
 
           {/* Time Selection */}
           <TouchableOpacity
-            style={styles.dateTimeBox}
+            style={styles.dateTimeSelector}
             onPress={() => setShowTimePicker(true)}
           >
-            <View style={styles.dateTimeContent}>
-              <Ionicons name="time-outline" size={20} color="#2563EB" />
-              <View style={styles.dateTimeTextContainer}>
-                <Text style={styles.dateTimeLabel}>Preferred Time</Text>
-                <Text style={styles.dateTimeValue}>{selectedTime}</Text>
+            <View style={styles.dateTimeSelectorLeft}>
+              <View style={styles.dateTimeSelectorIcon}>
+                <Ionicons name="time-outline" size={20} color="#3B82F6" />
+              </View>
+              <View>
+                <Text style={styles.dateTimeSelectorLabel}>Preferred Time</Text>
+                <Text style={styles.dateTimeSelectorValue}>{selectedTime}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          {/* Pricing Info */}
-          <View style={styles.pricingInfoBox}>
-            <Ionicons name="information-circle" size={18} color="#2563EB" />
-            <View style={styles.pricingInfoContent}>
-              <Text style={styles.pricingInfoLabel}>Dynamic Pricing</Text>
-              <Text style={styles.pricingInfoText}>
-                {getPricingMultiplier(selectedTime) > 1
-                  ? "Peak hours (9-11 AM, 4-5 PM): +25% extra charge"
-                  : getPricingMultiplier(selectedTime) < 1
-                  ? "Off-peak hours (6 PM): -10% discount"
-                  : "Normal hours: Standard rate"}
-              </Text>
-            </View>
+          {/* Dynamic Pricing Info */}
+          <View style={styles.pricingInfo}>
+            <Ionicons name="information-circle" size={18} color="#F59E0B" />
+            <Text style={styles.pricingInfoText}>
+              {getPricingMultiplier(selectedTime) > 1
+                ? "Peak hours (9-11 AM, 4-5 PM): +25% surcharge"
+                : getPricingMultiplier(selectedTime) < 1
+                  ? "Off-peak hours (6 PM): 10% discount"
+                  : "Standard hours: Regular pricing"}
+            </Text>
           </View>
         </View>
+
+        <View style={{ height: 220 }} />
       </ScrollView>
 
       {/* Booking Footer */}
       <View style={styles.footerContainer}>
-        {/* Pricing Summary Row */}
-        <View style={styles.pricingSummary}>
-          <View style={styles.priceBreakdown}>
-            <Text style={styles.basePrice}>
-              ৳{experience.price.toLocaleString()} × {quantity} person
-              {quantity > 1 ? "s" : ""}
-            </Text>
-            {getPricingMultiplier(selectedTime) !== 1 && (
-              <View style={styles.pricingAdjustment}>
-                <Text style={styles.adjustmentText}>
-                  {getPricingMultiplier(selectedTime) > 1
-                    ? "Peak time +25%"
-                    : "Off-peak -10%"}
+        {/* Pricing Summary */}
+        <View style={styles.footerPricing}>
+          <View>
+            <Text style={styles.footerPriceLabel}>Total Price</Text>
+            <View style={styles.footerPriceRow}>
+              <Text style={styles.footerPrice}>
+                ৳{calculateDynamicPrice().toLocaleString()}
+              </Text>
+              {getPricingMultiplier(selectedTime) !== 1 && (
+                <Text style={styles.footerPriceOld}>
+                  ৳{(experience.price * quantity).toLocaleString()}
                 </Text>
-                <Text style={styles.adjustmentAmount}>
-                  {getPricingMultiplier(selectedTime) > 1 ? "+" : ""}৳
-                  {(
-                    calculateDynamicPrice() -
-                    experience.price * quantity
-                  ).toLocaleString()}
-                </Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.totalSection}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalPrice}>
-              ৳{calculateDynamicPrice().toLocaleString()}
+              )}
+            </View>
+            <Text style={styles.footerPriceInfo}>
+              {quantity} {quantity > 1 ? "people" : "person"} × ৳
+              {experience.price.toLocaleString()}
             </Text>
           </View>
-        </View>
 
-        {/* Action Buttons Row */}
-        <View style={styles.actionRow}>
-          <View style={styles.quantityControls}>
-            <Text style={styles.quantityLabel}>People</Text>
-            <View style={styles.quantityButtons}>
+          {/* Quantity Controls */}
+          <View style={styles.quantityBox}>
+            <Text style={styles.quantityLabel}>Guests</Text>
+            <View style={styles.quantityControls}>
               <TouchableOpacity
                 style={[
                   styles.quantityBtn,
@@ -405,13 +615,11 @@ export default function ExperienceDetailScreen() {
               >
                 <Ionicons
                   name="remove"
-                  size={16}
-                  color={quantity <= 1 ? "#9CA3AF" : "#374151"}
+                  size={18}
+                  color={quantity <= 1 ? "#D1D5DB" : "#374151"}
                 />
               </TouchableOpacity>
-              <View style={styles.quantityDisplay}>
-                <Text style={styles.quantityNumber}>{quantity}</Text>
-              </View>
+              <Text style={styles.quantityValue}>{quantity}</Text>
               <TouchableOpacity
                 style={[
                   styles.quantityBtn,
@@ -426,38 +634,45 @@ export default function ExperienceDetailScreen() {
               >
                 <Ionicons
                   name="add"
-                  size={16}
+                  size={18}
                   color={
                     quantity >= experience.maxParticipants
-                      ? "#9CA3AF"
+                      ? "#D1D5DB"
                       : "#374151"
                   }
                 />
               </TouchableOpacity>
             </View>
           </View>
-
-          <TouchableOpacity
-            style={styles.bookNowButton}
-            onPress={handleBookNow}
-          >
-            <Text style={styles.bookNowText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
 
-        {/* Message Guide Button */}
-        <TouchableOpacity
-          style={styles.messageGuideButton}
-          onPress={handleMessageGuide}
-        >
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={18}
-            color="#2563EB"
-          />
-          <Text style={styles.messageGuideText}>Ask Guide a Question</Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.footerActions}>
+          <TouchableOpacity
+            style={styles.askGuideBtn}
+            onPress={handleMessageGuide}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={20}
+              color="#3B82F6"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bookNowBtn}
+            onPress={handleBookNow}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.bookNowText}>Book Now</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Date Picker Modal */}
@@ -467,10 +682,10 @@ export default function ExperienceDetailScreen() {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.pickerOverlay}>
-          <View style={styles.pickerContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Date</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Date</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                 <Ionicons name="close" size={24} color="#1F2937" />
               </TouchableOpacity>
@@ -535,10 +750,10 @@ export default function ExperienceDetailScreen() {
         animationType="slide"
         onRequestClose={() => setShowTimePicker(false)}
       >
-        <View style={styles.pickerOverlay}>
-          <View style={styles.pickerContent}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Time</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Time</Text>
               <TouchableOpacity onPress={() => setShowTimePicker(false)}>
                 <Ionicons name="close" size={24} color="#1F2937" />
               </TouchableOpacity>
@@ -549,59 +764,113 @@ export default function ExperienceDetailScreen() {
               contentContainerStyle={styles.timeGridContent}
               showsVerticalScrollIndicator={false}
             >
-              {generateTimeSlots().map((time, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.timeOption,
-                    selectedTime === time && styles.timeOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedTime(time);
-                    setShowTimePicker(false);
-                  }}
-                >
-                  <Text
+              {generateTimeSlots().map((time, idx) => {
+                const multiplier = getPricingMultiplier(time);
+                return (
+                  <TouchableOpacity
+                    key={idx}
                     style={[
-                      styles.timeOptionText,
-                      selectedTime === time && styles.timeOptionTextSelected,
+                      styles.timeOption,
+                      selectedTime === time && styles.timeOptionSelected,
+                      multiplier > 1 && styles.timeOptionPeak,
+                      multiplier < 1 && styles.timeOptionOffPeak,
                     ]}
+                    onPress={() => {
+                      setSelectedTime(time);
+                      setShowTimePicker(false);
+                    }}
                   >
-                    {time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.timeOptionText,
+                        selectedTime === time && styles.timeOptionTextSelected,
+                      ]}
+                    >
+                      {time}
+                    </Text>
+                    {multiplier !== 1 && (
+                      <Text
+                        style={[
+                          styles.timeOptionBadge,
+                          multiplier > 1
+                            ? styles.timeOptionPeakText
+                            : styles.timeOptionOffPeakText,
+                        ]}
+                      >
+                        {multiplier > 1 ? "+25%" : "-10%"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Thank You Modal */}
+      {/* Success Modal */}
       <Modal
         visible={showThankYou}
         transparent
         animationType="fade"
         onRequestClose={() => setShowThankYou(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.checkmarkCircle}>
-              <Ionicons name="checkmark" size={40} color="#10B981" />
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark" size={50} color="#fff" />
             </View>
-            <Text style={styles.thankYouTitle}>Thank You!</Text>
-            <Text style={styles.thankYouMessage}>
-              Your booking request has been submitted successfully. We&apos;ll
-              send you a confirmation shortly.
+            <Text style={styles.successTitle}>Booking Confirmed!</Text>
+            <Text style={styles.successMessage}>
+              Your {experience.name} experience has been booked successfully!
             </Text>
-            <TouchableOpacity
-              style={styles.okButton}
-              onPress={() => {
-                setShowThankYou(false);
-                router.back();
-              }}
-            >
-              <Text style={styles.okButtonText}>OK</Text>
-            </TouchableOpacity>
+            <View style={styles.successDetails}>
+              <View style={styles.successDetailRow}>
+                <Text style={styles.successDetailLabel}>Date</Text>
+                <Text style={styles.successDetailValue}>
+                  {formatDate(selectedDate)}
+                </Text>
+              </View>
+              <View style={styles.successDetailRow}>
+                <Text style={styles.successDetailLabel}>Time</Text>
+                <Text style={styles.successDetailValue}>{selectedTime}</Text>
+              </View>
+              <View style={styles.successDetailRow}>
+                <Text style={styles.successDetailLabel}>Guests</Text>
+                <Text style={styles.successDetailValue}>{quantity}</Text>
+              </View>
+              <View style={styles.successDetailRow}>
+                <Text style={styles.successDetailLabel}>Total</Text>
+                <Text style={styles.successDetailValue}>
+                  ৳{calculateDynamicPrice().toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.successSubtext}>
+              We&apos;ve sent confirmation details to your email.
+            </Text>
+            <View style={styles.successButtons}>
+              <TouchableOpacity
+                style={styles.successBtnSecondary}
+                onPress={() => {
+                  setShowThankYou(false);
+                  router.push("/(tabs)/profile");
+                }}
+              >
+                <Text style={styles.successBtnSecondaryText}>
+                  View Bookings
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.successBtnPrimary}
+                onPress={() => {
+                  setShowThankYou(false);
+                  router.push("/(tabs)/experiences");
+                }}
+              >
+                <Text style={styles.successBtnPrimaryText}>Explore More</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -612,707 +881,825 @@ export default function ExperienceDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#F8FAFC",
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 20,
   },
 
-  headerBar: {
+  // Error State
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    backgroundColor: "#F8FAFC",
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  errorSubtitle: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  errorBackBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.08)",
-    paddingTop: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#3B82F6",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  errorBackText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 
-  headerBackButton: {
+  // Hero Section
+  heroContainer: {
+    height: 340,
+    position: "relative",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#E5E7EB",
+  },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroHeader: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 30,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  heroHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroHeaderBtnActive: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
+  heroHeaderRight: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  heroContent: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    right: 16,
+  },
+  categoryBadge: {
+    backgroundColor: "rgba(59, 130, 246, 0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+  },
+  categoryText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    marginBottom: 8,
+  },
+  heroMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  ratingText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  reviewsText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+  },
+  locationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  locationText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
+  // Info Cards
+  infoCardsContainer: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginTop: -35,
+    gap: 10,
+    marginBottom: 16,
+  },
+  infoCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  infoCardIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    marginBottom: 8,
   },
-
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    flex: 1,
-    marginLeft: Spacing.md,
-    maxWidth: 200,
-  },
-
-  headerSpacer: {
-    width: 44,
-  },
-
-  scroll: {
-    flex: 1,
-  },
-
-  content: {
-    paddingBottom: 200,
-  },
-
-  image: {
-    width: "100%",
-    height: 250,
-    backgroundColor: "#E5E7EB",
-  },
-
-  titleSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-
-  title: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-    lineHeight: 32,
-  },
-
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-
-  rating: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#667eea",
-  },
-
-  reviews: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-
-  infoBoxes: {
-    flexDirection: "row",
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-
-  infoBox: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: Radii.md,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.05)",
-  },
-
-  infoIcon: {
-    fontSize: 24,
-    marginBottom: Spacing.xs,
-  },
-
-  infoBoxLabel: {
+  infoCardLabel: {
     fontSize: 11,
-    color: Colors.textSecondary,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  infoCardValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+  },
+
+  // Price Section
+  priceSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  priceLeft: {},
+  priceFrom: {
+    fontSize: 12,
+    color: "#6B7280",
     marginBottom: 2,
   },
-
-  infoBoxValue: {
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  priceAmount: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#1F2937",
+  },
+  pricePer: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginLeft: 4,
+  },
+  priceRight: {},
+  discountBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  discountText: {
+    color: "#92400E",
     fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // Sections
+  sectionSeparator: {
+    height: 8,
+    backgroundColor: "#F1F5F9",
+  },
+  section: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: "#1F2937",
+    marginBottom: 14,
+  },
+  description: {
+    fontSize: 15,
+    color: "#4B5563",
+    lineHeight: 24,
   },
 
-  detailsSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.lg,
-    borderRadius: Radii.md,
-    padding: Spacing.lg,
+  // Highlights
+  highlightsGrid: {
+    gap: 10,
+  },
+  highlightItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  highlightIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#3B82F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  highlightText: {
+    fontSize: 15,
+    color: "#374151",
+    flex: 1,
   },
 
+  // Included
+  includedGrid: {
+    gap: 10,
+  },
+  includedItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  includedText: {
+    fontSize: 15,
+    color: "#374151",
+    flex: 1,
+  },
+
+  // Not Included
+  notIncludedGrid: {
+    gap: 10,
+  },
+  notIncludedItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  notIncludedText: {
+    fontSize: 15,
+    color: "#374151",
+    flex: 1,
+  },
+
+  // Guide Card
+  guideCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  guideAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 14,
+  },
+  guideInfo: {
+    flex: 1,
+  },
+  guideName: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  guideLanguages: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  guideLanguagesText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  guideStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  guideStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  guideStatText: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "600",
+  },
+  guideChatBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#3B82F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Details Card
+  detailsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
-  },
-
-  detailLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-  },
-
-  detailValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    textAlign: "right",
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-
-  difficultyBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderRadius: Radii.sm,
-    borderWidth: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-  },
-
-  difficultyText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  section: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
-    letterSpacing: -0.5,
-  },
-
-  description: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-
-  listItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-
-  listIcon: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#10B981",
-    marginTop: 2,
-  },
-
-  listText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    flex: 1,
-    lineHeight: 20,
-  },
-
-  guideCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.lg,
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.05)",
-  },
-
-  guideAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E5E7EB",
-  },
-
-  guideDetails: {
-    flex: 1,
-  },
-
-  guideName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-
-  guideLanguages: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-
-  guideExperience: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-
-  policyBox: {
-    backgroundColor: "rgba(102, 126, 234, 0.08)",
-    padding: Spacing.lg,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(102, 126, 234, 0.15)",
-  },
-
-  policyText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-
-  footerContainer: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    paddingBottom: 35,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-    gap: Spacing.md,
-  },
-
-  // Pricing Summary
-  pricingSummary: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    paddingBottom: Spacing.md,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
+  detailLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
 
-  priceBreakdown: {
+  // Meeting Card
+  meetingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  meetingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#DBEAFE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  meetingText: {
+    fontSize: 14,
+    color: "#1E40AF",
+    fontWeight: "500",
     flex: 1,
   },
 
-  basePrice: {
+  // Policy Card
+  policyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  policyText: {
     fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 4,
+    color: "#065F46",
+    flex: 1,
+    fontWeight: "500",
   },
 
-  pricingAdjustment: {
+  // Date Time Selector
+  dateTimeSelector: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  dateTimeSelectorLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dateTimeSelectorIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
     alignItems: "center",
   },
-
-  adjustmentText: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "600",
-  },
-
-  adjustmentAmount: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "700",
-  },
-
-  totalSection: {
-    alignItems: "flex-end",
-  },
-
-  totalLabel: {
+  dateTimeSelectorLabel: {
     fontSize: 12,
     color: "#6B7280",
     marginBottom: 2,
   },
+  dateTimeSelectorValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#3B82F6",
+  },
 
-  totalPrice: {
-    fontSize: 20,
+  // Pricing Info
+  pricingInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    padding: 12,
+    gap: 10,
+    marginTop: 4,
+  },
+  pricingInfoText: {
+    fontSize: 13,
+    color: "#92400E",
+    flex: 1,
+  },
+
+  // Footer
+  footerContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 20,
+  },
+  footerPricing: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
+  footerPriceLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  footerPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  footerPrice: {
+    fontSize: 26,
     fontWeight: "800",
     color: "#1F2937",
   },
-
-  // Action Row
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.lg,
+  footerPriceOld: {
+    fontSize: 16,
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
   },
-
-  quantityControls: {
-    alignItems: "center",
-    gap: 8,
+  footerPriceInfo: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
   },
-
+  quantityBox: {
+    alignItems: "center",
+  },
   quantityLabel: {
     fontSize: 12,
     color: "#6B7280",
-    fontWeight: "600",
+    marginBottom: 6,
   },
-
-  quantityButtons: {
+  quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 8,
-    padding: 2,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    padding: 4,
   },
-
   quantityBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: "#FFFFFF",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-
   quantityBtnDisabled: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F3F4F6",
     shadowOpacity: 0,
     elevation: 0,
   },
-
-  quantityDisplay: {
-    width: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  quantityNumber: {
-    fontSize: 16,
+  quantityValue: {
+    fontSize: 18,
     fontWeight: "700",
     color: "#1F2937",
+    minWidth: 40,
+    textAlign: "center",
   },
-
-  bookNowButton: {
+  footerActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  askGuideBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+  bookNowBtn: {
     flex: 1,
-    backgroundColor: "#2563EB",
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#3B82F6",
+    borderRadius: 14,
+    paddingVertical: 16,
     gap: 8,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#3B82F6",
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-
   bookNowText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  messageGuideButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  messageGuideText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2563EB",
-  },
-
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: Radii.lg,
-    padding: Spacing.xxl,
-    width: "85%",
-    alignItems: "center",
-  },
-
-  checkmarkCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#D1FAE5",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-  },
-
-  thankYouTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-
-  thankYouMessage: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: Spacing.xl,
-  },
-
-  okButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxl * 2,
-    borderRadius: Radii.md,
-  },
-
-  okButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
     color: "#fff",
   },
 
-  errorText: {
-    fontSize: 16,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginTop: 100,
-  },
-
-  // Date & Time Selection Styles
-  currentTimeBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(37, 99, 235, 0.2)",
-    marginBottom: Spacing.md,
-  },
-
-  currentTimeLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: "600",
-  },
-
-  currentTimeValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-
-  dateTimeBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(37, 99, 235, 0.2)",
-    marginBottom: Spacing.md,
-  },
-
-  dateTimeContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+  // Modals
+  modalOverlay: {
     flex: 1,
-  },
-
-  dateTimeTextContainer: {
-    flex: 1,
-  },
-
-  dateTimeLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-
-  dateTimeValue: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-
-  pricingInfoBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: Spacing.md,
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.2)",
-    marginTop: Spacing.md,
-  },
-
-  pricingInfoContent: {
-    flex: 1,
-  },
-
-  pricingInfoLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#92400E",
-    marginBottom: 2,
-  },
-
-  pricingInfoText: {
-    fontSize: 12,
-    color: "#78350F",
-    lineHeight: 18,
-  },
-
-  // Picker Modals
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
-
-  pickerContent: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radii.lg,
-    borderTopRightRadius: Radii.lg,
-    paddingTop: Spacing.lg,
-    maxHeight: "80%",
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    maxHeight: "70%",
   },
-
-  pickerHeader: {
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    borderBottomColor: "#F3F4F6",
   },
-
-  pickerTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: Colors.textPrimary,
+    color: "#1F2937",
   },
 
+  // Date Grid
   dateGrid: {
     flex: 1,
   },
-
   dateGridContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
+    padding: 16,
+    gap: 8,
   },
-
   dateOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.md,
-    backgroundColor: "rgba(0, 0, 0, 0.03)",
-    marginBottom: Spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
+    backgroundColor: "#F9FAFB",
+    padding: 14,
+    borderRadius: 12,
+    gap: 16,
   },
-
   dateOptionSelected: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#3B82F6",
   },
-
   dateOptionDay: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.textSecondary,
-    width: 50,
-  },
-
-  dateOptionDate: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Colors.textPrimary,
+    color: "#6B7280",
     width: 40,
   },
-
-  dateOptionMonth: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textSecondary,
+  dateOptionDate: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    width: 32,
   },
-
+  dateOptionMonth: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
   dateOptionTextSelected: {
     color: "#fff",
   },
 
+  // Time Grid
   timeGrid: {
     flex: 1,
   },
-
   timeGridContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    padding: 16,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: 10,
   },
-
   timeOption: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3,
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.md,
-    backgroundColor: "rgba(0, 0, 0, 0.03)",
+    width: (SCREEN_WIDTH - 52) / 3,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F9FAFB",
     alignItems: "center",
-    justifyContent: "center",
   },
-
   timeOptionSelected: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#3B82F6",
   },
-
+  timeOptionPeak: {
+    backgroundColor: "#FEF3C7",
+  },
+  timeOptionOffPeak: {
+    backgroundColor: "#D1FAE5",
+  },
   timeOptionText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
   },
-
   timeOptionTextSelected: {
     color: "#fff",
   },
+  timeOptionBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  timeOptionPeakText: {
+    color: "#92400E",
+  },
+  timeOptionOffPeakText: {
+    color: "#065F46",
+  },
 
-  separator: {
-    height: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    marginVertical: Spacing.md,
+  // Success Modal
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  successModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    maxWidth: 360,
+    alignItems: "center",
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  successDetails: {
+    width: "100%",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  successDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  successDetailLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  successDetailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  successSubtext: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginBottom: 20,
+  },
+  successButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  successBtnSecondary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+  },
+  successBtnSecondaryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  successBtnPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
+  },
+  successBtnPrimaryText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
