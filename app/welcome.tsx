@@ -1,5 +1,5 @@
 import { Colors, Radii, Spacing } from "@/constants/design";
-import { Link } from "expo-router";
+import { router } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -23,17 +23,19 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Link href="/login" asChild>
-            <TouchableOpacity style={styles.loginButton}>
-              <Text style={styles.loginText}>Log In</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.loginText}>Log In</Text>
+          </TouchableOpacity>
 
-          <Link href="/signup" asChild>
-            <TouchableOpacity style={styles.signupButton}>
-              <Text style={styles.signupText}>Sign Up</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={() => router.push("/signup")}
+          >
+            <Text style={styles.signupText}>Sign Up</Text>
+          </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.line} />

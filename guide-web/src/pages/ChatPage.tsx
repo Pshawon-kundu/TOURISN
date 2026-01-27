@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../config/supabase";
+import { fetchChatMessages, fetchChatRooms, sendChatMessage } from "../lib/api";
 
 interface ChatRoom {
   id: string;
@@ -11,7 +12,8 @@ interface ChatRoom {
     id: string;
     first_name: string;
     last_name: string;
-    email: string;
+    email?: string;
+    avatar_url?: string;
   };
 }
 
@@ -31,20 +33,36 @@ export function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [dbUserId, setDbUserId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get Current User
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUser(data.user);
-    });
+    const fetchCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setCurrentUser(data.user);
+        // Also get the user's database ID
+        const { data: userRecord } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", data.user.email)
+          .single();
+        if (userRecord) {
+          setDbUserId(userRecord.id);
+        }
+      }
+    };
+    fetchCurrentUser();
   }, []);
 
-  // Fetch Rooms
+  // Fetch Rooms using Backend API (bypasses RLS)
   useEffect(() => {
-    fetchRooms();
-  }, []);
+    if (currentUser) {
+      loadRooms();
+    }
+  }, [currentUser]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -55,9 +73,9 @@ export function ChatPage() {
   useEffect(() => {
     if (!selectedRoomId) return;
 
-    fetchMessages(selectedRoomId);
+    loadMessages(selectedRoomId);
 
-    // Subscribe to new messages
+    // Subscribe to new messages via Supabase Realtime
     const channel = supabase
       .channel(`room:${selectedRoomId}`)
       .on(
@@ -71,7 +89,6 @@ export function ChatPage() {
         (payload) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => {
-            // Avoid duplicates if any
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
@@ -102,84 +119,52 @@ export function ChatPage() {
     };
   }, [selectedRoomId]);
 
-  const fetchRooms = async () => {
+  const loadRooms = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      console.log("Fetching rooms via API...");
+      const response = await fetchChatRooms();
 
-      // Fetch chat rooms where the guide is either user1 or user2
-      const { data: rooms, error } = await supabase
-        .from("chat_rooms")
-        .select(
-          `
-          *,
-          user1:user1_id (id, first_name, last_name, email),
-          user2:user2_id (id, first_name, last_name, email)
-        `,
-        )
-        .or(`user1_id.eq.${userData.user.id},user2_id.eq.${userData.user.id}`)
-        .order("last_message_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Process rooms to identify the other user
-      const processedRooms = (rooms || []).map((room) => {
-        const otherUser =
-          room.user1_id === userData.user.id ? room.user2 : room.user1;
-        return {
-          ...room,
-          other_user: otherUser,
-        };
-      });
-
-      setRooms(processedRooms);
+      if (response.success && response.data) {
+        console.log("Rooms loaded:", response.data.length, response.data);
+        setRooms(response.data);
+      } else {
+        console.error("Failed to load rooms:", response.error);
+      }
     } catch (error) {
-      console.error("Error fetching rooms:", error);
+      console.error("Error loading rooms:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (roomId: string) => {
+  const loadMessages = async (roomId: string) => {
     try {
-      const { data: messages, error } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("room_id", roomId)
-        .order("created_at", { ascending: true });
+      const response = await fetchChatMessages(roomId);
 
-      if (error) throw error;
-      setMessages(messages || []);
+      if (response.success && response.data) {
+        setMessages(response.data);
+      } else {
+        console.error("Failed to load messages:", response.error);
+      }
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("Error loading messages:", error);
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedRoomId || !currentUser) return;
+    if (!newMessage.trim() || !selectedRoomId) return;
 
     const tempMsg = newMessage;
     setNewMessage(""); // Optimistic clear
 
     try {
-      const { error } = await supabase.from("chat_messages").insert({
-        room_id: selectedRoomId,
-        sender_id: currentUser.id,
-        message: tempMsg,
-        is_read: false,
-      });
+      const response = await sendChatMessage(selectedRoomId, tempMsg);
 
-      if (error) throw error;
-
-      // Update last message in room
-      await supabase
-        .from("chat_rooms")
-        .update({
-          last_message: tempMsg,
-          last_message_at: new Date().toISOString(),
-        })
-        .eq("id", selectedRoomId);
+      if (!response.success) {
+        console.error("Failed to send message:", response.error);
+        setNewMessage(tempMsg); // Restore on failure
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       setNewMessage(tempMsg);
@@ -213,6 +198,11 @@ export function ChatPage() {
           <h3 style={{ margin: 0 }}>Messages</h3>
         </div>
         <div style={{ overflowY: "auto", flex: 1 }}>
+          {loading && (
+            <div style={{ padding: 20, textAlign: "center", color: "#888" }}>
+              Loading conversations...
+            </div>
+          )}
           {rooms.length === 0 && !loading && (
             <div style={{ padding: 20, textAlign: "center", color: "#888" }}>
               No conversations yet
@@ -222,58 +212,70 @@ export function ChatPage() {
             const otherUser = room.other_user;
             const name = otherUser
               ? `${otherUser.first_name || ""} ${otherUser.last_name || ""}`.trim() ||
-                otherUser.email
+                otherUser.email ||
+                "Unknown User"
               : "Unknown User";
+
             return (
               <div
                 key={room.id}
                 onClick={() => setSelectedRoomId(room.id)}
                 style={{
-                  padding: "16px",
-                  borderBottom: "1px solid var(--border)",
+                  padding: "12px 16px",
                   cursor: "pointer",
-                  background:
+                  backgroundColor:
                     selectedRoomId === room.id
-                      ? "var(--accent-light)"
+                      ? "var(--primary-light)"
                       : "transparent",
-                  borderLeft:
-                    selectedRoomId === room.id
-                      ? "4px solid var(--accent)"
-                      : "4px solid transparent",
+                  borderBottom: "1px solid var(--border)",
+                  transition: "background 0.2s",
                 }}
               >
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: "4px",
+                    alignItems: "center",
+                    gap: "12px",
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{name}</span>
-                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                    {new Date(room.last_message_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "14px",
-                    color: "var(--muted)",
-                  }}
-                >
-                  <span
+                  <div
                     style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      maxWidth: "200px",
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--primary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                      fontWeight: 600,
                     }}
                   >
-                    {room.last_message || "No messages"}
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600 }}>{name}</span>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--muted)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {room.last_message || "No messages yet"}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {room.last_message_at
+                      ? new Date(room.last_message_at).toLocaleDateString()
+                      : ""}
                   </span>
                 </div>
               </div>
@@ -282,7 +284,7 @@ export function ChatPage() {
         </div>
       </div>
 
-      {/* Main: Chat Window */}
+      {/* Main: Chat Messages */}
       <div
         className="card"
         style={{
@@ -292,83 +294,85 @@ export function ChatPage() {
           overflow: "hidden",
         }}
       >
-        {selectedRoomId ? (
+        {selectedRoom ? (
           <>
+            {/* Chat Header */}
             <div
               style={{
                 padding: "16px",
                 borderBottom: "1px solid var(--border)",
-                background: "var(--bg-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
               }}
             >
               <div
                 style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  backgroundColor: "var(--primary)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: 600,
                 }}
               >
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    background: "var(--accent)",
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {(
-                    selectedRoom?.other_user?.first_name?.[0] || "U"
-                  ).toUpperCase()}
-                </div>
-                <div>
-                  <h3 style={{ margin: 0 }}>
-                    {selectedRoom?.other_user
-                      ? `${selectedRoom.other_user.first_name} ${selectedRoom.other_user.last_name}`
-                      : "Chat"}
-                  </h3>
-                  <span style={{ fontSize: "12px", color: "var(--success)" }}>
-                    ● Online
-                  </span>
-                </div>
+                {selectedRoom.other_user?.first_name?.charAt(0).toUpperCase() ||
+                  "?"}
+              </div>
+              <div>
+                <h3 style={{ margin: 0 }}>
+                  {selectedRoom.other_user
+                    ? `${selectedRoom.other_user.first_name || ""} ${selectedRoom.other_user.last_name || ""}`.trim()
+                    : "Unknown User"}
+                </h3>
+                <span style={{ fontSize: "12px", color: "var(--success)" }}>
+                  Tourist
+                </span>
               </div>
             </div>
 
+            {/* Messages */}
             <div
               style={{
                 flex: 1,
                 overflowY: "auto",
-                padding: "20px",
+                padding: "16px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "16px",
-                background: "#f8fafc",
+                gap: "8px",
               }}
             >
+              {messages.length === 0 && (
+                <div
+                  style={{ textAlign: "center", color: "#888", padding: 40 }}
+                >
+                  No messages yet. Start the conversation!
+                </div>
+              )}
               {messages.map((msg) => {
-                const isMe = msg.sender_id === currentUser?.id;
+                const isMe = msg.sender_id === dbUserId;
                 return (
                   <div
                     key={msg.id}
                     style={{
-                      display: "flex",
-                      justifyContent: isMe ? "flex-end" : "flex-start",
+                      alignSelf: isMe ? "flex-end" : "flex-start",
+                      maxWidth: "70%",
                     }}
                   >
                     <div
                       style={{
-                        maxWidth: "70%",
-                        padding: "12px 16px",
-                        borderRadius: "12px",
-                        background: isMe ? "var(--accent)" : "white",
-                        color: isMe ? "white" : "var(--text-primary)",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                        borderBottomRightRadius: isMe ? "4px" : "12px",
-                        borderBottomLeftRadius: isMe ? "12px" : "4px",
+                        padding: "10px 14px",
+                        borderRadius: isMe
+                          ? "16px 16px 4px 16px"
+                          : "16px 16px 16px 4px",
+                        backgroundColor: isMe
+                          ? "var(--primary)"
+                          : "var(--card-bg)",
+                        color: isMe ? "#fff" : "inherit",
+                        border: isMe ? "none" : "1px solid var(--border)",
                       }}
                     >
                       <p style={{ margin: 0 }}>{msg.message}</p>
@@ -377,7 +381,7 @@ export function ChatPage() {
                           fontSize: "10px",
                           opacity: 0.7,
                           display: "block",
-                          marginTop: "4px",
+                          marginTop: 4,
                           textAlign: "right",
                         }}
                       >
@@ -393,6 +397,7 @@ export function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Message Input */}
             <form
               onSubmit={handleSendMessage}
               style={{
@@ -400,7 +405,6 @@ export function ChatPage() {
                 borderTop: "1px solid var(--border)",
                 display: "flex",
                 gap: "12px",
-                background: "white",
               }}
             >
               <input
@@ -410,19 +414,22 @@ export function ChatPage() {
                 placeholder="Type a message..."
                 style={{
                   flex: 1,
-                  padding: "12px",
-                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  borderRadius: "24px",
                   border: "1px solid var(--border)",
-                  outline: "none",
+                  backgroundColor: "var(--input-bg)",
+                  color: "var(--text)",
                 }}
               />
               <button
                 type="submit"
-                className="btn-primary"
-                disabled={!newMessage.trim()}
                 style={{
-                  padding: "0 24px",
-                  borderRadius: "8px",
+                  padding: "12px 24px",
+                  borderRadius: "24px",
+                  backgroundColor: "var(--primary)",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
                 }}
               >
                 Send
@@ -437,24 +444,20 @@ export function ChatPage() {
               alignItems: "center",
               justifyContent: "center",
               color: "var(--muted)",
-              flexDirection: "column",
             }}
           >
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                borderRadius: "50%",
-                background: "var(--bg-secondary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "32px",
-              }}
-            >
-              💬
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 48,
+                  marginBottom: 16,
+                  opacity: 0.5,
+                }}
+              >
+                💬
+              </div>
+              Select a conversation to start chatting
             </div>
-            <p>Select a conversation to start chatting</p>
           </div>
         )}
       </div>

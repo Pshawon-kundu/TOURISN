@@ -71,12 +71,13 @@ export const authenticateToken = async (
           console.log("   Extracted email:", tokenEmail);
         } else if (decoded && decoded.sub) {
           // If Firebase verification fails, try Supabase token verification
-          // Supabase JWTs contain the user ID in the 'sub' claim
+          // Supabase JWTs contain the auth user ID in the 'sub' claim
+          // But we need to use the database user ID from the users table
           console.log(
-            "📋 Attempting to verify as Supabase token, user ID:",
+            "📋 Attempting to verify as Supabase token, auth user ID:",
             decoded.sub,
           );
-          userId = decoded.sub;
+          // Don't set userId yet - we'll look it up by email to get database ID
           tokenEmail = decoded.email;
         } else {
           console.error("❌ Token format unrecognized");
@@ -86,9 +87,9 @@ export const authenticateToken = async (
         }
       }
 
-      // Look up user by email (always available from token and unique in Supabase)
-      if (!userId && tokenEmail) {
-        console.log("🔍 Looking up Supabase user by email:", tokenEmail);
+      // Look up user by email to get the DATABASE user ID (not auth user ID)
+      if (tokenEmail) {
+        console.log("🔍 Looking up database user by email:", tokenEmail);
         const { data: userByEmail } = await supabase
           .from("users")
           .select("id, email")
@@ -97,7 +98,7 @@ export const authenticateToken = async (
 
         if (userByEmail) {
           userId = userByEmail.id;
-          console.log("✅ Found Supabase user by email:", {
+          console.log("✅ Found database user by email:", {
             id: userId,
             email: tokenEmail,
           });

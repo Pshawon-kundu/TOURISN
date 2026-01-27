@@ -37,7 +37,7 @@ export default function GuideDashboard() {
       // 1. Get Guide ID from user ID
       const { data: guideData, error: guideError } = await supabase
         .from("guides")
-        .select("id, rating, hourly_rate")
+        .select("id, rating, per_hour_rate")
         .eq("user_id", user.id)
         .single();
 

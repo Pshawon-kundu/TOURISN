@@ -8,7 +8,7 @@ interface GuideProfile {
   nid_number: string;
   specializations: string[];
   languages: string[];
-  hourly_rate: number;
+  per_hour_rate: number;
   experience_years: number;
   bio: string;
   location: string;
@@ -27,7 +27,7 @@ export function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     bio: "",
-    hourly_rate: 0,
+    per_hour_rate: 0,
     specializations: "",
     languages: "",
     is_available: true,
@@ -42,19 +42,35 @@ export function ProfilePage() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
 
+      // Get the database user ID from users table
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", userData.user.email)
+        .single();
+
+      const userId = userRecord?.id || userData.user.id;
+      console.log("Fetching guide profile for user_id:", userId);
+
       const { data, error } = await supabase
         .from("guides")
         .select("*")
-        .eq("user_id", userData.user.id)
+        .eq("user_id", userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching guide:", error);
+        throw error;
+      }
 
+      console.log("Guide profile found:", data);
       setProfile(data);
       setFormData({
         bio: data.bio || "",
-        hourly_rate: data.hourly_rate || 0,
-        specializations: (data.specializations || []).join(", "),
+        per_hour_rate: data.per_hour_rate || 0,
+        specializations: (data.specializations || data.specialties || []).join(
+          ", ",
+        ),
         languages: (data.languages || []).join(", "),
         is_available: data.is_available ?? true,
       });
@@ -73,7 +89,7 @@ export function ProfilePage() {
         .from("guides")
         .update({
           bio: formData.bio,
-          hourly_rate: formData.hourly_rate,
+          per_hour_rate: formData.per_hour_rate,
           specializations: formData.specializations
             .split(",")
             .map((s) => s.trim())
@@ -274,11 +290,11 @@ export function ProfilePage() {
               <input
                 className="input"
                 type="number"
-                value={formData.hourly_rate}
+                value={formData.per_hour_rate}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    hourly_rate: Number(e.target.value),
+                    per_hour_rate: Number(e.target.value),
                   })
                 }
                 disabled={!editing}

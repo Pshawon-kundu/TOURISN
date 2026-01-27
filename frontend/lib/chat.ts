@@ -1,4 +1,5 @@
 // Supabase Chat API
+import { api } from "./api";
 import { getSupabaseClient } from "./auth";
 
 export interface Message {
@@ -25,11 +26,43 @@ export interface ChatRoom {
   };
 }
 
-// Get or create a chat room with a guide
+// Get or create a chat room with a guide - USE BACKEND API (bypasses RLS issues)
 export async function getOrCreateChatRoom(
   otherUserId: string,
 ): Promise<ChatRoom | null> {
   console.log("🔵 getOrCreateChatRoom called with:", otherUserId);
+
+  try {
+    // Use backend API which has service role access
+    const response = await api.post<{
+      success: boolean;
+      data: ChatRoom;
+      error?: string;
+    }>("/chat/room", {
+      guideId: otherUserId,
+    });
+
+    if (response.success && response.data) {
+      console.log("✅ Room created/found via API:", response.data.id);
+      return response.data;
+    } else {
+      console.error("❌ API error:", response.error);
+      return null;
+    }
+  } catch (error: any) {
+    console.error("❌ Error calling chat room API:", error.message);
+
+    // Fallback to direct Supabase call if API fails
+    console.log("🔄 Falling back to direct Supabase call...");
+    return await getOrCreateChatRoomDirect(otherUserId);
+  }
+}
+
+// Direct Supabase method (fallback)
+async function getOrCreateChatRoomDirect(
+  otherUserId: string,
+): Promise<ChatRoom | null> {
+  console.log("🔵 getOrCreateChatRoomDirect called with:", otherUserId);
 
   const supabase = await getSupabaseClient();
   if (!supabase) {
@@ -74,19 +107,51 @@ export async function getOrCreateChatRoom(
     console.log("⚠️ Error fetching guide:", guideError.message);
   }
 
-  // Verify target user exists in users table (optional check)
-  const { data: userData, error: userError } = await supabase
+  // Verify BOTH users exist in users table (required for foreign key constraint)
+  const { data: currentUserData, error: currentUserError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", user.id)
+    .single();
+
+  if (!currentUserData) {
+    console.error("❌ Current user not found in users table:", user.id);
+    console.error("   Error:", currentUserError?.message);
+    console.error("   This user may need to be synced to the users table.");
+
+    // Try to create the user in the users table
+    console.log("🔄 Attempting to create user in users table...");
+    const { error: insertError } = await supabase.from("users").insert({
+      id: user.id,
+      email: user.email,
+      first_name: user.user_metadata?.first_name || "",
+      last_name: user.user_metadata?.last_name || "",
+      role: user.user_metadata?.role || "traveler",
+    });
+
+    if (insertError && insertError.code !== "23505") {
+      // 23505 = duplicate key
+      console.error("❌ Failed to create user:", insertError.message);
+      return null;
+    }
+    console.log("✅ User created/already exists in users table");
+  } else {
+    console.log("✅ Current user verified:", user.id);
+  }
+
+  const { data: targetUserData, error: targetUserError } = await supabase
     .from("users")
     .select("id")
     .eq("id", targetUserId)
     .single();
 
-  if (!userData) {
-    console.warn("⚠️ Target user not found in users table:", targetUserId);
-    console.warn("   Error:", userError?.message);
-    console.warn(
-      "   Continuing anyway - room will be created if both users exist in auth...",
+  if (!targetUserData) {
+    console.error("❌ Target user not found in users table:", targetUserId);
+    console.error("   Error:", targetUserError?.message);
+    console.error(
+      "   The other user must exist in the users table to create a chat room.",
     );
+    return null;
   } else {
     console.log("✅ Target user verified:", targetUserId);
   }
@@ -166,6 +231,23 @@ export async function getOrCreateChatRoom(
 
 // Fetch messages for a room
 export async function getMessages(roomId: string): Promise<Message[]> {
+  try {
+    const response = await api.get<{
+      success: boolean;
+      data: Message[];
+      error?: string;
+    }>(`/chat/messages/${roomId}`);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    console.error("Error fetching messages via API:", response.error);
+  } catch (error) {
+    console.error("Error fetching messages via API:", error);
+  }
+
+  // Fallback to direct Supabase (may be blocked by RLS)
   const supabase = await getSupabaseClient();
   if (!supabase) return [];
 
@@ -194,13 +276,34 @@ export async function sendMessage(
   console.log("  User:", userId);
   console.log("  Text:", message.substring(0, 50));
 
+  try {
+    const response = await api.post<{
+      success: boolean;
+      data: Message;
+      error?: string;
+    }>("/chat/message", {
+      roomId,
+      message,
+      messageType: "text",
+    });
+
+    if (response.success && response.data) {
+      console.log("✅ Message sent successfully:", response.data.id);
+      return response.data;
+    }
+
+    throw new Error(response.error || "Failed to send message");
+  } catch (error) {
+    console.error("❌ Error sending message via API:", error);
+  }
+
+  // Fallback to direct Supabase (may be blocked by RLS)
   const supabase = await getSupabaseClient();
   if (!supabase) {
     console.error("❌ Supabase not available");
     return null;
   }
 
-  // 1. Insert message
   const { data, error } = await supabase
     .from("chat_messages")
     .insert({
@@ -219,7 +322,6 @@ export async function sendMessage(
 
   console.log("✅ Message sent successfully:", data.id);
 
-  // 2. Update room's last message
   await supabase
     .from("chat_rooms")
     .update({
@@ -269,38 +371,35 @@ export async function subscribeToChat(
 
 // Get all chat rooms for current user
 export async function getUserChatRooms(): Promise<ChatRoom[]> {
-  const supabase = await getSupabaseClient();
-  if (!supabase) return [];
+  console.log("🔵 getUserChatRooms called - using backend API");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  try {
+    // Use backend API to bypass RLS issues
+    const response = await api.get<{
+      success: boolean;
+      data: any[];
+      error?: string;
+    }>("/chat/rooms");
 
-  // Fetch rooms where user is either user1 or user2
-  const { data, error } = await supabase
-    .from("chat_rooms")
-    .select(
-      `
-      *,
-      user1:user1_id(id, first_name, last_name, email),
-      user2:user2_id(id, first_name, last_name, email)
-    `,
-    )
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-    .order("last_message_at", { ascending: false });
+    if (response.success && response.data) {
+      console.log("✅ Fetched", response.data.length, "chat rooms from API");
 
-  if (error) {
-    console.error("Error fetching chat rooms:", error);
+      // The backend returns rooms with otherUser field
+      return response.data.map((room: any) => ({
+        id: room.id,
+        user1_id: room.user1_id,
+        user2_id: room.user2_id,
+        last_message: room.last_message,
+        last_message_at: room.last_message_at,
+        other_user: room.otherUser, // Backend uses 'otherUser'
+        unread_count: room.unread_count || 0,
+      }));
+    } else {
+      console.error("❌ API error:", response.error);
+      return [];
+    }
+  } catch (error) {
+    console.error("❌ Error fetching chat rooms from API:", error);
     return [];
   }
-
-  // Format data to provide "other_user" easily
-  return data.map((room: any) => {
-    const isUser1 = room.user1_id === user.id;
-    return {
-      ...room,
-      other_user: isUser1 ? room.user2 : room.user1,
-    };
-  });
 }

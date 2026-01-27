@@ -32,7 +32,7 @@ export default function GuideProfile() {
     email: "",
     phone: "",
     bio: "",
-    hourly_rate: "",
+    per_hour_rate: "",
     specializations: "",
     languages: "",
     avatar_url: "",
@@ -77,7 +77,7 @@ export default function GuideProfile() {
         email: userData?.email || "",
         phone: userData?.phone || "",
         bio: userData?.bio || guideData?.bio || "",
-        hourly_rate: guideData?.hourly_rate?.toString() || "",
+        per_hour_rate: guideData?.per_hour_rate?.toString() || "",
         specializations: guideData?.specializations || "",
         languages: guideData?.languages || "",
         avatar_url: userData?.avatar_url || "",
@@ -127,7 +127,7 @@ export default function GuideProfile() {
       const { error: guideError } = await supabase
         .from("guides")
         .update({
-          hourly_rate: parseFloat(editedProfile.hourly_rate) || 0,
+          per_hour_rate: parseFloat(editedProfile.per_hour_rate) || 0,
           specializations: editedProfile.specializations,
           languages: editedProfile.languages,
           bio: editedProfile.bio,
@@ -351,10 +351,12 @@ export default function GuideProfile() {
               <TextInput
                 style={[styles.input, !isEditing && styles.inputDisabled]}
                 value={
-                  isEditing ? editedProfile.hourly_rate : profile.hourly_rate
+                  isEditing
+                    ? editedProfile.per_hour_rate
+                    : profile.per_hour_rate
                 }
                 onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, hourly_rate: text })
+                  setEditedProfile({ ...editedProfile, per_hour_rate: text })
                 }
                 editable={isEditing}
                 placeholder="500"

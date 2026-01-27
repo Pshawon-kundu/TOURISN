@@ -161,21 +161,31 @@ export function DashboardPage() {
 
     setLoading(true);
     try {
+      // Use database user ID (not auth ID)
+      const userId = user.dbUserId || user.id;
+      console.log("Dashboard: Fetching guide data for user_id:", userId);
+
       // Fetch guide profile
       const { data: guideProfile, error: guideError } = await supabase
         .from("guides")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
-      if (guideError) throw guideError;
+      if (guideError) {
+        console.error("Dashboard: Guide profile error:", guideError);
+        throw guideError;
+      }
 
+      console.log("Dashboard: Guide found:", guideProfile.id);
       setGuideData(guideProfile);
-      setIsOnline(guideProfile.is_available || false);
+      setIsOnline(
+        guideProfile.is_available || guideProfile.status === "active" || false,
+      );
 
-      // Fetch bookings for this guide
+      // Fetch bookings for this guide from the bookings table
       const { data: bookings, error: bookingsError } = await supabase
-        .from("transport_bookings")
+        .from("bookings")
         .select(
           `
           *,
@@ -191,22 +201,27 @@ export function DashboardPage() {
         .order("created_at", { ascending: false })
         .limit(10);
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error("Dashboard: Bookings error:", bookingsError);
+        throw bookingsError;
+      }
 
+      console.log("Dashboard: Bookings found:", bookings?.length || 0);
       setRecentBookings(bookings || []);
 
       // Calculate stats
       const totalBookings = bookings?.length || 0;
       const activeBookings =
         bookings?.filter(
-          (b) => b.status === "confirmed" || b.status === "pending",
+          (b) =>
+            b.booking_status === "confirmed" || b.booking_status === "pending",
         ).length || 0;
       const pending =
-        bookings?.filter((b) => b.status === "pending").length || 0;
+        bookings?.filter((b) => b.booking_status === "pending").length || 0;
       const completedBookings =
-        bookings?.filter((b) => b.status === "completed") || [];
+        bookings?.filter((b) => b.payment_status === "completed") || [];
       const totalEarnings = completedBookings.reduce(
-        (sum, b) => sum + (b.total_amount || 0),
+        (sum, b) => sum + (b.total_price || 0),
         0,
       );
 

@@ -35,7 +35,7 @@ interface Guide {
   full_name: string;
   status: string;
   specializations: string[];
-  hourly_rate: string;
+  per_hour_rate: string;
   created_at: string;
   users?: { email: string };
 }

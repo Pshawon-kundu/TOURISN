@@ -108,8 +108,8 @@ export function DashboardPage() {
                           booking.status === "confirmed"
                             ? "success"
                             : booking.status === "pending"
-                            ? "warning"
-                            : "danger"
+                              ? "warning"
+                              : "danger"
                         }
                       />
                     </td>
@@ -153,15 +153,15 @@ export function DashboardPage() {
                         guide.status === "approved"
                           ? "success"
                           : guide.status === "pending"
-                          ? "warning"
-                          : "danger"
+                            ? "warning"
+                            : "danger"
                       }
                     />
                     <div
                       className="muted"
                       style={{ fontSize: "12px", marginTop: "4px" }}
                     >
-                      ${guide.hourly_rate}/hr
+                      ${guide.per_hour_rate}/hr
                     </div>
                   </div>
                 </div>
@@ -196,10 +196,10 @@ export function DashboardPage() {
                     activity.type === "login"
                       ? "#10b981"
                       : activity.type === "signup"
-                      ? "#3b82f6"
-                      : activity.type === "booking"
-                      ? "#f59e0b"
-                      : "#6366f1"
+                        ? "#3b82f6"
+                        : activity.type === "booking"
+                          ? "#f59e0b"
+                          : "#6366f1"
                   }`,
                 }}
               >

@@ -156,10 +156,8 @@ export default function GuideProfile() {
             <Text style={styles.sectionTitle}>Booking</Text>
           </View>
           <BookingStepper guideId={id} />
-          <Link href={`/booking?guide=${id ?? "g1"}`}>
-            <Link.Trigger>
-              <Text style={styles.linkText}>Open full booking page</Text>
-            </Link.Trigger>
+          <Link href={`/booking?guide=${id ?? "g1"}`} asChild>
+            <Text style={styles.linkText}>Open full booking page</Text>
           </Link>
         </View>
 

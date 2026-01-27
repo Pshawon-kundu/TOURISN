@@ -386,18 +386,96 @@ export const getCurrentUser = async (
     console.log("📤 Getting current user profile for:", req.user.email);
 
     // Get user data from Supabase by email
-    const { data: userData, error } = await supabase
+    let { data: userData, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", req.user.email);
 
+    // If user doesn't exist in users table, create them
     if (error || !userData || userData.length === 0) {
-      console.error("❌ User not found:", { email: req.user.email, error });
-      res.status(404).json({
-        success: false,
-        error: "User profile not found",
-      });
-      return;
+      console.log(
+        "⚠️ User not in users table, attempting to create from auth data...",
+      );
+
+      // Try to get user from Supabase Auth
+      const { data: authUsers, error: authError } =
+        await supabase.auth.admin.listUsers();
+
+      let authUser = null;
+      if (!authError && authUsers?.users) {
+        authUser = authUsers.users.find(
+          (u: any) => u.email === req.user?.email,
+        );
+      }
+
+      if (authUser) {
+        // Create user in users table
+        const newUserData = {
+          id: authUser.id,
+          email: authUser.email,
+          first_name: authUser.user_metadata?.first_name || "",
+          last_name: authUser.user_metadata?.last_name || "",
+          role: authUser.user_metadata?.role || "traveler",
+          phone: authUser.user_metadata?.phone || null,
+        };
+
+        const { data: createdUser, error: createError } = await supabase
+          .from("users")
+          .upsert(newUserData, { onConflict: "id" })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error("❌ Failed to create user:", createError);
+          res.status(404).json({
+            success: false,
+            error: "User profile not found and could not be created",
+          });
+          return;
+        }
+
+        console.log("✅ User created in users table:", createdUser.id);
+        userData = [createdUser];
+      } else {
+        // If we have req.user.id (from guest auth), create a basic profile
+        if (req.user.id) {
+          const newUserData = {
+            id: req.user.id,
+            email: req.user.email,
+            first_name: "",
+            last_name: "",
+            role: req.user.role || "traveler",
+          };
+
+          const { data: createdUser, error: createError } = await supabase
+            .from("users")
+            .upsert(newUserData, { onConflict: "id" })
+            .select()
+            .single();
+
+          if (!createError && createdUser) {
+            console.log("✅ Guest user profile created:", createdUser.id);
+            userData = [createdUser];
+          } else {
+            console.error("❌ User not found:", {
+              email: req.user.email,
+              error,
+            });
+            res.status(404).json({
+              success: false,
+              error: "User profile not found",
+            });
+            return;
+          }
+        } else {
+          console.error("❌ User not found:", { email: req.user.email, error });
+          res.status(404).json({
+            success: false,
+            error: "User profile not found",
+          });
+          return;
+        }
+      }
     }
 
     const user = userData[0];

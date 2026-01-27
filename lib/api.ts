@@ -316,6 +316,173 @@ export const getAllGuides = async (): Promise<any> => {
   }
 };
 
+// Featured Trips API
+export const getFeaturedTrips = async (limit?: number): Promise<any> => {
+  try {
+    const url = limit
+      ? `${API_BASE_URL}/experiences/featured?limit=${limit}`
+      : `${API_BASE_URL}/experiences/featured`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch featured trips");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching featured trips:", error);
+    throw error;
+  }
+};
+
+// Get experiences by category for Find Experiences page
+export const getExperiencesByCategory = async (params?: {
+  category?: string;
+  sortBy?: string;
+  difficulty?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  limit?: number;
+}): Promise<any> => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params?.difficulty) queryParams.append("difficulty", params.difficulty);
+    if (params?.minPrice)
+      queryParams.append("minPrice", params.minPrice.toString());
+    if (params?.maxPrice)
+      queryParams.append("maxPrice", params.maxPrice.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const url = `${API_BASE_URL}/experiences/category${
+      queryParams.toString() ? `?${queryParams.toString()}` : ""
+    }`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch experiences");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching experiences by category:", error);
+    throw error;
+  }
+};
+
+// Seed experiences data
+export const seedExperiences = async (): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/experiences/seed`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to seed experiences");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error seeding experiences:", error);
+    throw error;
+  }
+};
+
+// Combined Booking (Room + Guide + Experience)
+export interface CombinedBookingData {
+  // User info
+  userId?: string;
+  travelerName: string;
+  travelerEmail: string;
+  travelerPhone: string;
+  specialRequests?: string;
+
+  // Experience details
+  experienceId?: string;
+  experienceName?: string;
+  experienceCategory?: string;
+  experienceLocation?: string;
+  experienceDuration?: string;
+  experiencePrice?: number;
+
+  // Stay/Room details
+  roomType?: string;
+  roomPricePerNight?: number;
+  checkInDate?: string;
+  checkOutDate?: string;
+  numberOfNights?: number;
+
+  // Guide details
+  guideId?: string;
+  guideName?: string;
+  guideRatePerHour?: number;
+  guideHours?: number;
+
+  // Travel details
+  fromLocation?: string;
+  toLocation?: string;
+  travelDate?: string;
+  numberOfTravelers?: number;
+
+  // Payment
+  paymentMethod?: string;
+  cardLastFour?: string;
+}
+
+export const createCombinedBooking = async (
+  bookingData: CombinedBookingData,
+): Promise<any> => {
+  try {
+    console.log("📡 Creating combined booking...");
+    const response = await fetch(`${API_BASE_URL}/combined-bookings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(bookingData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to create combined booking");
+    }
+
+    console.log("✅ Combined booking created:", data);
+    return data;
+  } catch (error) {
+    console.error("Error creating combined booking:", error);
+    throw error;
+  }
+};
+
+export const getCombinedBookingByReference = async (
+  reference: string,
+): Promise<any> => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/combined-bookings/reference/${reference}`,
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch booking");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching combined booking:", error);
+    throw error;
+  }
+};
+
 export const createExperienceBooking = async (
   bookingData: BookingData,
 ): Promise<any> => {
@@ -431,3 +598,104 @@ export const registerGuide = async (
     throw error;
   }
 };
+
+// APIClient class for compatibility with existing imports
+export class APIClient {
+  private baseURL: string = API_BASE_URL;
+  private token: string | null = null;
+
+  setToken(token: string) {
+    this.token = token;
+  }
+
+  clearToken() {
+    this.token = null;
+  }
+
+  private getHeaders() {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+    return headers;
+  }
+
+  private async doRequest<T>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...this.getHeaders(),
+          ...(options.headers || {}),
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Response is not JSON
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        throw new Error(
+          `Cannot connect to server at ${this.baseURL}. Make sure the backend is running on port 5001.`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  async get<T>(endpoint: string): Promise<T> {
+    return this.doRequest<T>(endpoint, { method: "GET" });
+  }
+
+  async post<T>(endpoint: string, body: any): Promise<T> {
+    return this.doRequest<T>(endpoint, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async put<T>(endpoint: string, body: any): Promise<T> {
+    return this.doRequest<T>(endpoint, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async patch<T>(endpoint: string, body: any): Promise<T> {
+    return this.doRequest<T>(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.doRequest<T>(endpoint, { method: "DELETE" });
+  }
+
+  async registerGuide(data: any) {
+    return registerGuide(data);
+  }
+
+  async getGuides(page: number = 1, limit: number = 10) {
+    return getAllGuides();
+  }
+}
+
+// Export singleton instance for compatibility
+export const api = new APIClient();

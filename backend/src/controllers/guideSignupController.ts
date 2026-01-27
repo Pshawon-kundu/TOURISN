@@ -435,31 +435,89 @@ export const loginWithNid = async (req: Request, res: Response) => {
 
     console.log(`Attempting login with NID: ${nid}`);
 
-    // finding guide by nid_number
-    // We need to join with users to verify phone
-    const { data: guide, error: guideError } = await supabase
+    // First, find the guide by NID (without requiring user join)
+    const { data: guideOnly, error: guideOnlyError } = await supabase
       .from("guides")
-      .select("*, users!inner(*)")
+      .select("*")
       .eq("nid_number", nid)
       .single();
 
-    if (guideError || !guide) {
-      console.log("Guide lookup failed:", guideError);
+    if (guideOnlyError || !guideOnly) {
+      console.log("Guide lookup failed:", guideOnlyError);
       return res.status(401).json({
         success: false,
         error: "Guide not found with this NID.",
       });
     }
 
-    const user = (guide as any).users;
+    console.log("Guide found:", {
+      id: guideOnly.id,
+      user_id: guideOnly.user_id,
+      nid: guideOnly.nid_number,
+    });
+
+    // Check if guide has a user_id
+    if (!guideOnly.user_id) {
+      console.log("Guide has no user_id linked");
+      return res.status(401).json({
+        success: false,
+        error:
+          "Guide account is not properly configured. Please contact support.",
+      });
+    }
+
+    // Now get the user data
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", guideOnly.user_id)
+      .single();
+
+    if (userError || !user) {
+      console.log("User lookup failed:", userError);
+      return res.status(401).json({
+        success: false,
+        error: "User account not found. Please contact support.",
+      });
+    }
+
+    console.log("User found:", {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+    });
+
     const phone = user.phone;
 
-    // Handle missing auth_id (Account Configuration Error)
-    let authId = user.auth_id;
-    if (!authId) {
-      console.log("No auth_id found for user. Attempting recovery...");
+    if (!phone) {
+      console.log("User has no phone number");
+      return res.status(401).json({
+        success: false,
+        error: "Phone number not configured for this account.",
+      });
+    }
 
-      // 1. Try to create the auth user
+    // Handle missing auth_id (Account Configuration Error)
+    let authId = user.auth_id || user.id; // Use user.id as fallback (often same as auth.uid)
+
+    // Try to find auth user by email first
+    const { data: listData, error: listError } =
+      await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+
+    if (!listError && listData?.users) {
+      const existingAuth = listData.users.find(
+        (u: any) => u.email === user.email,
+      );
+      if (existingAuth) {
+        authId = existingAuth.id;
+        console.log("Found existing auth user:", authId);
+      }
+    }
+
+    if (!authId) {
+      console.log("No auth_id found for user. Attempting to create...");
+
+      // Try to create the auth user
       const { data: newAuth, error: createError } =
         await supabase.auth.admin.createUser({
           email: user.email,

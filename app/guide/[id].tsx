@@ -1,6 +1,6 @@
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { BookingStepper } from "@/components/booking-stepper";
 import { Chip } from "@/components/chip";
@@ -42,10 +42,8 @@ export default function GuideProfile() {
 
         <BookingStepper guideId={id} />
 
-        <Link href={`/booking?guide=${id ?? "g1"}`}>
-          <Link.Trigger>
-            <ThemedText type="link">Open full booking page</ThemedText>
-          </Link.Trigger>
+        <Link href={`/booking?guide=${id ?? "g1"}`} style={styles.link}>
+          <Text style={styles.linkText}>Open full booking page</Text>
         </Link>
 
         <View style={{ height: 40 }} />
@@ -58,4 +56,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, gap: 12 },
   row: { flexDirection: "row" },
+  link: { marginTop: 8 },
+  linkText: { color: "#0a7ea4", fontSize: 16 },
 });

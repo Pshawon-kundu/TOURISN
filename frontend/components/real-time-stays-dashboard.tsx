@@ -1,5 +1,5 @@
 import { useRealTimeStays } from "@/hooks/use-real-time-stays";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import {
   RefreshControl,

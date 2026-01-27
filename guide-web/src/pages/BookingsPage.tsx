@@ -7,17 +7,21 @@ import { useAuth } from "../context/AuthContext";
 interface Booking {
   id: string;
   user_id: string;
-  transport_type?: string;
-  from_location?: string;
-  to_location?: string;
-  traveler_name: string;
-  phone: string;
-  email: string;
-  total_amount: number;
-  status: string;
+  booking_type?: string;
+  trip_name?: string;
+  location?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+  guests?: number;
+  item_name?: string;
+  total_price: number;
+  payment_status: string;
+  booking_status: string;
   payment_method: string;
   created_at: string;
-  notes?: string;
+  guide_name?: string;
+  guide_rate?: number;
+  guide_hours?: number;
 }
 
 export function BookingsPage() {
@@ -35,27 +39,34 @@ export function BookingsPage() {
     if (!user) return;
 
     try {
+      // Use the database user ID (not auth ID)
+      const userId = user.dbUserId || user.id;
+      console.log("Fetching guide with user_id:", userId);
+
       // First get guide ID
-      const { data: guideData } = await supabase
+      const { data: guideData, error: guideError } = await supabase
         .from("guides")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
-      if (!guideData) {
-        console.error("No guide profile found");
+      if (guideError || !guideData) {
+        console.error("No guide profile found for user:", userId, guideError);
         setLoading(false);
         return;
       }
 
-      // Then fetch bookings for this guide
+      console.log("Guide found:", guideData.id);
+
+      // Fetch bookings for this guide from the bookings table
       const { data, error } = await supabase
-        .from("transport_bookings")
+        .from("bookings")
         .select("*")
         .eq("guide_id", guideData.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      console.log("Bookings found:", data?.length || 0);
       setBookings(data || []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -70,8 +81,8 @@ export function BookingsPage() {
   ) => {
     try {
       const { error } = await supabase
-        .from("transport_bookings")
-        .update({ status: status })
+        .from("bookings")
+        .update({ payment_status: status })
         .eq("id", bookingId);
 
       if (error) throw error;
@@ -102,36 +113,60 @@ export function BookingsPage() {
         <DataTable
           columns={[
             {
-              key: "traveler_name",
-              label: "Traveler",
-              render: (booking: Booking) => booking.traveler_name || "N/A",
+              key: "trip_name",
+              label: "Trip/Experience",
+              render: (booking: Booking) =>
+                booking.trip_name || booking.item_name || "N/A",
             },
             {
-              key: "transport_type",
-              label: "Type",
-              render: (booking: Booking) => booking.transport_type || "N/A",
+              key: "location",
+              label: "Location",
+              render: (booking: Booking) => booking.location || "N/A",
             },
             {
-              key: "total_amount",
-              label: "Amount",
-              render: (booking: Booking) => `৳${booking.total_amount || 0}`,
-            },
-            {
-              key: "created_at",
+              key: "check_in_date",
               label: "Date",
               render: (booking: Booking) =>
-                new Date(booking.created_at).toLocaleDateString(),
+                booking.check_in_date
+                  ? new Date(booking.check_in_date).toLocaleDateString()
+                  : new Date(booking.created_at).toLocaleDateString(),
             },
             {
-              key: "status",
+              key: "guests",
+              label: "Guests",
+              render: (booking: Booking) => booking.guests || 1,
+            },
+            {
+              key: "total_price",
+              label: "Amount",
+              render: (booking: Booking) => `৳${booking.total_price || 0}`,
+            },
+            {
+              key: "booking_status",
+              label: "Status",
+              render: (booking: Booking) => (
+                <Badge
+                  label={booking.booking_status || "pending"}
+                  tone={
+                    booking.booking_status === "confirmed"
+                      ? "success"
+                      : booking.booking_status === "cancelled"
+                        ? "danger"
+                        : "warning"
+                  }
+                />
+              ),
+            },
+            {
+              key: "payment_status",
               label: "Payment",
               render: (booking: Booking) => (
                 <Badge
-                  label={booking.status || "pending"}
+                  label={booking.payment_status || "pending"}
                   tone={
-                    booking.status === "paid"
+                    booking.payment_status === "completed"
                       ? "success"
-                      : booking.status === "refunded"
+                      : booking.payment_status === "refunded"
                         ? "danger"
                         : "warning"
                   }
@@ -140,7 +175,7 @@ export function BookingsPage() {
             },
           ]}
           data={bookings}
-          searchableKeys={["traveler_name", "transport_type", "status"]}
+          searchableKeys={["trip_name", "location", "booking_status"]}
           renderActions={(booking: Booking) => (
             <div className="table-actions">
               <button
@@ -152,15 +187,17 @@ export function BookingsPage() {
               >
                 View
               </button>
-              {booking.status === "pending" && (
+              {booking.payment_status === "pending" && (
                 <button
                   className="btn"
-                  onClick={() => handleUpdatePaymentStatus(booking.id, "paid")}
+                  onClick={() =>
+                    handleUpdatePaymentStatus(booking.id, "completed")
+                  }
                 >
                   Mark Paid
                 </button>
               )}
-              {booking.status === "paid" && (
+              {booking.payment_status === "completed" && (
                 <button
                   className="btn btn-danger"
                   onClick={() =>
@@ -221,37 +258,52 @@ export function BookingsPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <h4>Traveler Information</h4>
+                <h4>Trip Information</h4>
                 <p style={{ color: "#212529" }}>
-                  <strong>Name:</strong>{" "}
-                  {selectedBooking.traveler_name || "N/A"}
+                  <strong>Trip Name:</strong>{" "}
+                  {selectedBooking.trip_name ||
+                    selectedBooking.item_name ||
+                    "N/A"}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>Email:</strong> {selectedBooking.email || "N/A"}
+                  <strong>Location:</strong> {selectedBooking.location || "N/A"}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>Phone:</strong> {selectedBooking.phone || "N/A"}
+                  <strong>Type:</strong> {selectedBooking.booking_type || "N/A"}
                 </p>
               </div>
 
               <div>
-                <h4>Booking Information</h4>
+                <h4>Booking Details</h4>
                 <p style={{ color: "#212529" }}>
-                  <strong>Type:</strong>{" "}
-                  {selectedBooking.transport_type || "N/A"}
+                  <strong>Check-in:</strong>{" "}
+                  {selectedBooking.check_in_date
+                    ? new Date(
+                        selectedBooking.check_in_date,
+                      ).toLocaleDateString()
+                    : "N/A"}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>From:</strong>{" "}
-                  {selectedBooking.from_location || "N/A"}
+                  <strong>Check-out:</strong>{" "}
+                  {selectedBooking.check_out_date
+                    ? new Date(
+                        selectedBooking.check_out_date,
+                      ).toLocaleDateString()
+                    : "N/A"}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>To:</strong> {selectedBooking.to_location || "N/A"}
+                  <strong>Guests:</strong> {selectedBooking.guests || 1}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>Total Amount:</strong> ৳{selectedBooking.total_amount}
+                  <strong>Total Price:</strong> ৳{selectedBooking.total_price}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>Payment Status:</strong> {selectedBooking.status}
+                  <strong>Booking Status:</strong>{" "}
+                  {selectedBooking.booking_status}
+                </p>
+                <p style={{ color: "#212529" }}>
+                  <strong>Payment Status:</strong>{" "}
+                  {selectedBooking.payment_status}
                 </p>
                 <p style={{ color: "#212529" }}>
                   <strong>Payment Method:</strong>{" "}
@@ -263,13 +315,28 @@ export function BookingsPage() {
                 </p>
               </div>
 
+              {selectedBooking.guide_name && (
+                <div>
+                  <h4>Guide Assignment</h4>
+                  <p style={{ color: "#212529" }}>
+                    <strong>Guide:</strong> {selectedBooking.guide_name}
+                  </p>
+                  <p style={{ color: "#212529" }}>
+                    <strong>Rate:</strong> ৳{selectedBooking.guide_rate}/hour
+                  </p>
+                  <p style={{ color: "#212529" }}>
+                    <strong>Hours:</strong> {selectedBooking.guide_hours}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <h4>IDs</h4>
                 <p style={{ color: "#212529" }}>
                   <strong>Booking ID:</strong> {selectedBooking.id}
                 </p>
                 <p style={{ color: "#212529" }}>
-                  <strong>User ID:</strong> {selectedBooking.user_id}
+                  <strong>User ID:</strong> {selectedBooking.user_id || "N/A"}
                 </p>
               </div>
             </div>

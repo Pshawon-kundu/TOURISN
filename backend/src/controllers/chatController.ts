@@ -58,8 +58,43 @@ export const getOrCreateChatRoom = async (
       return;
     }
 
+    // Get the guide's user_id - if null, try to find it by looking up guide's email
+    let guideUserId = guide.user_id;
+
+    if (!guideUserId) {
+      // Try to get user_id from the guides table via email or other means
+      console.log("⚠️ Guide has no user_id, attempting lookup...");
+
+      // Get guide's full info to find associated user
+      const { data: fullGuide, error: fullGuideError } = await supabase
+        .from("guides")
+        .select("*, users!guides_user_id_fkey(id, email)")
+        .eq("id", guideId)
+        .single();
+
+      if (fullGuide?.users?.id) {
+        guideUserId = fullGuide.users.id;
+      } else {
+        res.status(400).json({
+          success: false,
+          error:
+            "Guide account is not properly linked to a user account. The guide needs to complete their registration.",
+        });
+        return;
+      }
+    }
+
+    // Ensure we're not creating a chat room with ourselves
+    if (userId === guideUserId) {
+      res.status(400).json({
+        success: false,
+        error: "Cannot create a chat room with yourself",
+      });
+      return;
+    }
+
     // Ensure user1_id is always the smaller ID for consistency
-    const [user1Id, user2Id] = [userId, guide.user_id].sort();
+    const [user1Id, user2Id] = [userId, guideUserId].sort();
 
     // Try to find existing room
     let { data: room, error: roomError } = await supabase
@@ -264,6 +299,12 @@ export const getUserChatRooms = async (
     }
 
     const userId = req.user.id;
+    console.log(
+      "📬 Fetching chat rooms for user:",
+      userId,
+      "email:",
+      req.user.email,
+    );
 
     const { data: rooms, error: roomsError } = await supabase
       .from("chat_rooms")
@@ -288,6 +329,16 @@ export const getUserChatRooms = async (
       )
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order("last_message_at", { ascending: false });
+
+    console.log(
+      "📬 Chat rooms query result:",
+      rooms?.length || 0,
+      "rooms found",
+    );
+    console.log(
+      "📬 Room IDs:",
+      rooms?.map((r: any) => ({ id: r.id, u1: r.user1_id, u2: r.user2_id })),
+    );
 
     if (roomsError) {
       console.error("Chat rooms fetch error:", roomsError);

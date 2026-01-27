@@ -6,7 +6,7 @@ import { AuthRequest } from "../middleware/auth";
 export const deleteAccount = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -16,7 +16,6 @@ export const deleteAccount = async (
 
     console.log("⚠️ Deleting account for:", req.user.email);
 
-    // 1. Delete from public users table (Supabase)
     const { error } = await supabase
       .from("users")
       .delete()
@@ -24,13 +23,12 @@ export const deleteAccount = async (
 
     if (error) {
       console.error("❌ Delete account error:", error);
-      res.status(500).json({ success: false, error: "Failed to delete account data" });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to delete account data" });
       return;
     }
-    
-    // Note: We cannot easily delete from auth.users via client library without service role key
-    // But deleting from 'users' table removes their profile data.
-    
+
     console.log("✅ Account data deleted for:", req.user.email);
 
     res.status(200).json({
@@ -47,52 +45,8 @@ export const deleteAccount = async (
 export const updateProfile = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
-// ...
-  // (existing code)
-};
-
-// Delete user account
-export const deleteAccount = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user?.email) {
-      res.status(401).json({ success: false, error: "Not authenticated" });
-      return;
-    }
-
-    // 1. Delete from public users table (Supabase)
-    const { error } = await supabase
-      .from("users")
-      .delete()
-      .eq("email", req.user.email);
-
-    if (error) {
-      console.error("❌ Delete account error:", error);
-      res.status(500).json({ success: false, error: "Failed to delete account data" });
-      return;
-    }
-    
-    // Note: We cannot easily delete from auth.users via client library without service role key
-    // But deleting from 'users' table removes their profile data.
-    
-    console.log("✅ Account data deleted for:", req.user.email);
-
-    res.status(200).json({
-      success: true,
-      message: "Account deleted successfully",
-    });
-  } catch (error: any) {
-    console.error("Delete account error:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-// Get saved places
   try {
     if (!req.user?.email) {
       res.status(401).json({
@@ -114,7 +68,6 @@ export const deleteAccount = async (
 
     console.log("📝 Updating profile for:", req.user.email);
 
-    // Update user in Supabase
     const { data, error } = await supabase
       .from("users")
       .update({
@@ -159,7 +112,7 @@ export const deleteAccount = async (
 export const getSavedPlaces = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -170,7 +123,6 @@ export const getSavedPlaces = async (
       return;
     }
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -185,7 +137,6 @@ export const getSavedPlaces = async (
       return;
     }
 
-    // Get saved places
     const { data, error } = await supabase
       .from("saved_places")
       .select("*")
@@ -218,7 +169,7 @@ export const getSavedPlaces = async (
 export const addSavedPlace = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -232,7 +183,6 @@ export const addSavedPlace = async (
     const { place_type, place_id, place_name, place_image, place_location } =
       req.body;
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -247,7 +197,6 @@ export const addSavedPlace = async (
       return;
     }
 
-    // Add saved place
     const { data, error } = await supabase
       .from("saved_places")
       .insert({
@@ -287,7 +236,7 @@ export const addSavedPlace = async (
 export const removeSavedPlace = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -300,7 +249,6 @@ export const removeSavedPlace = async (
 
     const { id } = req.params;
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -315,7 +263,6 @@ export const removeSavedPlace = async (
       return;
     }
 
-    // Remove saved place
     const { error } = await supabase
       .from("saved_places")
       .delete()
@@ -348,7 +295,7 @@ export const removeSavedPlace = async (
 export const getFavorites = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -359,7 +306,6 @@ export const getFavorites = async (
       return;
     }
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -374,7 +320,6 @@ export const getFavorites = async (
       return;
     }
 
-    // Get favorites
     const { data, error } = await supabase
       .from("favorites")
       .select("*")
@@ -407,7 +352,7 @@ export const getFavorites = async (
 export const addFavorite = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -420,7 +365,6 @@ export const addFavorite = async (
 
     const { item_type, item_id, item_name, item_image } = req.body;
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -435,7 +379,6 @@ export const addFavorite = async (
       return;
     }
 
-    // Add favorite
     const { data, error } = await supabase
       .from("favorites")
       .insert({
@@ -474,7 +417,7 @@ export const addFavorite = async (
 export const removeFavorite = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user?.email) {
@@ -487,7 +430,6 @@ export const removeFavorite = async (
 
     const { id } = req.params;
 
-    // Get user ID
     const { data: userData } = await supabase
       .from("users")
       .select("id")
@@ -502,7 +444,6 @@ export const removeFavorite = async (
       return;
     }
 
-    // Remove favorite
     const { error } = await supabase
       .from("favorites")
       .delete()

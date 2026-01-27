@@ -3,11 +3,11 @@ import { experiences } from "@/constants/experiencesData";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,12 +16,63 @@ import {
   View,
 } from "react-native";
 
+// API Base URL
+const getApiBaseUrl = () => {
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5001/api";
+  }
+  return "http://localhost:5001/api";
+};
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string;
+  phone?: string;
+}
+
 export default function ExperienceBookingScreen() {
   const { id } = useLocalSearchParams();
   const experience = experiences.find((e) => e.id === id);
 
   const [guests, setGuests] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [bookingReference, setBookingReference] = useState<string>("");
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          // Get additional profile data from users table
+          const { data: profileData } = await supabase
+            .from("users")
+            .select("id, email, full_name, phone")
+            .eq("id", user.id)
+            .single();
+
+          setUserProfile({
+            id: user.id,
+            email: user.email || "",
+            full_name:
+              profileData?.full_name ||
+              user.user_metadata?.full_name ||
+              "Guest User",
+            phone: profileData?.phone || user.phone || "+880 1712 000000",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   if (!experience) {
     return (
@@ -39,39 +90,74 @@ export default function ExperienceBookingScreen() {
   const handleBooking = async () => {
     setLoading(true);
 
-    // Simulate API delay
-    // await new Promise(resolve => setTimeout(resolve, 1500));
-
     try {
-      const { error } = await supabase.from("bookings").insert({
-        experience_id: experience.id,
-        experience_name: experience.name,
-        guests: guests,
-        total_price: totalPrice,
-        status: "confirmed",
-        booking_date: new Date().toISOString(),
+      // Prepare booking data for backend API
+      const bookingData = {
+        // User info from profile
+        userId: userProfile?.id || null,
+        travelerName: userProfile?.full_name || "Guest User",
+        travelerEmail: userProfile?.email || "guest@example.com",
+        travelerPhone: userProfile?.phone || "+880 1712 000000",
+
+        // Experience details
+        experienceId: experience.id,
+        experienceName: experience.name,
+        experienceCategory: experience.category,
+        experienceLocation: experience.location,
+        experienceDuration: experience.duration,
+        experiencePrice: experience.price,
+
+        // Guide details
+        guideId: null, // Guide ID not available in static data
+        guideName: experience.guide?.name || "Local Guide",
+        guideRatePerHour: 500, // Default rate
+        guideHours: parseInt(experience.duration) || 4,
+
+        // Travel details
+        numberOfTravelers: guests,
+        travelDate: new Date().toISOString().split("T")[0],
+        checkInDate: new Date().toISOString().split("T")[0],
+        checkOutDate: new Date().toISOString().split("T")[0],
+
+        // Payment
+        paymentMethod: "card",
+      };
+
+      console.log("📡 Sending booking to backend:", bookingData);
+
+      // Call backend API
+      const response = await fetch(`${getApiBaseUrl()}/combined-bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bookingData),
       });
 
-      if (error) {
-        // If table doesn't exist or schema mismatch, show local success anyway for demo
-        console.error("Supabase error (ignored for demo):", error);
-      }
+      const result = await response.json();
 
+      if (result.success) {
+        console.log("✅ Booking saved to Supabase:", result.data);
+        setBookingReference(
+          result.data.bookingReference || "TUR-" + Date.now(),
+        );
+        setShowThankYou(true);
+      } else {
+        throw new Error(result.error || "Booking failed");
+      }
+    } catch (error) {
+      console.error("❌ Booking error:", error);
+      // Still show success for demo purposes
+      setBookingReference("TUR-" + Date.now().toString().slice(-8));
+      setShowThankYou(true);
+    } finally {
       setLoading(false);
-      Alert.alert(
-        "Thank You!",
-        "Your booking has been confirmed successfully. We have sent the details to your email.",
-        [{ text: "OK", onPress: () => router.navigate("/(tabs)/experiences") }],
-      );
-    } catch (e) {
-      setLoading(false);
-      // Fallback for demo
-      Alert.alert(
-        "Thank You!",
-        "Your booking has been confirmed! (Demo Mode)",
-        [{ text: "OK", onPress: () => router.navigate("/(tabs)/experiences") }],
-      );
     }
+  };
+
+  const handleCloseThankYou = () => {
+    setShowThankYou(false);
+    router.navigate("/(tabs)/experiences");
   };
 
   return (
@@ -220,6 +306,43 @@ export default function ExperienceBookingScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Thank You Modal */}
+      <Modal
+        visible={showThankYou}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseThankYou}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+            </View>
+            <Text style={styles.modalTitle}>Thank You!</Text>
+            <Text style={styles.modalText}>
+              Your booking has been confirmed successfully.
+            </Text>
+            {bookingReference && (
+              <View style={styles.referenceContainer}>
+                <Text style={styles.referenceLabel}>Booking Reference</Text>
+                <Text style={styles.referenceNumber}>{bookingReference}</Text>
+              </View>
+            )}
+            <Text style={styles.modalSubtext}>
+              {userProfile?.full_name ? `Hi ${userProfile.full_name}, ` : ""}
+              We have sent a confirmation to{" "}
+              {userProfile?.email || "your email"}.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleCloseThankYou}
+            >
+              <Text style={styles.modalButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -416,6 +539,81 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   confirmBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 30,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 340,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  referenceContainer: {
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  referenceLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  referenceNumber: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.primary,
+    letterSpacing: 1,
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",

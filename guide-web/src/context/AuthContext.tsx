@@ -49,16 +49,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkUserRole = async (userId: string, sessionUser: any) => {
     try {
-      const { data, error } = await supabase
+      // Try by auth_id first
+      let { data, error } = await supabase
         .from("users")
-        .select("role, first_name, last_name, email")
+        .select("id, role, first_name, last_name, email")
         .eq("auth_id", userId)
         .single();
+
+      // If not found by auth_id, try by email
+      if (error || !data) {
+        const { data: byEmail, error: emailError } = await supabase
+          .from("users")
+          .select("id, role, first_name, last_name, email")
+          .eq("email", sessionUser.email)
+          .single();
+
+        if (!emailError && byEmail) {
+          data = byEmail;
+          error = null;
+        }
+      }
 
       if (error) throw error;
 
       if (data.role === "guide") {
-        setUser({ ...sessionUser, ...data });
+        setUser({ ...sessionUser, ...data, dbUserId: data.id });
         setIsAuthenticated(true);
       } else {
         console.warn("User is not a guide:", data.role);
@@ -88,14 +103,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Verify role
-        const { data: userData, error: roleError } = await supabase
+        // Verify role - try auth_id first, then id, then email
+        let userData = null;
+        let roleError = null;
+
+        // Try by auth_id
+        const { data: byAuthId, error: authIdError } = await supabase
           .from("users")
-          .select("role, first_name, last_name, email, phone")
+          .select("id, role, first_name, last_name, email, phone")
           .eq("auth_id", data.user.id)
           .single();
 
-        if (roleError) {
+        if (!authIdError && byAuthId) {
+          userData = byAuthId;
+        } else {
+          // Try by id (in case user.id = auth.uid)
+          const { data: byId, error: idError } = await supabase
+            .from("users")
+            .select("id, role, first_name, last_name, email, phone")
+            .eq("id", data.user.id)
+            .single();
+
+          if (!idError && byId) {
+            userData = byId;
+          } else {
+            // Try by email as last resort
+            const { data: byEmail, error: emailError } = await supabase
+              .from("users")
+              .select("id, role, first_name, last_name, email, phone")
+              .eq("email", data.user.email)
+              .single();
+
+            if (!emailError && byEmail) {
+              userData = byEmail;
+            } else {
+              roleError = emailError || idError || authIdError;
+            }
+          }
+        }
+
+        if (roleError || !userData) {
           console.error("Role verification error:", roleError);
           await supabase.auth.signOut();
           return { success: false, error: "Failed to verify user profile." };
@@ -109,7 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         }
 
-        setUser({ ...data.user, ...userData });
+        // Set user with database user ID for queries
+        setUser({ ...data.user, ...userData, dbUserId: userData.id });
         setIsAuthenticated(true);
         return { success: true };
       }
