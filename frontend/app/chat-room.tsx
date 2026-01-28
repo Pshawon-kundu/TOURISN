@@ -1,11 +1,11 @@
-import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/design";
 import { useAuth } from "@/hooks/use-auth";
-import * as ChatApi from "@/lib/chat"; // Use new Chat API
+import * as ChatApi from "@/lib/chat";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -16,18 +16,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
   text: string;
-  from: string; // userId
+  from: string; // sender_id
   createdAt: any;
   isMe: boolean;
 }
 
 export default function ChatScreen() {
   const params = useLocalSearchParams();
-  // guideId param here represents the "other" user (Guide or Traveler)
   const otherUserId = (params.guideId || params.otherUserId) as
     | string
     | undefined;
@@ -40,13 +40,12 @@ export default function ChatScreen() {
   const [text, setText] = useState("");
   const [connected, setConnected] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(roomIdProp || null);
+  const [loading, setLoading] = useState(true);
 
   const listRef = useRef<FlatList>(null);
   const { user } = useAuth();
-
   const currentUserId = user?.id;
 
-  // Deduplicate messages helper
   const addUniqueMessages = (current: Message[], newMsgs: Message[]) => {
     const existingIds = new Set(current.map((m) => m.id));
     const uniqueNew = newMsgs.filter((m) => !existingIds.has(m.id));
@@ -61,87 +60,58 @@ export default function ChatScreen() {
     let unsubscribe: () => void = () => {};
 
     const initChat = async () => {
-      console.log("🔵 Initializing chat...");
-      console.log("  Current User ID:", currentUserId);
-      console.log("  Other User ID:", otherUserId);
-      console.log("  Room ID Prop:", roomIdProp);
-      console.log("  Room ID State:", roomId);
-
-      if (!currentUserId) {
-        console.log("❌ No current user ID, waiting...");
-        return;
-      }
+      if (!currentUserId) return;
 
       let activeRoomId = roomId;
 
-      // If we don't have a room ID but have an other user ID, fetch/create room
       if (!activeRoomId && otherUserId) {
-        console.log("📞 Creating/fetching chat room with:", otherUserId);
         try {
           const room = await ChatApi.getOrCreateChatRoom(otherUserId);
-          console.log("✅ Room fetched/created:", room);
           if (room) {
             activeRoomId = room.id;
             setRoomId(room.id);
-            console.log("✅ Room ID set:", room.id);
           } else {
-            console.error("❌ Room creation returned null");
-            Alert.alert(
-              "Chat Room Error",
-              "Failed to create chat room. Please check your connection and try again.",
-              [
-                { text: "Go Back", onPress: () => router.back() },
-                { text: "Retry", onPress: () => initChat() },
-              ],
-            );
+            console.error("Failed to create room");
+            setLoading(false);
             return;
           }
         } catch (error) {
-          console.error("❌ Error creating room:", error);
-          Alert.alert(
-            "Connection Error",
-            "Failed to initialize chat. Please check your internet connection and try again.",
-            [
-              { text: "Go Back", onPress: () => router.back() },
-              { text: "Retry", onPress: () => initChat() },
-            ],
-          );
+          console.error("Error init room:", error);
+          setLoading(false);
           return;
         }
       }
 
-      if (!activeRoomId) {
-        console.error("❌ No active room ID after initialization");
+      const finalRoomId = activeRoomId;
+      if (!finalRoomId) {
+        setLoading(false);
         return;
       }
 
       setConnected(true);
-      console.log("✅ Chat connected with room:", activeRoomId);
 
-      // Load initial messages
       try {
-        const msgs = await ChatApi.getMessages(activeRoomId);
-        console.log(`📥 Loaded ${msgs.length} messages`);
-        setMessages((prev) =>
-          addUniqueMessages(
-            prev,
-            msgs.map((m) => ({
-              id: m.id,
-              text: m.message,
-              from: m.sender_id,
-              createdAt: m.created_at,
-              isMe: m.sender_id === currentUserId,
-            })),
-          ),
+        const msgs = await ChatApi.getMessages(finalRoomId);
+        setMessages(
+          msgs.map((m) => ({
+            id: m.id,
+            text: m.message,
+            from: m.sender_id,
+            createdAt: m.created_at,
+            isMe: m.sender_id === currentUserId,
+          })),
         );
+        setLoading(false);
       } catch (error) {
-        console.error("❌ Error loading messages:", error);
+        console.error("Error loading messages:", error);
+        setLoading(false);
       }
 
-      // Subscribe to real-time
+      // Allow UI to breathe before scrolling
+      setTimeout(() => listRef.current?.scrollToEnd(), 200);
+
       try {
-        unsubscribe = await ChatApi.subscribeToChat(activeRoomId, (newMsg) => {
-          console.log("📨 New message received:", newMsg);
+        unsubscribe = await ChatApi.subscribeToChat(finalRoomId, (newMsg) => {
           setMessages((prev) => {
             const incomingMessage: Message = {
               id: newMsg.id,
@@ -152,71 +122,70 @@ export default function ChatScreen() {
             };
             return addUniqueMessages(prev, [incomingMessage]);
           });
-          // Scroll to bottom
           setTimeout(() => listRef.current?.scrollToEnd(), 100);
         });
-        console.log("✅ Subscribed to real-time updates");
       } catch (error) {
-        console.error("❌ Error subscribing to chat:", error);
+        console.error("Error subscribing:", error);
       }
     };
 
     initChat();
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [otherUserId, currentUserId]);
 
   const handleSend = async () => {
-    console.log("🔵 Send button pressed");
-    console.log("  Text:", text);
-    console.log("  Room ID:", roomId);
-    console.log("  User ID:", currentUserId);
-
-    if (!text.trim()) {
-      console.log("❌ No text to send");
-      return;
-    }
-
-    if (!roomId) {
-      console.log("❌ No room ID");
-      alert("Chat room not initialized");
-      return;
-    }
-
-    if (!currentUserId) {
-      console.log("❌ No user ID - not logged in?");
-      alert("Please log in to send messages");
-      return;
-    }
+    if (!text.trim() || !roomId || !currentUserId) return;
 
     const msgText = text.trim();
     setText("");
 
-    try {
-      console.log("📤 Sending message...");
-      const sentMsg = await ChatApi.sendMessage(roomId, msgText, currentUserId);
-      console.log("✅ Message sent:", sentMsg);
+    // Optimistic UI Update
+    const tempId = Date.now().toString();
+    const optimisticMsg: Message = {
+      id: tempId,
+      text: msgText,
+      from: currentUserId,
+      createdAt: new Date().toISOString(),
+      isMe: true,
+    };
 
-      // Optimistically add message to list if returned
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => listRef.current?.scrollToEnd(), 100);
+
+    try {
+      const sentMsg = await ChatApi.sendMessage(roomId, msgText, currentUserId);
       if (sentMsg) {
-        setMessages((prev) => {
-          const newMsg: Message = {
-            id: sentMsg.id,
-            text: sentMsg.message,
-            from: sentMsg.sender_id,
-            createdAt: sentMsg.created_at,
-            isMe: true,
-          };
-          return addUniqueMessages(prev, [newMsg]);
-        });
-        setTimeout(() => listRef.current?.scrollToEnd(), 100);
+        // Replace optimistic message or rely on subscription/refresh?
+        // Since we have a real ID now, let's update if we want, but unique checker handles it.
+        // Actually, if we just let the subscription or list refresh handle it, we might duplicate if not careful.
+        // But "addUniqueMessages" handles ID based deduplication.
+        // We should replace the temp ID with the real ID.
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  id: sentMsg.id,
+                  createdAt: sentMsg.created_at,
+                }
+              : m,
+          ),
+        );
       }
     } catch (error) {
-      console.error("❌ Failed to send:", error);
-      alert("Failed to send message. Check console for details.");
-      setText(msgText); // Restore the text
+      console.error("Send failed:", error);
+      Alert.alert("Error", "Message failed to send");
+      // Remove optimistic message
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setText(msgText);
+    }
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push("/(tabs)");
     }
   };
 
@@ -236,7 +205,14 @@ export default function ChatScreen() {
         >
           {item.text}
         </Text>
-        <Text style={styles.timestamp}>
+        <Text
+          style={[
+            styles.timestamp,
+            item.isMe
+              ? { color: "rgba(255,255,255,0.8)" }
+              : { color: "#558B2F" },
+          ]}
+        >
           {new Date(item.createdAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -246,73 +222,99 @@ export default function ChatScreen() {
     );
   };
 
-  return (
-    <ThemedView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{otherUserName || "Chat"}</Text>
-          {connected && <Text style={styles.onlineStatus}>Connected</Text>}
-        </View>
+  if (loading && !connected) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
+    );
+  }
 
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.listContent}
-        onContentSizeChange={() => listRef.current?.scrollToEnd()}
-      />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
-      >
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type a message..."
-            value={text}
-            onChangeText={setText}
-            placeholderTextColor="#94A3B8"
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !text.trim() && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={!text.trim()}
-          >
-            <Ionicons name="send" size={20} color="#FFF" />
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>{otherUserName || "Chat"}</Text>
+            <View style={styles.statusRow}>
+              <View
+                style={[
+                  styles.statusDot,
+                  connected ? styles.statusOnline : styles.statusOffline,
+                ]}
+              />
+              <Text style={styles.onlineStatus}>
+                {connected ? "Active now" : "Connecting..."}
+              </Text>
+            </View>
+          </View>
         </View>
-      </KeyboardAvoidingView>
-    </ThemedView>
+
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.listContent}
+          onLayout={() => listRef.current?.scrollToEnd()}
+        />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        >
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message..."
+              value={text}
+              onChangeText={setText}
+              placeholderTextColor="#94A3B8"
+              multiline
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                !text.trim() && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSend}
+              disabled={!text.trim()}
+            >
+              <Ionicons name="send" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFF",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.surface, // Light gray/surface
+  },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     backgroundColor: "#FFF",
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#F1F5F9",
+    height: 60,
   },
   backButton: {
     padding: 8,
@@ -322,13 +324,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
     color: Colors.textPrimary,
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusOnline: {
+    backgroundColor: "#10B981",
+  },
+  statusOffline: {
+    backgroundColor: "#F59E0B",
   },
   onlineStatus: {
     fontSize: 12,
-    color: "#10B981",
+    color: Colors.textSecondary,
   },
   listContent: {
     padding: Spacing.md,
@@ -337,56 +355,63 @@ const styles = StyleSheet.create({
   messageBubble: {
     maxWidth: "80%",
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 18,
     marginBottom: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   myMessage: {
     alignSelf: "flex-end",
-    backgroundColor: Colors.primary,
+    backgroundColor: "#2E7D5A", // Guide's sent messages - Green
     borderBottomRightRadius: 4,
   },
   theirMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "#FFF",
+    backgroundColor: "#E8F5E9", // Received messages - Light green background
     borderBottomLeftRadius: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
   },
   myMessageText: {
-    color: "#FFF",
+    color: "#FFF", // White text for sent messages
+    fontWeight: "500",
   },
   theirMessageText: {
-    color: Colors.textPrimary,
+    color: "#1B5E20", // Dark green text for received messages
+    fontWeight: "400",
   },
   timestamp: {
     fontSize: 10,
     marginTop: 4,
-    opacity: 0.7,
     alignSelf: "flex-end",
-    color: "inherit",
   },
   inputContainer: {
     flexDirection: "row",
     padding: Spacing.md,
     backgroundColor: "#FFF",
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#F1F5F9",
     alignItems: "center",
+    gap: 10,
   },
   input: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F8FAFC",
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    fontSize: 16,
-    marginRight: Spacing.md,
+    fontSize: 15,
     color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    maxHeight: 100,
   },
   sendButton: {
     width: 44,
@@ -395,8 +420,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   sendButtonDisabled: {
     backgroundColor: "#CBD5E1",
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

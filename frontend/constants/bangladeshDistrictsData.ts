@@ -47,7 +47,7 @@ export const districts: District[] = [
       "Borhani",
       "Haleem",
     ],
-    image: "https://images.unsplash.com/photo-1629473210419-3f0406856525?w=800",
+    image: "https://images.unsplash.com/photo-1574870111867-089730e5a72b?w=800", // National Parliament House, Dhaka
     rating: 4.7,
     coordinates: { lat: 23.8103, lng: 90.4125 },
   },
@@ -64,7 +64,7 @@ export const districts: District[] = [
       "Dutch Cemetery",
     ],
     famousFoods: ["Rasgulla", "Chomchom", "Roshmalai", "Pantua", "Hilsa Fish"],
-    image: "https://images.unsplash.com/photo-1596895111956-bf1cf0599ce5?w=800",
+    image: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800", // Padma River landscape
     rating: 4.2,
     coordinates: { lat: 23.607, lng: 89.8429 },
   },
@@ -81,7 +81,7 @@ export const districts: District[] = [
       "Joy Devpur",
     ],
     famousFoods: ["Doi", "Pitha", "Khichuri", "Beef Curry", "Jhal Muri"],
-    image: "https://images.unsplash.com/photo-1603504445851-4e4bf51aee2b?w=800",
+    image: "https://images.unsplash.com/photo-1511497584788-876760111969?w=800", // Bhawal National Park forest
     rating: 4.3,
     coordinates: { lat: 24.0022, lng: 90.4264 },
   },
@@ -104,7 +104,7 @@ export const districts: District[] = [
       "Date Palm Jaggery",
       "River Fish Curry",
     ],
-    image: "https://images.unsplash.com/photo-1628189870104-d53b9222c36a?w=800",
+    image: "https://images.unsplash.com/photo-1586688639600-076ac2af5a9b?w=800", // Rural Bangladesh village scene
     rating: 4.1,
     coordinates: { lat: 23.005, lng: 89.8266 },
   },
@@ -127,7 +127,7 @@ export const districts: District[] = [
       "Shrimp Malai Curry",
       "Til Pitha",
     ],
-    image: "https://images.unsplash.com/photo-1605218457336-92c4cd86fa6a?w=800",
+    image: "https://images.unsplash.com/photo-1548013146-72479768bada?w=800", // Haor wetlands
     rating: 4.4,
     coordinates: { lat: 24.426, lng: 90.7765 },
   },
@@ -139,7 +139,7 @@ export const districts: District[] = [
       "River-blessed district known for its natural beauty and agriculture.",
     famousPlaces: ["Arial Beel", "Padma River", "Madaripur Sadar", "Jhauchar"],
     famousFoods: ["Hilsa Fish", "Pitha", "Khichuri", "Duck Meat", "Doi Katla"],
-    image: "https://images.unsplash.com/photo-1622554316682-9f6bd5460597?w=800",
+    image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=800", // River and wetlands
     rating: 4.0,
     coordinates: { lat: 23.1641, lng: 90.1897 },
   },
@@ -278,7 +278,7 @@ export const districts: District[] = [
       "Fried Fish",
       "Chatpati",
     ],
-    image: "https://images.unsplash.com/photo-1585223388863-7e23d38c642e?w=800",
+    image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800", // Patenga Beach, Chittagong
     rating: 4.8,
     coordinates: { lat: 22.3569, lng: 91.7832 },
   },
@@ -302,7 +302,7 @@ export const districts: District[] = [
       "Crab Curry",
       "Chitol Fish",
     ],
-    image: "https://images.unsplash.com/photo-1595166661749-3c306d157ccf?w=800",
+    image: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800", // Cox's Bazar longest sea beach
     rating: 4.9,
     coordinates: { lat: 21.4272, lng: 92.0058 },
   },
@@ -326,7 +326,7 @@ export const districts: District[] = [
       "Hill Chicken",
       "Sidol",
     ],
-    image: "https://images.unsplash.com/photo-1587974928442-77dc3207cc2e?w=800",
+    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800", // Nilgiri hills and mountains
     rating: 4.9,
     coordinates: { lat: 22.1953, lng: 92.2183 },
   },
@@ -350,7 +350,7 @@ export const districts: District[] = [
       "Hill Rice",
       "Tribal Dishes",
     ],
-    image: "https://images.unsplash.com/photo-1633633640244-a62c5565576f?w=800",
+    image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800", // Kaptai Lake scenic view
     rating: 4.8,
     coordinates: { lat: 22.7324, lng: 92.2985 },
   },
@@ -632,7 +632,7 @@ export const districts: District[] = [
       "Pitha",
       "Bhapa Ilish",
     ],
-    image: "https://images.unsplash.com/photo-1592661836104-58525b3060d4?w=800",
+    image: "https://images.unsplash.com/photo-1585395570378-1b0d3da1e3c1?w=800", // Sundarbans mangrove forest
     rating: 4.7,
     coordinates: { lat: 22.8456, lng: 89.5403 },
   },
@@ -648,7 +648,7 @@ export const districts: District[] = [
       "Sundarbans",
     ],
     famousFoods: ["Prawn Curry", "Fish Curry", "Pitha", "Doi", "Khichuri"],
-    image: "https://images.unsplash.com/photo-1586326176508-4127598c1569?w=800",
+    image: "https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=800", // Sixty Dome Mosque
     rating: 4.8,
     coordinates: { lat: 22.6602, lng: 89.7895 },
   },
@@ -870,7 +870,7 @@ export const districts: District[] = [
       "Tusha Shinni",
       "Hatkhora",
     ],
-    image: "https://images.unsplash.com/photo-1598556776374-13617a08e9ca?w=800",
+    image: "https://images.unsplash.com/photo-1563406991544-60e119a5a1e1?w=800", // Tea gardens of Sylhet
     rating: 4.9,
     coordinates: { lat: 24.8949, lng: 91.8687 },
   },
@@ -910,7 +910,7 @@ export const districts: District[] = [
       "Tusha Shinni",
       "Doi",
     ],
-    image: "https://images.unsplash.com/photo-1584829193166-5125345759ce?w=800",
+    image: "https://images.unsplash.com/photo-1464852045489-bccb7d17fe39?w=800", // Lawachara forest and tea
     rating: 4.8,
     coordinates: { lat: 24.4829, lng: 91.7774 },
   },
@@ -926,7 +926,7 @@ export const districts: District[] = [
       "Sunamganj Sadar",
     ],
     famousFoods: ["Haor Fish", "Pitha", "Duck Curry", "Doi", "River Fish"],
-    image: "https://images.unsplash.com/photo-1605218457336-92c4cd86fa6a?w=800",
+    image: "https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=800", // Tanguar Haor wetlands
     rating: 4.5,
     coordinates: { lat: 25.0657, lng: 91.395 },
   },
@@ -945,7 +945,7 @@ export const districts: District[] = [
       "Vindaban Park",
     ],
     famousFoods: ["Kamrangini Chomchom", "Pitha", "Doi", "Misti", "Langcha"],
-    image: "https://images.unsplash.com/photo-1587974928442-77dc3207cc2e?w=800",
+    image: "https://images.unsplash.com/photo-1605711235608-93f48eca5b55?w=800", // Tajhat Palace historic
     rating: 4.5,
     coordinates: { lat: 25.7439, lng: 89.2752 },
   },
@@ -962,7 +962,7 @@ export const districts: District[] = [
       "Dinajpur Rajbari",
     ],
     famousFoods: ["Litchi", "Pitha", "Doi", "Misti", "Khichuri"],
-    image: "https://images.unsplash.com/photo-1600605995576-963b53c7c77c?w=800",
+    image: "https://images.unsplash.com/photo-1555880285-93e8f0c59eee?w=800", // Kantajew Temple architecture
     rating: 4.6,
     coordinates: { lat: 25.6217, lng: 88.6354 },
   },

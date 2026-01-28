@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Platform,
@@ -88,16 +89,38 @@ export default function ExperienceBookingScreen() {
   const totalPrice = experience.price * guests;
 
   const handleBooking = async () => {
+    // Validate user profile before booking
+    if (!userProfile?.id) {
+      if (Platform.OS === "web") {
+        window.alert("Please login to continue with booking");
+      } else {
+        Alert.alert("Login Required", "Please login to complete your booking", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Login",
+            onPress: () => router.push("/login"),
+          },
+        ]);
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Prepare booking data for backend API
+      // Calculate dates for multi-day experiences
+      const startDate = new Date();
+      const durationDays = parseInt(experience.duration) || 1;
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + durationDays);
+
+      // Prepare comprehensive booking data for backend API
       const bookingData = {
-        // User info from profile
-        userId: userProfile?.id || null,
-        travelerName: userProfile?.full_name || "Guest User",
-        travelerEmail: userProfile?.email || "guest@example.com",
-        travelerPhone: userProfile?.phone || "+880 1712 000000",
+        // User info from authenticated profile
+        userId: userProfile.id,
+        travelerName: userProfile.full_name || "Guest User",
+        travelerEmail: userProfile.email,
+        travelerPhone: userProfile.phone || "+880 1712 000000",
 
         // Experience details
         experienceId: experience.id,
@@ -105,27 +128,30 @@ export default function ExperienceBookingScreen() {
         experienceCategory: experience.category,
         experienceLocation: experience.location,
         experienceDuration: experience.duration,
-        experiencePrice: experience.price,
+        experiencePrice: experience.price * guests,
 
         // Guide details
-        guideId: null, // Guide ID not available in static data
+        guideId: experience.guide?.id || null,
         guideName: experience.guide?.name || "Local Guide",
         guideRatePerHour: 500, // Default rate
-        guideHours: parseInt(experience.duration) || 4,
+        guideHours: parseInt(experience.duration) * 8 || 8, // 8 hours per day
 
         // Travel details
         numberOfTravelers: guests,
-        travelDate: new Date().toISOString().split("T")[0],
-        checkInDate: new Date().toISOString().split("T")[0],
-        checkOutDate: new Date().toISOString().split("T")[0],
+        travelDate: startDate.toISOString().split("T")[0],
+        checkInDate: startDate.toISOString().split("T")[0],
+        checkOutDate: endDate.toISOString().split("T")[0],
+
+        // Additional info
+        specialRequests: `${experience.name} - ${guests} guests`,
 
         // Payment
         paymentMethod: "card",
       };
 
-      console.log("📡 Sending booking to backend:", bookingData);
+      console.log("📡 Sending experience booking to backend:", bookingData);
 
-      // Call backend API
+      // Call backend API to save to Supabase
       const response = await fetch(`${getApiBaseUrl()}/combined-bookings`, {
         method: "POST",
         headers: {
@@ -137,19 +163,37 @@ export default function ExperienceBookingScreen() {
       const result = await response.json();
 
       if (result.success) {
-        console.log("✅ Booking saved to Supabase:", result.data);
-        setBookingReference(
-          result.data.bookingReference || "TUR-" + Date.now(),
-        );
+        console.log("✅ Experience booking saved to Supabase:", result.data);
+
+        // Set the booking reference from backend
+        const reference = result.data?.bookingReference || `TUR-${Date.now()}`;
+        setBookingReference(reference);
+
+        // Also save booking ID for reference
+        const bookingId = result.data?.experienceBooking?.id;
+        console.log("📝 Booking ID:", bookingId);
+        console.log("📝 Booking Reference:", reference);
+        console.log("👤 User ID:", userProfile.id);
+        console.log("👤 User Name:", userProfile.full_name);
+        console.log("📧 User Email:", userProfile.email);
+
         setShowThankYou(true);
       } else {
         throw new Error(result.error || "Booking failed");
       }
     } catch (error) {
-      console.error("❌ Booking error:", error);
-      // Still show success for demo purposes
-      setBookingReference("TUR-" + Date.now().toString().slice(-8));
-      setShowThankYou(true);
+      console.error("❌ Experience booking error:", error);
+
+      // Show error to user
+      if (Platform.OS === "web") {
+        window.alert("Booking failed. Please try again.");
+      } else {
+        Alert.alert(
+          "Booking Failed",
+          "Unable to complete your booking. Please try again.",
+          [{ text: "OK" }],
+        );
+      }
     } finally {
       setLoading(false);
     }

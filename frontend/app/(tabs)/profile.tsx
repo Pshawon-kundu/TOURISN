@@ -45,6 +45,13 @@ interface Booking {
   booking_status: string;
   created_at: string;
   check_in_date?: string;
+  total_days_or_units?: number;
+  user?: {
+    first_name: string;
+    last_name: string;
+    phone: string;
+    email: string;
+  };
 }
 
 export default function ProfileScreen() {
@@ -53,6 +60,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [guideBookings, setGuideBookings] = useState<Booking[]>([]);
   const [rewardPoints, setRewardPoints] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"current" | "previous">(
@@ -87,6 +95,10 @@ export default function ProfileScreen() {
         setEditAddress((userProf as any).address || "");
         setEditBio(userProf.bio || "");
         setEditAvatar(userProf.avatar_url || "");
+
+        if (userProf.role === "guide") {
+          loadGuideBookings();
+        }
       }
     } catch (err: any) {
       console.error("Failed to load profile:", err);
@@ -112,6 +124,23 @@ export default function ProfileScreen() {
       }
     } catch {
       console.log("Could not load bookings");
+    }
+  };
+
+  const loadGuideBookings = async () => {
+    try {
+      const result: any = await apiClient.request({
+        method: "GET",
+        endpoint: "/guides/my-bookings",
+      });
+      // Handle both {data: []} and [] formats
+      if (result && Array.isArray(result.data)) {
+        setGuideBookings(result.data);
+      } else if (Array.isArray(result)) {
+        setGuideBookings(result);
+      }
+    } catch (e) {
+      console.log("Could not load guide bookings", e);
     }
   };
 
@@ -354,6 +383,25 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel}>Points</Text>
             </View>
           </View>
+
+          {/* Guide Dashboard */}
+          {userProfile?.role === "guide" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>My Bookings (Clients)</Text>
+              {guideBookings.length > 0 ? (
+                guideBookings.map((booking) => (
+                  <ClientBookingCard
+                    key={booking.id}
+                    booking={booking}
+                    statusColor={getStatusColor(booking.booking_status)}
+                    statusIcon={getStatusIcon(booking.booking_status)}
+                  />
+                ))
+              ) : (
+                <EmptyState icon="people" message="No clients yet" />
+              )}
+            </View>
+          )}
 
           {/* Personal Information */}
           <View style={styles.section}>
@@ -631,6 +679,60 @@ function InfoRow({
         <Text style={styles.infoLabel}>{label}</Text>
       </View>
       <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+function ClientBookingCard({
+  booking,
+  statusColor,
+  statusIcon,
+}: {
+  booking: any;
+  statusColor: string;
+  statusIcon: string;
+}) {
+  const user = booking.user || {};
+  const travelerName = user.first_name
+    ? `${user.first_name} ${user.last_name || ""}`
+    : "Guest user";
+
+  return (
+    <View style={styles.bookingCard}>
+      <View style={styles.bookingHeader}>
+        <View>
+          <Text style={styles.bookingName}>{travelerName}</Text>
+          <Text style={styles.bookingType}>
+            Client • {booking.total_days_or_units} hours
+          </Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Ionicons name={statusIcon as any} size={14} color="#fff" />
+          <Text style={styles.statusText}>{booking.booking_status}</Text>
+        </View>
+      </View>
+      <View style={styles.bookingDetails}>
+        <View style={styles.bookingDetail}>
+          <Ionicons name="cash" size={16} color={Colors.textSecondary} />
+          <Text style={styles.bookingDetailText}>
+            TK {booking.total_price?.toLocaleString()}
+          </Text>
+        </View>
+        <View style={styles.bookingDetail}>
+          <Ionicons name="calendar" size={16} color={Colors.textSecondary} />
+          <Text style={styles.bookingDetailText}>
+            {new Date(
+              booking.check_in_date || booking.created_at,
+            ).toLocaleDateString()}
+          </Text>
+        </View>
+        {user.phone && (
+          <View style={styles.bookingDetail}>
+            <Ionicons name="call" size={16} color={Colors.textSecondary} />
+            <Text style={styles.bookingDetailText}>{user.phone}</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }

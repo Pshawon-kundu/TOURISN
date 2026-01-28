@@ -334,7 +334,12 @@ export const getGuideById = async (
 
     const { data: guide, error } = await supabase
       .from("guides")
-      .select("*")
+      .select(
+        `
+        *,
+        user:users!guides_user_id_fkey(id, first_name, last_name, email, phone)
+      `,
+      )
       .eq("id", id)
       .single();
 
@@ -351,6 +356,12 @@ export const getGuideById = async (
     console.error("Get guide by ID error:", error);
     res.status(500).json({ success: false, error: "Failed to fetch guide" });
   }
+};
+
+const getRandomAvatar = (seed: string) => {
+  // Use DiceBear API to generate consistent "emoji-style" avatars
+  // "adventurer" style gives nice illustrated portraits
+  return `https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffdfbf,ffd5dc`;
 };
 
 export const getAllGuides = async (
@@ -370,7 +381,7 @@ export const getAllGuides = async (
     `,
         { count: "exact" },
       )
-      .eq("status", "approved");
+      .eq("status", "active");
 
     if (isVerified === "true") {
       query = query.eq("is_verified", true);
@@ -422,7 +433,7 @@ export const getAllGuides = async (
       photo:
         guide.user?.avatar_url ||
         guide.profile_image_url ||
-        `https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop`,
+        getRandomAvatar(guide.id || guide.user?.email || "default"),
       isVerified: guide.is_verified,
       status: guide.status,
       yearsExperience: guide.years_of_experience || 1,
@@ -526,5 +537,66 @@ export const deleteGuideProfile = async (
     res
       .status(500)
       .json({ success: false, error: "Failed to delete guide profile" });
+  }
+};
+
+export const getGuideBookings = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    // 1. Get the guide profile for the current user
+    const { data: guide, error: guideError } = await supabase
+      .from("guides")
+      .select("id")
+      .eq("user_id", req.user.id)
+      .single();
+
+    if (guideError || !guide) {
+      res.status(404).json({
+        success: false,
+        error: "Guide profile not found. Please register as a guide first.",
+      });
+      return;
+    }
+
+    // 2. Fetch bookings where guide_id matches
+    const { data: bookings, error: bookingsError } = await supabase
+      .from("bookings")
+      .select(
+        `
+        *,
+        user:user_id (
+          first_name,
+          last_name,
+          email,
+          phone,
+          avatar_url
+        )
+      `,
+      )
+      .eq("guide_id", guide.id)
+      .order("created_at", { ascending: false });
+
+    if (bookingsError) {
+      console.error("Supabase fetch guide bookings error:", bookingsError);
+      res.status(400).json({ success: false, error: bookingsError.message });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: bookings || [],
+    });
+  } catch (error) {
+    console.error("Get guide bookings error:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch guide bookings" });
   }
 };

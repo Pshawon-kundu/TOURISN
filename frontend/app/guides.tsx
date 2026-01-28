@@ -1,10 +1,13 @@
 import { Header } from "@/components/header";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Radii, Spacing } from "@/constants/design";
+import { useAuth } from "@/hooks/use-auth";
+import { APIClient } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   ScrollView,
@@ -15,8 +18,43 @@ import {
   View,
 } from "react-native";
 
+const apiClient = new APIClient();
+
+interface Guide {
+  id: string;
+  name: string;
+  city: string;
+  rating: number;
+  reviews: number;
+  price: string;
+  specialty: string;
+  languages: string;
+  badge: string;
+  category: string;
+  photo: string;
+  isVerified: boolean;
+  status: string;
+  yearsExperience: number;
+  bio: string;
+  isAvailable: boolean;
+  isOnline: boolean;
+  perHourRate: number;
+  expertiseCategories: string[];
+  coverageAreas: string[];
+  phone: string;
+  email: string;
+}
+
 const guideCategories = [
   "All",
+  "Dhaka",
+  "Chittagong",
+  "Sylhet",
+  "Khulna",
+  "Rajshahi",
+  "Rangpur",
+  "Barisal",
+  "Mymensingh",
   "Beach",
   "Hills",
   "City",
@@ -24,88 +62,68 @@ const guideCategories = [
   "Food",
 ] as const;
 
-const guides = [
-  {
-    id: "g1",
-    name: "Arif Rahman",
-    city: "Dhaka & Old Town",
-    rating: 4.9,
-    reviews: 210,
-    price: "৳1,200/day",
-    specialty: "Heritage walks, food trails",
-    languages: "Bangla, English",
-    badge: "Top pick",
-    category: "City" as const,
-    photo:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g2",
-    name: "Mina Akter",
-    city: "Sylhet tea gardens",
-    rating: 4.8,
-    reviews: 180,
-    price: "৳1,100/day",
-    specialty: "Tea estates, waterfalls",
-    languages: "Bangla, English",
-    badge: "Nature",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g3",
-    name: "Rana Chowdhury",
-    city: "Cox's Bazar coastline",
-    rating: 4.7,
-    reviews: 260,
-    price: "৳1,500/day",
-    specialty: "Surf, seafood, sunsets",
-    languages: "Bangla, English",
-    badge: "Beach",
-    category: "Beach" as const,
-    photo:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g4",
-    name: "Farzana Yasmin",
-    city: "Bandarban hills",
-    rating: 4.9,
-    reviews: 190,
-    price: "৳1,800/day",
-    specialty: "Hill treks, tribal culture",
-    languages: "Bangla, English, Hindi",
-    badge: "Adventure",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop",
-  },
-  {
-    id: "g5",
-    name: "Nadia Karim",
-    city: "Sajek & Rangamati",
-    rating: 4.6,
-    reviews: 150,
-    price: "৳1,600/day",
-    specialty: "Sunrise points, lake cruises",
-    languages: "Bangla, English",
-    badge: "Scenic",
-    category: "Hills" as const,
-    photo:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&auto=format&fit=crop",
-  },
-];
-
 export default function GuidesScreen() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] =
     useState<(typeof guideCategories)[number]>("All");
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const heroImageOpacity = useRef(new Animated.Value(1)).current;
+  const heroImages = [
+    "https://cdn-icons-png.flaticon.com/512/4140/4140048.png",
+    "https://cdn-icons-png.flaticon.com/512/4140/4140037.png",
+    "https://cdn-icons-png.flaticon.com/512/4140/4140047.png",
+  ];
 
   useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.sequence([
+        Animated.timing(heroImageOpacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroImageOpacity, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
+        Animated.timing(heroImageOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchGuides = async () => {
+      try {
+        // Fetch all approved guides
+        const result: any = await apiClient.get("/guides");
+        if (result && result.success && Array.isArray(result.data)) {
+          setGuides(result.data);
+        } else if (result && Array.isArray(result.data)) {
+          setGuides(result.data); // Fallback if success not present but data is
+        }
+      } catch (err) {
+        console.error("Failed to fetch guides", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGuides();
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -119,19 +137,136 @@ export default function GuidesScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Subtle breathing/pulse animation for the hero section
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
   }, []);
 
   const filteredGuides = useMemo(() => {
     const term = search.toLowerCase();
-    return guides.filter((guide) => {
-      const matchesCategory =
-        activeCategory === "All" || guide.category === activeCategory;
-      const matchesSearch =
-        guide.name.toLowerCase().includes(term) ||
-        guide.city.toLowerCase().includes(term);
-      return matchesCategory && matchesSearch;
-    });
-  }, [activeCategory, search]);
+
+    // Check if a string contains any of the target words
+    const containsAny = (source: string, targets: string[]) => {
+      const sourceLower = source.toLowerCase();
+      return targets.some((target) =>
+        sourceLower.includes(target.toLowerCase()),
+      );
+    };
+
+    return guides
+      .filter((guide) => {
+        const guideName = (guide.name || "").toLowerCase();
+        const guideCity = (guide.city || "").toLowerCase();
+        const guideSpecialty = (guide.specialty || "").toLowerCase();
+
+        const areas = (guide.coverageAreas || []).map((a) => a.toLowerCase());
+        const categories = (guide.expertiseCategories || []).map((c) =>
+          c.toLowerCase(),
+        );
+
+        // Determine if the guide matches the selected category (Chip)
+        let matchesCategory = false;
+        if (activeCategory === "All") {
+          matchesCategory = true;
+        } else {
+          const activeLower = activeCategory.toLowerCase();
+          matchesCategory =
+            categories.includes(activeLower) ||
+            areas.includes(activeLower) ||
+            guideCity.includes(activeLower) ||
+            guide.category.toLowerCase().includes(activeLower);
+        }
+
+        // Determine if the guide matches the Search Text
+        const matchesSearch =
+          guideName.includes(term) ||
+          guideCity.includes(term) ||
+          guideSpecialty.includes(term) ||
+          areas.some((area) => area.includes(term)) ||
+          categories.some((cat) => cat.includes(term));
+
+        return matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => {
+        // Prioritize "Real" User Guides (non-test-data)
+        const isTestGuideA = (a.email || "").includes("tourisn.com");
+        const isTestGuideB = (b.email || "").includes("tourisn.com");
+
+        if (!isTestGuideA && isTestGuideB) return -1; // A comes first
+        if (isTestGuideA && !isTestGuideB) return 1; // B comes first
+        // Sort by active category match strength, then rating
+        if (activeCategory !== "All") {
+          const aCityMatch = a.city.includes(activeCategory);
+          const bCityMatch = b.city.includes(activeCategory);
+          if (aCityMatch && !bCityMatch) return -1;
+          if (!aCityMatch && bCityMatch) return 1;
+        }
+        return b.rating - a.rating; // High rating first
+      });
+  }, [search, activeCategory, guides]);
+
+  const renderGuideCard = (guide: Guide) => {
+    return (
+      <TouchableOpacity
+        key={guide.id}
+        activeOpacity={0.9}
+        onPress={() => router.push(`/guide/${guide.id}`)}
+        style={styles.guideCard}
+      >
+        <Image
+          source={{
+            uri:
+              guide.photo ||
+              `https://ui-avatars.com/api/?name=${guide.name}&background=3B82F6&color=fff`,
+          }}
+          style={styles.guidePhoto}
+        />
+        <View style={{ flex: 1 }}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.guideName}>{guide.name}</Text>
+            {guide.isVerified && <Text style={styles.badge}>Verified</Text>}
+          </View>
+
+          <Text style={styles.guideCity}>
+            <MaterialIcons name="location-on" size={14} color="#64748B" />
+            {" " + (guide.city || "Bangladesh")}
+            {guide.coverageAreas && guide.coverageAreas.length > 0
+              ? ` • ${guide.coverageAreas[0]}`
+              : ""}
+          </Text>
+
+          <Text style={styles.guideMeta}>
+            {guide.languages || "English, Bengali"}
+          </Text>
+
+          <View style={styles.cardFooter}>
+            <View style={styles.ratingRow}>
+              <MaterialIcons name="star" size={16} color="#F59E0B" />
+              <Text style={styles.ratingText}>
+                {guide.rating || 5.0} ({guide.reviews || 0})
+              </Text>
+            </View>
+            <Text style={styles.price}>
+              {guide.price || `৳${guide.perHourRate}/hr`}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -144,27 +279,35 @@ export default function GuidesScreen() {
         }}
       >
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.hero}>
+          <Animated.View
+            style={[styles.hero, { transform: [{ scale: pulseAnim }] }]}
+          >
             <View style={{ flex: 1, gap: 6 }}>
-              <Text style={styles.heroKicker}>Verified locals</Text>
-              <Text style={styles.heroTitle}>Find the perfect guide</Text>
+              <Text style={styles.heroKicker}>AUTHENTIC EXPERIENCES</Text>
+              <Text style={styles.heroTitle}>
+                Unlock the Soul of Bangladesh
+              </Text>
               <Text style={styles.heroSubtitle}>
-                Compare ratings, languages, and specialties before you book.
+                Connect with passionate local experts who turn trips into
+                unforgettable memories.
               </Text>
               <TouchableOpacity
                 style={styles.heroCta}
                 onPress={() => router.push({ pathname: "/hired-confirm" })}
               >
-                <Text style={styles.heroCtaText}>Hire a guide</Text>
+                <Text style={styles.heroCtaText}>Hire a Guide</Text>
               </TouchableOpacity>
             </View>
-            <Image
+            <Animated.Image
               source={{
-                uri: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop",
+                uri: heroImages[currentImageIndex],
               }}
-              style={styles.heroImage}
+              style={[
+                styles.heroImage,
+                { resizeMode: "contain", opacity: heroImageOpacity },
+              ]}
             />
-          </View>
+          </Animated.View>
 
           <View style={styles.searchCard}>
             <View style={styles.searchRow}>
@@ -208,59 +351,29 @@ export default function GuidesScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.guideList}>
-            {filteredGuides.map((guide) => (
-              <TouchableOpacity
-                key={guide.id}
-                style={styles.guideCard}
-                onPress={() => router.push(`/guide/${guide.id}`)}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: guide.photo }}
-                  style={styles.guidePhoto}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.guideName}>{guide.name}</Text>
-                    <Text style={styles.badge}>{guide.badge}</Text>
-                  </View>
-                  <Text style={styles.guideCity}>{guide.city}</Text>
-                  <Text style={styles.guideMeta}>{guide.specialty}</Text>
-                  <Text style={styles.guideMeta}>{guide.languages}</Text>
-                  <View style={styles.cardFooter}>
-                    <View style={styles.ratingRow}>
-                      <MaterialIcons name="star" size={16} color="#F59E0B" />
-                      <Text style={styles.ratingText}>
-                        {guide.rating} ({guide.reviews})
-                      </Text>
-                    </View>
-                    <Text style={styles.price}>{guide.price}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.quickChatButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push({
-                        pathname: "/chat-room",
-                        params: {
-                          guideId: guide.id,
-                          guideName: guide.name,
-                        },
-                      });
-                    }}
-                  >
-                    <MaterialIcons
-                      name="chat-bubble-outline"
-                      size={16}
-                      color="#3B82F6"
-                    />
-                    <Text style={styles.quickChatText}>Chat</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={Colors.primary}
+              style={{ marginTop: 20 }}
+            />
+          ) : (
+            <View style={styles.guideList}>
+              {filteredGuides.length === 0 ? (
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#6B7280",
+                    marginTop: 20,
+                  }}
+                >
+                  No guides found matching your criteria.
+                </Text>
+              ) : (
+                filteredGuides.map(renderGuideCard)
+              )}
+            </View>
+          )}
 
           <View style={styles.featureGrid}>
             <View style={styles.featureCard}>
@@ -307,9 +420,17 @@ export default function GuidesScreen() {
             </View>
             <TouchableOpacity
               style={styles.ctaButton}
-              onPress={() => router.push("/signup")}
+              onPress={() => {
+                if (user) {
+                  router.push("/guide-registration");
+                } else {
+                  router.push("/signup");
+                }
+              }}
             >
-              <Text style={styles.ctaButtonText}>Start now</Text>
+              <Text style={styles.ctaButtonText}>
+                {user ? "Register as Guide" : "Start now"}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -501,14 +622,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.primary,
   },
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
   quickChatButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginTop: Spacing.sm,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     backgroundColor: "rgba(59, 130, 246, 0.1)",
     borderRadius: Radii.full,
     borderWidth: 1,
@@ -518,6 +644,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: "#3B82F6",
+  },
+  bookButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.full,
+  },
+  bookButtonText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 13,
   },
   featureGrid: {
     flexDirection: "row",

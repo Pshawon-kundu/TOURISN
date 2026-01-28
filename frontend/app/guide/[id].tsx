@@ -1,7 +1,11 @@
+import { Header } from "@/components/header";
+import { ThemedView } from "@/components/themed-view";
+import { APIClient } from "@/lib/api";
 import { Ionicons } from "@expo/vector-icons";
-import { Link, router, Stack, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
@@ -11,14 +15,60 @@ import {
   View,
 } from "react-native";
 
-import { BookingStepper } from "@/components/booking-stepper";
-import { Header } from "@/components/header";
-import { ThemedView } from "@/components/themed-view";
+const apiClient = new APIClient();
+
+interface GuideDetail {
+  id: string;
+  bio: string;
+  specialties: string[];
+  languages: string[];
+  years_of_experience: number;
+  certifications: string[];
+  nid_number: string;
+  nid_image_url: string;
+  age: number;
+  expertise_area: string;
+  per_hour_rate: number;
+  expertise_categories: string[];
+  coverage_areas: string[];
+  is_verified: boolean;
+  user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+  };
+  profile_image_url?: string;
+}
 
 export default function GuideProfile() {
   const params = useLocalSearchParams();
-  const id = params.id as string | undefined;
+  const id = params.id as string;
   const [isNavigating, setIsNavigating] = useState(false);
+  const [guide, setGuide] = useState<GuideDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchGuide = async () => {
+      try {
+        const result: any = await apiClient.get(`/guides/${id}`);
+        if (result && result.success) {
+          setGuide(result.data);
+        } else if (result && result.user) {
+          // Handle direct return if schema matches
+          setGuide(result);
+        } else if (result) {
+          setGuide(result);
+        }
+      } catch (e) {
+        console.error("Failed to load guide", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGuide();
+  }, [id]);
 
   const handleChatPress = async () => {
     if (isNavigating) return;
@@ -28,8 +78,10 @@ export default function GuideProfile() {
       router.push({
         pathname: "/chat-room",
         params: {
-          guideId: id || "g1",
-          guideName: id ? `${id} — Local guide` : "Arif — Dhaka specialist",
+          guideId: id,
+          guideName: guide
+            ? `${guide.user.first_name} ${guide.user.last_name || ""}`
+            : "Guide",
         },
       });
     } catch (error) {
@@ -45,8 +97,57 @@ export default function GuideProfile() {
   };
 
   const handleBookPress = () => {
-    router.push(`/booking?guide=${id ?? "g1"}`);
+    if (!guide) return;
+    router.push({
+      pathname: "/guide-booking",
+      params: {
+        guideId: guide.id,
+        guideName: `${guide.user.first_name} ${guide.user.last_name || ""}`,
+        rate: `৳${guide.per_hour_rate || 500}`,
+        photo: guide.profile_image_url,
+      },
+    });
   };
+
+  if (loading) {
+    return (
+      <ThemedView
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </ThemedView>
+    );
+  }
+
+  if (!guide) {
+    return (
+      <ThemedView style={styles.container}>
+        <Header title="Guide Profile" />
+        <View style={{ padding: 20 }}>
+          <Text>Guide not found</Text>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  const fullName =
+    `${guide.user?.first_name || ""} ${guide.user?.last_name || ""}`.trim() ||
+    "Local Guide";
+  const specialties = Array.isArray(guide.specialties)
+    ? guide.specialties.join(", ")
+    : guide.specialties;
+  const languages = Array.isArray(guide.languages)
+    ? guide.languages.join(", ")
+    : guide.languages;
+  const expertise = Array.isArray(guide.expertise_categories)
+    ? guide.expertise_categories.join(", ")
+    : guide.expertise_categories;
+  const coverage = Array.isArray(guide.coverage_areas)
+    ? guide.coverage_areas.join(", ")
+    : guide.coverage_areas;
 
   return (
     <ThemedView style={styles.container}>
@@ -58,55 +159,65 @@ export default function GuideProfile() {
           <View style={styles.avatarContainer}>
             <Image
               source={{
-                uri: `https://ui-avatars.com/api/?name=${id || "Arif"}&background=3B82F6&color=fff&size=120&bold=true`,
+                uri:
+                  guide.profile_image_url ||
+                  `https://ui-avatars.com/api/?name=${fullName}&background=3B82F6&color=fff&size=120&bold=true`,
               }}
               style={styles.avatar}
             />
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={28} color="#10B981" />
-            </View>
+            {guide.is_verified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+              </View>
+            )}
           </View>
-          <Text style={styles.guideName}>
-            {id ? `${id} — Local guide` : "Arif — Dhaka specialist"}
+          <Text style={styles.guideName}>{fullName}</Text>
+          <Text style={styles.guideSubtitle}>
+            {guide.expertise_area || "Professional Guide"}
           </Text>
-          <Text style={styles.guideSubtitle}>City & historical tours</Text>
         </View>
 
         {/* Badges Section */}
         <View style={styles.badgesRow}>
-          <View style={styles.badge}>
-            <Ionicons name="shield-checkmark" size={16} color="#10B981" />
-            <Text style={styles.badgeText}>Verified</Text>
-          </View>
+          {guide.is_verified && (
+            <View style={styles.badge}>
+              <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+              <Text style={styles.badgeText}>Verified</Text>
+            </View>
+          )}
           <View style={styles.badge}>
             <Ionicons name="language" size={16} color="#3B82F6" />
-            <Text style={styles.badgeText}>Bangla / English</Text>
+            <Text style={styles.badgeText}>{languages || "Bangla"}</Text>
+          </View>
+          <View style={styles.badge}>
+            <Ionicons name="time" size={16} color="#8B5CF6" />
+            <Text style={styles.badgeText}>
+              {guide.years_of_experience}y Exp
+            </Text>
           </View>
         </View>
 
-        {/* About Section */}
+        {/* About Section - Using Bio from Registration */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-circle-outline" size={24} color="#3B82F6" />
             <Text style={styles.sectionTitle}>About</Text>
           </View>
           <Text style={styles.sectionContent}>
-            Experienced guide from Dhaka. Knows local history, food spots, and
-            hidden gems. NID verified.
+            {guide.bio || "No bio available."}
           </Text>
-        </View>
-
-        {/* Availability Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="calendar-outline" size={24} color="#3B82F6" />
-            <Text style={styles.sectionTitle}>Availability</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={18} color="#64748B" />
-            <Text style={styles.sectionContent}>
-              Mon–Sat, 8:00 AM — 6:00 PM
+          {/* Detailed Expertise */}
+          <View style={{ marginTop: 12, gap: 4 }}>
+            <Text style={{ fontWeight: "600", color: "#4B5563" }}>
+              Expertise:
             </Text>
+            <Text style={{ color: "#6B7280" }}>{expertise}</Text>
+          </View>
+          <View style={{ marginTop: 8, gap: 4 }}>
+            <Text style={{ fontWeight: "600", color: "#4B5563" }}>
+              Coverage:
+            </Text>
+            <Text style={{ color: "#6B7280" }}>{coverage}</Text>
           </View>
         </View>
 
@@ -119,11 +230,46 @@ export default function GuideProfile() {
           <View style={styles.ratesContainer}>
             <View style={styles.rateItem}>
               <Ionicons name="sunny-outline" size={18} color="#F59E0B" />
-              <Text style={styles.rateText}>BDT 1,200 / half-day</Text>
+              <Text style={styles.rateText}>
+                BDT {guide.per_hour_rate} / hour
+              </Text>
             </View>
             <View style={styles.rateItem}>
               <Ionicons name="sunny" size={18} color="#F59E0B" />
-              <Text style={styles.rateText}>BDT 2,000 / full-day</Text>
+              <Text style={styles.rateText}>
+                BDT {(guide.per_hour_rate || 500) * 8} / full-day (approx)
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Additional Info from Registration (Certifications/NID status) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text-outline" size={24} color="#3B82F6" />
+            <Text style={styles.sectionTitle}>Credentials</Text>
+          </View>
+          <View style={{ gap: 8 }}>
+            <View style={styles.infoRow}>
+              <Ionicons name="card-outline" size={18} color="#64748B" />
+              <Text style={styles.sectionContent}>
+                NID Verified: {guide.nid_number ? "Yes" : "Pending"}
+              </Text>
+            </View>
+            {guide.certifications && guide.certifications.length > 0 && (
+              <View style={styles.infoRow}>
+                <Ionicons name="medal-outline" size={18} color="#64748B" />
+                <Text style={styles.sectionContent}>
+                  Certifications:{" "}
+                  {Array.isArray(guide.certifications)
+                    ? guide.certifications.join(", ")
+                    : guide.certifications}
+                </Text>
+              </View>
+            )}
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar-outline" size={18} color="#64748B" />
+              <Text style={styles.sectionContent}>Age: {guide.age} years</Text>
             </View>
           </View>
         </View>
@@ -146,19 +292,8 @@ export default function GuideProfile() {
             activeOpacity={0.8}
           >
             <Ionicons name="calendar" size={20} color="#FFFFFF" />
-            <Text style={styles.bookButtonText}>Book Tour</Text>
+            <Text style={styles.bookButtonText}>Book Guide</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Booking Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Booking</Text>
-          </View>
-          <BookingStepper guideId={id} />
-          <Link href={`/booking?guide=${id ?? "g1"}`} asChild>
-            <Text style={styles.linkText}>Open full booking page</Text>
-          </Link>
         </View>
 
         <View style={{ height: 40 }} />

@@ -8,7 +8,7 @@ import {
   sendMessage as sendFirebaseMessage,
   subscribeToMessages,
 } from "@/lib/firebase";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -24,6 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -76,7 +77,7 @@ export default function RealTimeChatScreen() {
     return () => {
       // Cleanup polling on unmount
       if (pollIntervalRef.current) {
-        pollIntervalRef.current();
+        pollIntervalRef.current(); 
       }
     };
   }, [guideId, user, authLoading]);
@@ -84,7 +85,7 @@ export default function RealTimeChatScreen() {
   const initializeChat = async () => {
     if (!guideId) {
       Alert.alert("Error", "Guide ID is required");
-      router.back();
+      router.push("/(tabs)");
       return;
     }
 
@@ -168,25 +169,20 @@ export default function RealTimeChatScreen() {
       await loadMessages(room.id);
 
       // Start polling for new messages
-      pollIntervalRef.current = ChatAPI.startMessagePolling(
-        room.id,
-        (chatMessages) => {
-          const formattedMessages = chatMessages.map((msg: ChatMessage) => ({
-            id: msg.id,
-            text: msg.message,
-            from: msg.sender_id,
-            userName: getDisplayName(msg.sender),
-            createdAt: new Date(msg.created_at),
-            message_type: msg.message_type,
-            sender: msg.sender,
-          }));
-          setMessages(formattedMessages);
-          setTimeout(
-            () => listRef.current?.scrollToEnd({ animated: true }),
-            100,
-          );
-        },
-      );
+      const stopPolling = ChatAPI.startMessagePolling(room.id, (chatMessages) => {
+        const formattedMessages = chatMessages.map((msg: ChatMessage) => ({
+          id: msg.id,
+          text: msg.message,
+          from: msg.sender_id,
+          userName: getDisplayName(msg.sender),
+          createdAt: new Date(msg.created_at),
+          message_type: msg.message_type,
+          sender: msg.sender,
+        }));
+        setMessages(formattedMessages);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      });
+      pollIntervalRef.current = stopPolling as unknown as () => void; // Type assertion
 
       setLoading(false);
       animateIn();
@@ -267,12 +263,10 @@ export default function RealTimeChatScreen() {
     if (!timestamp) return "";
 
     if (timestamp.toDate) {
-      // Firebase timestamp
       return timestamp
         .toDate()
         .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     } else {
-      // Regular date
       const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
       return date.toLocaleTimeString([], {
         hour: "2-digit",
@@ -320,193 +314,204 @@ export default function RealTimeChatScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Connecting to chat...</Text>
-        </View>
-      </ThemedView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Connecting to chat...</Text>
+      </View>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <Animated.View
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-      >
-        <View style={styles.chatHeader}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerIconWrapper}>
-              <Ionicons name="person" size={24} color="#3B82F6" />
-            </View>
-            <View>
-              <Text style={styles.chatTitle}>{guideName || "Guide"}</Text>
-              <View style={styles.onlineIndicator}>
-                <View style={styles.onlineDot} />
-                <Text style={styles.onlineText}>
-                  {connected ? "Active now" : "Connecting..."}
-                </Text>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], flex: 1 }}
+        >
+          <View style={styles.chatHeader}>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)")}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIconWrapper}>
+                <Ionicons name="person" size={20} color="#3B82F6" />
+              </View>
+              <View>
+                <Text style={styles.chatTitle}>{guideName || "Chat"}</Text>
+                <View style={styles.onlineIndicator}>
+                  <View style={[styles.onlineDot, connected ? styles.dotGreen : styles.dotGray]} />
+                  <Text style={styles.onlineText}>
+                    {connected ? "Active now" : "Connecting..."}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.body}>
-          {!connected && (
-            <View style={styles.notice}>
-              <Ionicons
-                name="warning"
-                size={24}
-                color="#FCD34D"
-                style={{ marginBottom: 8 }}
-              />
-              <Text style={styles.noticeTitle}>Connection Issue</Text>
-              <Text style={styles.noticeText}>
-                Having trouble connecting to chat. Please check your internet
-                connection.
-              </Text>
-            </View>
-          )}
+          <View style={styles.body}>
+            {!connected && (
+              <View style={styles.notice}>
+                <Ionicons
+                  name="warning"
+                  size={20}
+                  color="#D97706"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.noticeText}>
+                  Connection issue. Checking network...
+                </Text>
+              </View>
+            )}
 
-          <FlatList
-            ref={listRef}
-            data={messages}
-            keyExtractor={(i) => i.id}
-            contentContainerStyle={styles.list}
-            renderItem={renderMessage}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={80}
-        >
-          <View style={styles.composer}>
-            <TextInput
-              placeholder={connected ? "Type a message..." : "Chat disabled"}
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={text}
-              onChangeText={setText}
-              style={styles.input}
-              editable={connected}
-              multiline
-              maxLength={500}
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={(i) => i.id}
+              contentContainerStyle={styles.list}
+              renderItem={renderMessage}
+              showsVerticalScrollIndicator={false}
             />
-            <TouchableOpacity
-              onPress={sendMessage}
-              style={[
-                styles.send,
-                (!connected || sendingMessage) && styles.sendDisabled,
-              ]}
-              disabled={!connected || sendingMessage}
-            >
-              {sendingMessage ? (
-                <ActivityIndicator size={16} color="#FFFFFF" />
-              ) : (
-                <Ionicons name="send" size={16} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </ThemedView>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.select({ ios: 0, android: 20 })}
+          >
+            <View style={styles.composer}>
+              <TextInput
+                placeholder={connected ? "Type a message..." : "Chat disabled"}
+                placeholderTextColor="#9CA3AF"
+                value={text}
+                onChangeText={setText}
+                style={styles.input}
+                editable={connected}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                onPress={sendMessage}
+                style={[
+                  styles.send,
+                  (!connected || sendingMessage || !text.trim()) && styles.sendDisabled,
+                ]}
+                disabled={!connected || sendingMessage || !text.trim()}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator size={16} color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="send" size={16} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: "#F3F4F6", 
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     marginTop: Spacing.md,
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#6B7280",
   },
   chatHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    paddingTop: Spacing.xl,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    borderBottomColor: "#E5E7EB",
+    height: 60,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 10,
   },
   backButton: {
-    marginRight: Spacing.md,
+    padding: 8,
+    marginRight: 4,
+    borderRadius: 20,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
+    gap: 12,
   },
   headerIconWrapper: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
+    backgroundColor: "#EFF6FF", 
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
   },
   chatTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
   },
   onlineIndicator: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     marginTop: 2,
   },
   onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dotGreen: {
     backgroundColor: "#10B981",
   },
+  dotGray: {
+    backgroundColor: "#9CA3AF",
+  },
   onlineText: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 12,
+    color: "#6B7280",
     fontWeight: "500",
   },
   body: {
     flex: 1,
+    backgroundColor: "#F3F4F6",
   },
   notice: {
-    backgroundColor: "rgba(252, 211, 77, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(252, 211, 77, 0.2)",
-    borderRadius: Radii.lg,
-    padding: Spacing.md,
-    margin: Spacing.md,
+    flexDirection: "row",
+    backgroundColor: "#FEF3C7",
+    padding: Spacing.sm,
     alignItems: "center",
-  },
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FCD34D",
-    marginBottom: 8,
+    justifyContent: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
   },
   noticeText: {
-    color: "#FCD34D",
+    color: "#92400E",
     fontSize: 13,
-    lineHeight: 20,
     fontWeight: "500",
-    textAlign: "center",
   },
   list: {
     padding: Spacing.md,
@@ -523,23 +528,24 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   senderName: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#3B82F6",
-    marginBottom: 4,
-    marginLeft: Spacing.sm,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 2,
+    marginLeft: 12,
   },
   msg: {
-    padding: Spacing.md,
-    borderRadius: Radii.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   msgLeft: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#FFFFFF",
     alignSelf: "flex-start",
     borderBottomLeftRadius: 4,
   },
@@ -550,47 +556,45 @@ const styles = StyleSheet.create({
   },
   msgText: {
     fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "500",
+    lineHeight: 22,
   },
   myMsgText: {
     color: "#FFFFFF",
   },
   theirMsgText: {
-    color: "#FFFFFF",
+    color: "#1F2937",
   },
   timeText: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 4,
-    fontWeight: "400",
+    alignSelf: "flex-end",
   },
   myTimeText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "right",
+    color: "rgba(255, 255, 255, 0.8)",
   },
   theirTimeText: {
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "#9CA3AF",
   },
   composer: {
     flexDirection: "row",
-    padding: Spacing.md,
-    alignItems: "flex-end",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    gap: Spacing.sm,
+    borderTopColor: "#E5E7EB",
+    gap: 12,
   },
   input: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: Radii.xl,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    color: "#FFFFFF",
+    borderColor: "#E5E7EB",
+    color: "#1F2937",
     fontSize: 15,
-    fontWeight: "500",
     maxHeight: 100,
   },
   send: {
@@ -600,13 +604,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#3B82F6",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   sendDisabled: {
-    backgroundColor: "rgba(59, 130, 246, 0.5)",
+    backgroundColor: "#E5E7EB",
   },
 });

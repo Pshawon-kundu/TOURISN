@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createGuide,
   getAllGuides,
+  getGuideBookings,
   getGuideById,
   getGuideProfile,
   registerGuide,
@@ -37,6 +38,7 @@ router.post("/status", authenticateToken, updateGuideOnlineStatus);
 router.post("/register", authenticateToken, registerGuide);
 router.post("/", authenticateToken, createGuide);
 router.get("/profile/me", authenticateToken, getGuideProfile);
+router.get("/my-bookings", authenticateToken, getGuideBookings);
 router.get("/", authenticateOptional, getAllGuides);
 router.get("/:id", authenticateOptional, getGuideById);
 router.patch("/profile/me", authenticateToken, updateGuideProfile);

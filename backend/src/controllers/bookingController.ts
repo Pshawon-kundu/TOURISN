@@ -17,7 +17,8 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     };
 
     console.log("📝 Creating booking for user:", req.user.email);
-    console.log("📝 Booking data:", JSON.stringify(bookingData, null, 2));
+    console.log("📝 Target Table: 'bookings'");
+    console.log("📝 Booking Payload:", JSON.stringify(bookingData, null, 2));
 
     const { data, error } = await supabase
       .from("bookings")
